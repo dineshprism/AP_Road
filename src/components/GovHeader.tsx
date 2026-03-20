@@ -8,27 +8,27 @@ const GovHeader = () => {
 
   return (
     <header>
-      <div className="gov-saffron-stripe" />
+      <div className="gov-tricolor-top" />
       <div className="gov-banner px-4 py-3">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={apLogo} alt="Government of Andhra Pradesh" className="h-11 w-11 rounded-full object-contain bg-white p-0.5" />
+            <img src={apLogo} alt="Government of Andhra Pradesh" className="h-12 w-12 rounded-full object-contain bg-white p-0.5 shadow-md" />
             <div>
-              <h1 className="text-primary-foreground text-lg font-bold leading-tight">
+              <h1 className="text-white text-lg font-bold leading-tight tracking-wide">
                 Government of Andhra Pradesh
               </h1>
-              <p className="text-primary-foreground/80 text-xs">
-                Police, Tranksport, Roads & Buildings Department
+              <p className="text-white/70 text-[11px] font-medium tracking-wide">
+                Police, Transport, Roads &amp; Buildings Department &mdash; DRSC Portal
               </p>
             </div>
           </div>
           {user && (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-primary-foreground text-sm font-medium">
+                <p className="text-white text-sm font-semibold">
                   {profile?.full_name || user.email}
                 </p>
-                <p className="text-primary-foreground/70 text-xs">
+                <p className="text-white/60 text-xs">
                   {isAdmin ? "Administrator" : `District: ${profile?.district || "N/A"}`}
                 </p>
               </div>
@@ -36,9 +36,10 @@ const GovHeader = () => {
                 variant="ghost"
                 size="sm"
                 onClick={signOut}
-                className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10"
+                className="text-white/70 hover:text-white hover:bg-white/10 border border-white/20"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline text-xs">Logout</span>
               </Button>
             </div>
           )}

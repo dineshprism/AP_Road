@@ -65,27 +65,30 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="gov-saffron-stripe" />
-      <div className="gov-banner px-4 py-6">
-        <div className="container mx-auto flex items-center justify-center gap-3">
-          <img src={apLogo} alt="Government of Andhra Pradesh" className="h-14 w-14 rounded-full object-contain bg-white p-0.5" />
+    <div className="min-h-screen bg-gradient-to-br from-[#0b1e53] via-[#132b5e] to-[#1a3a7a]">
+      <div className="gov-tricolor-top" />
+      <div className="px-4 py-8">
+        <div className="container mx-auto flex items-center justify-center gap-3 mb-2">
+          <img src={apLogo} alt="Government of Andhra Pradesh" className="h-16 w-16 rounded-full object-contain bg-white p-1 shadow-lg" />
           <div className="text-center">
-            <h1 className="text-primary-foreground text-xl font-bold">
+            <h1 className="text-white text-2xl font-bold tracking-wide">
               Government of Andhra Pradesh
             </h1>
-            <p className="text-primary-foreground/80 text-sm">
-              Fatal Road Accident — Scientific Investigation Portal
+            <p className="text-white/70 text-sm font-medium">
+              Fatal Road Accident &mdash; Scientific Investigation Portal
+            </p>
+            <p className="text-[#f5a623] text-xs mt-1 font-semibold tracking-wider">
+              G.O.Ms.No.42 &bull; Section 135, MV Act 1988
             </p>
           </div>
         </div>
       </div>
-      <div className="gov-saffron-stripe" />
 
-      <div className="container mx-auto flex items-center justify-center px-4 py-12">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-primary text-xl">
+      <div className="container mx-auto flex items-center justify-center px-4 pb-16">
+        <Card className="w-full max-w-md shadow-2xl border-0 rounded-xl overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-[#ff9933] via-white to-[#138808]" />
+          <CardHeader className="text-center bg-gradient-to-b from-primary/5 to-transparent pb-4">
+            <CardTitle className="text-primary text-xl font-bold">
               {isSignup ? "Create Account" : "Sign In"}
             </CardTitle>
             <p className="text-muted-foreground text-sm">
@@ -125,7 +128,7 @@ const AuthPage = () => {
                 <Label htmlFor="password">Password *</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-md" disabled={loading}>
                 {loading ? "Please wait..." : isSignup ? "Create Account" : "Sign In"}
               </Button>
             </form>
@@ -133,7 +136,7 @@ const AuthPage = () => {
               <button
                 type="button"
                 onClick={() => setIsSignup(!isSignup)}
-                className="text-sm text-primary underline hover:opacity-80"
+                className="text-sm text-secondary font-medium hover:text-secondary/80 hover:underline"
               >
                 {isSignup ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
               </button>

@@ -74,28 +74,28 @@ const AdminDashboard = () => {
     <div className="min-h-screen bg-background">
       <GovHeader />
       <div className="container mx-auto px-4 py-6">
-        <h2 className="text-xl font-bold text-primary mb-6">Admin Dashboard — All Submissions</h2>
+        <h2 className="gov-page-title mb-6">Admin Dashboard &mdash; All Submissions</h2>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card><CardContent className="py-4 text-center"><p className="text-2xl font-bold text-primary">{submissions.length}</p><p className="text-xs text-muted-foreground">Total Reports</p></CardContent></Card>
-          <Card><CardContent className="py-4 text-center"><p className="text-2xl font-bold text-destructive">{totalDied}</p><p className="text-xs text-muted-foreground">Persons Died</p></CardContent></Card>
-          <Card><CardContent className="py-4 text-center"><p className="text-2xl font-bold text-secondary">{totalInjured}</p><p className="text-xs text-muted-foreground">Persons Injured</p></CardContent></Card>
-          <Card><CardContent className="py-4 text-center"><p className="text-2xl font-bold text-accent">{new Set(submissions.map(s => s.district)).size}</p><p className="text-xs text-muted-foreground">Districts</p></CardContent></Card>
+          <div className="gov-stat-card"><div className="h-1 bg-[#132b5e]" /><CardContent className="py-4 text-center"><p className="text-3xl font-extrabold text-primary">{submissions.length}</p><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Total Reports</p></CardContent></div>
+          <div className="gov-stat-card"><div className="h-1 bg-[#c62828]" /><CardContent className="py-4 text-center"><p className="text-3xl font-extrabold text-destructive">{totalDied}</p><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Persons Died</p></CardContent></div>
+          <div className="gov-stat-card"><div className="h-1 bg-[#e8710a]" /><CardContent className="py-4 text-center"><p className="text-3xl font-extrabold text-secondary">{totalInjured}</p><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Persons Injured</p></CardContent></div>
+          <div className="gov-stat-card"><div className="h-1 bg-[#138808]" /><CardContent className="py-4 text-center"><p className="text-3xl font-extrabold text-accent">{new Set(submissions.map(s => s.district)).size}</p><p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-1">Districts</p></CardContent></div>
         </div>
 
         {/* Filters */}
-        <Card className="mb-6 border-2 border-secondary/40 bg-primary/5">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-secondary" />
-              <span className="font-semibold text-sm text-primary">Filters</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="gov-filter-panel mb-6">
+          <div className="gov-filter-header flex items-center gap-2">
+            <Filter className="w-5 h-5 text-[#f5a623]" />
+            <span className="font-bold text-sm text-white tracking-wider uppercase">Filter Submissions</span>
+          </div>
+          <div className="px-5 py-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
               <div>
-                <Label className="text-xs">District</Label>
+                <Label className="text-xs font-bold text-primary mb-1 block uppercase tracking-wide">District</Label>
                 <Select value={filterDistrict} onValueChange={setFilterDistrict}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-border shadow-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Districts</SelectItem>
                     {AP_DISTRICTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
@@ -103,18 +103,18 @@ const AdminDashboard = () => {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Year</Label>
+                <Label className="text-xs font-bold text-primary mb-1 block uppercase tracking-wide">Year</Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-border shadow-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Month</Label>
+                <Label className="text-xs font-bold text-primary mb-1 block uppercase tracking-wide">Month</Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-white border-border shadow-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Months</SelectItem>
                     {MONTHS.map((m, i) => <SelectItem key={m} value={(i + 1).toString()}>{m}</SelectItem>)}
@@ -122,17 +122,17 @@ const AdminDashboard = () => {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">Specific Date</Label>
-                <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
+                <Label className="text-xs font-bold text-primary mb-1 block uppercase tracking-wide">Date</Label>
+                <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} className="bg-white border-border shadow-sm" />
               </div>
               <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={resetFilters} className="w-full border-secondary text-secondary hover:bg-secondary hover:text-white">
+                <Button size="sm" onClick={resetFilters} className="w-full bg-secondary hover:bg-secondary/90 text-white font-semibold shadow-md">
                   <RotateCcw className="w-3 h-3 mr-1" /> Reset
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Table */}
         {loading ? (
@@ -142,13 +142,13 @@ const AdminDashboard = () => {
         ) : (
           <div className="space-y-3">
             {submissions.map((s) => (
-              <Card key={s.id} className="hover:shadow-md transition-shadow">
+              <Card key={s.id} className="hover:shadow-lg transition-all border-l-4 border-l-secondary/60 hover:border-l-secondary">
                 <CardContent className="py-4 flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-semibold text-primary">FIR: {s.fir_number}</span>
-                      <Badge>{s.district}</Badge>
-                      <Badge variant="outline">{s.road_type}</Badge>
+                      <span className="font-bold text-primary">FIR: {s.fir_number}</span>
+                      <Badge className="bg-primary/10 text-primary border-primary/20">{s.district}</Badge>
+                      <Badge variant="outline" className="border-secondary/40 text-secondary">{s.road_type}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {s.place_of_accident}, {s.mandal} — {new Date(s.accident_date).toLocaleDateString("en-IN")}

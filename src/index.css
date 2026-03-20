@@ -4,71 +4,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 
+  Color palette based on official AP Government websites:
+  ap.gov.in, appolice.gov.in, aptransport.org
+  - Deep navy (#0b1e53 / #132b5e) — headers, primary actions
+  - Rich saffron (#e8710a / #f08000) — Indian tricolor accent
+  - Government green (#138808) — success, tricolor
+  - White (#fff) / Light gray (#f0f2f5) — content areas
+  - Dark charcoal (#1a1a2e) — text
+*/
+
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 30% 15%;
+    --background: 220 20% 96%;
+    --foreground: 230 25% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 15%;
+    --card-foreground: 230 25% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 15%;
-    --primary: 220 60% 25%;
+    --popover-foreground: 230 25% 12%;
+    --primary: 224 76% 20%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 30 85% 52%;
+    --secondary: 28 92% 47%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 210 15% 93%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 150 45% 35%;
+    --muted: 220 14% 90%;
+    --muted-foreground: 220 10% 40%;
+    --accent: 140 85% 27%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 50%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
     --border: 220 15% 85%;
-    --input: 220 15% 85%;
-    --ring: 220 60% 25%;
+    --input: 220 15% 88%;
+    --ring: 224 76% 20%;
     --radius: 0.5rem;
-    --gov-navy: 220 60% 25%;
-    --gov-saffron: 30 85% 52%;
-    --gov-green: 150 45% 35%;
-    --gov-light: 210 20% 96%;
-    --gov-dark: 220 30% 12%;
-    --sidebar-background: 220 60% 22%;
+    --gov-navy: 224 76% 20%;
+    --gov-saffron: 28 92% 47%;
+    --gov-green: 140 85% 27%;
+    --gov-light: 220 20% 96%;
+    --gov-dark: 230 25% 10%;
+    --sidebar-background: 224 76% 17%;
     --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 30 85% 52%;
+    --sidebar-primary: 28 92% 47%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 55% 30%;
+    --sidebar-accent: 224 70% 25%;
     --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 220 50% 30%;
-    --sidebar-ring: 30 85% 52%;
+    --sidebar-border: 224 65% 25%;
+    --sidebar-ring: 28 92% 47%;
   }
 
   .dark {
-    --background: 220 30% 8%;
+    --background: 230 25% 7%;
     --foreground: 210 20% 95%;
-    --card: 220 25% 12%;
+    --card: 230 22% 11%;
     --card-foreground: 210 20% 95%;
-    --popover: 220 25% 12%;
+    --popover: 230 22% 11%;
     --popover-foreground: 210 20% 95%;
-    --primary: 210 50% 60%;
-    --primary-foreground: 220 30% 8%;
-    --secondary: 30 80% 55%;
+    --primary: 215 55% 55%;
+    --primary-foreground: 230 25% 7%;
+    --secondary: 28 85% 52%;
     --secondary-foreground: 0 0% 100%;
-    --muted: 220 20% 18%;
-    --muted-foreground: 210 15% 60%;
-    --accent: 150 40% 40%;
+    --muted: 230 18% 16%;
+    --muted-foreground: 210 12% 55%;
+    --accent: 140 65% 38%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 60% 35%;
     --destructive-foreground: 210 40% 98%;
-    --border: 220 20% 22%;
-    --input: 220 20% 22%;
-    --ring: 210 50% 60%;
-    --sidebar-background: 220 30% 10%;
+    --border: 230 18% 20%;
+    --input: 230 18% 20%;
+    --ring: 215 55% 55%;
+    --sidebar-background: 230 25% 9%;
     --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 30 80% 55%;
+    --sidebar-primary: 28 85% 52%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 15%;
+    --sidebar-accent: 230 22% 14%;
     --sidebar-accent-foreground: 210 20% 90%;
-    --sidebar-border: 220 20% 18%;
-    --sidebar-ring: 30 80% 55%;
+    --sidebar-border: 230 18% 16%;
+    --sidebar-ring: 28 85% 52%;
   }
 }
 
@@ -87,10 +97,19 @@
     @apply bg-primary text-primary-foreground;
   }
   .gov-banner {
-    background: linear-gradient(135deg, hsl(var(--gov-navy)), hsl(var(--gov-navy) / 0.85));
+    background: linear-gradient(135deg, hsl(224 76% 15%), hsl(224 76% 22%));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   }
   .gov-saffron-stripe {
-    background: linear-gradient(90deg, hsl(var(--gov-saffron)), hsl(var(--gov-saffron) / 0.8));
+    background: linear-gradient(90deg, #e8710a, #f5a623, #e8710a);
+    height: 4px;
+  }
+  .gov-green-stripe {
+    background: linear-gradient(90deg, #138808, #1da50f, #138808);
+    height: 3px;
+  }
+  .gov-tricolor-top {
+    background: linear-gradient(90deg, #ff9933 33%, #ffffff 33% 66%, #138808 66%);
     height: 4px;
   }
   .gov-card {
@@ -99,5 +118,22 @@
   .gov-section-title {
     @apply text-lg font-bold text-primary border-b-2 pb-2 mb-4;
     border-color: hsl(var(--gov-saffron));
+  }
+  .gov-page-title {
+    @apply text-xl font-bold tracking-tight;
+    color: hsl(224 76% 20%);
+  }
+  .gov-filter-panel {
+    background: linear-gradient(180deg, hsl(224 76% 20% / 0.06) 0%, hsl(28 92% 47% / 0.04) 100%);
+    border: 1.5px solid hsl(28 92% 47% / 0.25);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  .gov-filter-header {
+    background: linear-gradient(135deg, hsl(224 76% 18%), hsl(224 76% 28%));
+    padding: 0.65rem 1.25rem;
+  }
+  .gov-stat-card {
+    @apply bg-card rounded-xl shadow-md border-0 overflow-hidden transition-all hover:shadow-lg;
   }
 }

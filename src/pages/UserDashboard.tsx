@@ -50,11 +50,12 @@ const UserDashboard = () => {
       <div className="min-h-screen bg-background">
         <GovHeader />
         <div className="container mx-auto px-4 py-12">
-          <h2 className="text-2xl font-bold text-primary text-center mb-8">User Dashboard</h2>
+          <h2 className="gov-page-title text-center mb-8">User Dashboard</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-secondary" onClick={() => navigate("/submit")}>
+            <Card className="cursor-pointer hover:shadow-xl transition-all border-0 shadow-md overflow-hidden group" onClick={() => navigate("/submit")}>
+              <div className="h-1.5 bg-gradient-to-r from-[#e8710a] to-[#f5a623]" />
               <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center group-hover:bg-secondary/20 transition-colors">
                   <FilePlus className="w-8 h-8 text-secondary" />
                 </div>
                 <h3 className="text-lg font-bold text-primary">Submit New Report</h3>
@@ -63,16 +64,17 @@ const UserDashboard = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card className="cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-primary" onClick={() => { setView("list"); fetchSubmissions(); }}>
+            <Card className="cursor-pointer hover:shadow-xl transition-all border-0 shadow-md overflow-hidden group" onClick={() => { setView("list"); fetchSubmissions(); }}>
+              <div className="h-1.5 bg-gradient-to-r from-[#132b5e] to-[#2a4d8f]" />
               <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                   <FileText className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-lg font-bold text-primary">View Past Submissions</h3>
                 <p className="text-sm text-muted-foreground text-center">
                   View all your previously submitted investigation reports
                 </p>
-                <Badge variant="secondary">{submissions.length} Reports</Badge>
+                <Badge className="bg-primary text-white">{submissions.length} Reports</Badge>
               </CardContent>
             </Card>
           </div>
@@ -86,7 +88,7 @@ const UserDashboard = () => {
       <GovHeader />
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-primary">My Submissions</h2>
+          <h2 className="gov-page-title mb-6">My Submissions</h2>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setView("menu")}>Back</Button>
             <Button onClick={() => navigate("/submit")}><FilePlus className="w-4 h-4 mr-2" /> New Report</Button>
@@ -105,13 +107,13 @@ const UserDashboard = () => {
         ) : (
           <div className="space-y-3">
             {submissions.map((s) => (
-              <Card key={s.id} className="hover:shadow-md transition-shadow">
+              <Card key={s.id} className="hover:shadow-lg transition-all border-l-4 border-l-secondary/60 hover:border-l-secondary">
                 <CardContent className="py-4 flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-primary">FIR: {s.fir_number}</span>
-                      <Badge variant="outline">{s.road_type}</Badge>
-                      <Badge>{s.district}</Badge>
+                      <span className="font-bold text-primary">FIR: {s.fir_number}</span>
+                      <Badge variant="outline" className="border-secondary/40 text-secondary">{s.road_type}</Badge>
+                      <Badge className="bg-primary/10 text-primary border-primary/20">{s.district}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {s.place_of_accident}, {s.mandal} — {new Date(s.accident_date).toLocaleDateString("en-IN")}
