@@ -85,10 +85,10 @@ const AdminDashboard = () => {
         </div>
 
         {/* Filters */}
-        <Card className="mb-6">
+        <Card className="mb-6 border-2 border-secondary/40 bg-primary/5">
           <CardContent className="py-4">
             <div className="flex items-center gap-2 mb-3">
-              <Filter className="w-4 h-4 text-primary" />
+              <Filter className="w-4 h-4 text-secondary" />
               <span className="font-semibold text-sm text-primary">Filters</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
@@ -126,7 +126,7 @@ const AdminDashboard = () => {
                 <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
               </div>
               <div className="flex items-end">
-                <Button variant="outline" size="sm" onClick={resetFilters} className="w-full">
+                <Button variant="outline" size="sm" onClick={resetFilters} className="w-full border-secondary text-secondary hover:bg-secondary hover:text-white">
                   <RotateCcw className="w-3 h-3 mr-1" /> Reset
                 </Button>
               </div>
