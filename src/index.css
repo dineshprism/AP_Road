@@ -1,0 +1,103 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 30% 15%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 15%;
+    --primary: 220 60% 25%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 85% 52%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 150 45% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 85%;
+    --input: 220 15% 85%;
+    --ring: 220 60% 25%;
+    --radius: 0.5rem;
+    --gov-navy: 220 60% 25%;
+    --gov-saffron: 30 85% 52%;
+    --gov-green: 150 45% 35%;
+    --gov-light: 210 20% 96%;
+    --gov-dark: 220 30% 12%;
+    --sidebar-background: 220 60% 22%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 30 85% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 55% 30%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 220 50% 30%;
+    --sidebar-ring: 30 85% 52%;
+  }
+
+  .dark {
+    --background: 220 30% 8%;
+    --foreground: 210 20% 95%;
+    --card: 220 25% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 220 25% 12%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 210 50% 60%;
+    --primary-foreground: 220 30% 8%;
+    --secondary: 30 80% 55%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 20% 18%;
+    --muted-foreground: 210 15% 60%;
+    --accent: 150 40% 40%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 20% 22%;
+    --input: 220 20% 22%;
+    --ring: 210 50% 60%;
+    --sidebar-background: 220 30% 10%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 30 80% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 15%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 30 80% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Noto Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .gov-header {
+    @apply bg-primary text-primary-foreground;
+  }
+  .gov-banner {
+    background: linear-gradient(135deg, hsl(var(--gov-navy)), hsl(var(--gov-navy) / 0.85));
+  }
+  .gov-saffron-stripe {
+    background: linear-gradient(90deg, hsl(var(--gov-saffron)), hsl(var(--gov-saffron) / 0.8));
+    height: 4px;
+  }
+  .gov-card {
+    @apply bg-card border border-border rounded-lg shadow-sm;
+  }
+  .gov-section-title {
+    @apply text-lg font-bold text-primary border-b-2 pb-2 mb-4;
+    border-color: hsl(var(--gov-saffron));
+  }
+}
