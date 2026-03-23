@@ -27,6 +27,7 @@ WORKDIR /app
 
 # Copy backend build
 COPY --from=backend-build /app/server/dist ./server/dist
+COPY --from=backend-build /app/server/src ./server/src
 COPY --from=backend-build /app/server/node_modules ./server/node_modules
 COPY --from=backend-build /app/server/package.json ./server/package.json
 
