@@ -11,6 +11,7 @@ interface AuthContextType {
   user: AppUser | null;
   loading: boolean;
   isAdmin: boolean;
+  roles: string[];
   profile: { full_name: string; district: string; designation: string | null } | null;
   signOut: () => void;
   refreshAuth: () => Promise<void>;
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isAdmin: false,
+  roles: [],
   profile: null,
   signOut: () => {},
   refreshAuth: async () => {},
@@ -30,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roles, setRoles] = useState<string[]>([]);
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
   const loadUser = useCallback(async () => {
@@ -37,6 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!token) {
       setUser(null);
       setIsAdmin(false);
+      setRoles([]);
       setProfile(null);
       setLoading(false);
       return;
@@ -47,10 +51,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearToken();
       setUser(null);
       setIsAdmin(false);
+      setRoles([]);
       setProfile(null);
     } else {
       setUser(data.user);
       setIsAdmin(data.isAdmin);
+      setRoles(data.roles || []);
       setProfile(data.profile);
     }
     setLoading(false);
@@ -64,12 +70,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     clearToken();
     setUser(null);
     setIsAdmin(false);
+    setRoles([]);
     setProfile(null);
     navigate("/auth");
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, profile, signOut, refreshAuth: loadUser }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin, roles, profile, signOut, refreshAuth: loadUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -4,7 +4,14 @@ import { LogOut } from "lucide-react";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
 
 const GovHeader = () => {
-  const { user, isAdmin, profile, signOut } = useAuth();
+  const { user, isAdmin, roles, profile, signOut } = useAuth();
+
+  const getRoleLabel = () => {
+    if (roles.includes("dgp")) return "DGP — Administrator";
+    if (roles.includes("adgp")) return "ADGP — Administrator";
+    if (isAdmin) return "Administrator";
+    return `District: ${profile?.district || "N/A"}`;
+  };
 
   return (
     <header>
@@ -29,7 +36,7 @@ const GovHeader = () => {
                   {profile?.full_name || user.email}
                 </p>
                 <p className="text-white/60 text-xs">
-                  {isAdmin ? "Administrator" : `District: ${profile?.district || "N/A"}`}
+                  {getRoleLabel()}
                 </p>
               </div>
               <Button

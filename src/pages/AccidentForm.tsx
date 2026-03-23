@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
   ROAD_CULVERTS_CAUSES, ROAD_JUNCTIONS_CAUSES,
   ROAD_MEDIAN_CAUSES, ROAD_NATURE_CAUSES, ROAD_SIGNAGES_CAUSES,
 } from "@/lib/constants";
+import { DISTRICT_HIERARCHY } from "@/lib/districtHierarchy";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Vehicle { registration_number: string; class_type: string; }
@@ -24,13 +25,16 @@ interface Driver { name: string; dl_number: string; licensing_authority: string;
 const AccidentForm = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navState = (location.state as { sdpo?: string; policeStation?: string }) || {};
   const [loading, setLoading] = useState(false);
 
   // Location
   const [district, setDistrict] = useState(profile?.district || "");
   const [placeOfAccident, setPlaceOfAccident] = useState("");
   const [mandal, setMandal] = useState("");
-  const [policeStation, setPoliceStation] = useState("");
+  const [policeStation, setPoliceStation] = useState(navState.policeStation || "");
+  const [sdpo, setSdpo] = useState(navState.sdpo || "");
   const [firNumber, setFirNumber] = useState("");
   const [latLong, setLatLong] = useState("");
   const [roadType, setRoadType] = useState("");
@@ -150,16 +154,32 @@ const AccidentForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label>District *</Label>
-                  <Select value={district} onValueChange={setDistrict}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <Input value={district} disabled className="bg-muted font-medium" />
+                </div>
+                <div>
+                  <Label>SDPO Circle *</Label>
+                  <Select value={sdpo} onValueChange={(v) => { setSdpo(v); setPoliceStation(""); }}>
+                    <SelectTrigger><SelectValue placeholder="Select SDPO" /></SelectTrigger>
                     <SelectContent>
-                      {AP_DISTRICTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      {(district && DISTRICT_HIERARCHY[district] ? Object.keys(DISTRICT_HIERARCHY[district]).sort() : []).map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Police Station Limits *</Label>
+                  <Select value={policeStation} onValueChange={setPoliceStation} disabled={!sdpo}>
+                    <SelectTrigger><SelectValue placeholder={sdpo ? "Select PS" : "Select SDPO first"} /></SelectTrigger>
+                    <SelectContent>
+                      {(district && sdpo && DISTRICT_HIERARCHY[district]?.[sdpo] ? DISTRICT_HIERARCHY[district][sdpo].slice().sort() : []).map((ps) => (
+                        <SelectItem key={ps} value={ps}>{ps}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div><Label>Place of Accident *</Label><Input value={placeOfAccident} onChange={(e) => setPlaceOfAccident(e.target.value)} required /></div>
                 <div><Label>Mandal *</Label><Input value={mandal} onChange={(e) => setMandal(e.target.value)} required /></div>
-                <div><Label>Police Station Limits *</Label><Input value={policeStation} onChange={(e) => setPoliceStation(e.target.value)} required /></div>
                 <div><Label>FIR Number *</Label><Input value={firNumber} onChange={(e) => setFirNumber(e.target.value)} required /></div>
                 <div><Label>LAT - LONG (GPS)</Label><Input value={latLong} onChange={(e) => setLatLong(e.target.value)} placeholder="e.g., 15.9129, 79.7400" /></div>
                 <div>

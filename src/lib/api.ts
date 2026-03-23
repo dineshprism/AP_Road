@@ -73,10 +73,10 @@ export const api = {
       });
     },
 
-    login(email: string, password: string) {
+    login(username: string, password: string) {
       return request<AuthResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
     },
 
@@ -116,6 +116,24 @@ export const api = {
       if (filters.date) params.set("date", filters.date);
       const qs = params.toString();
       return request<any[]>(`/admin/submissions${qs ? `?${qs}` : ""}`);
+    },
+  },
+
+  analytics: {
+    getAnalytics(filters: { district?: string; year?: string }) {
+      const params = new URLSearchParams();
+      if (filters.district) params.set("district", filters.district);
+      if (filters.year) params.set("year", filters.year);
+      const qs = params.toString();
+      return request<any>(`/analytics${qs ? `?${qs}` : ""}`);
+    },
+
+    export(format: string, filters: { district?: string; year?: string }) {
+      const params = new URLSearchParams();
+      params.set("format", format);
+      if (filters.district) params.set("district", filters.district);
+      if (filters.year) params.set("year", filters.year);
+      return request<any>(`/analytics/export?${params.toString()}`);
     },
   },
 };

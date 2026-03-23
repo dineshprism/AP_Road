@@ -8,6 +8,8 @@ import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdgpDashboard from "./pages/AdgpDashboard";
+import Analytics from "./pages/Analytics";
 import AccidentForm from "./pages/AccidentForm";
 import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/dashboard" element={<UserDashboard />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/adgp-dashboard" element={<AdgpDashboard />} />
+            <Route path="/analytics" element={<Analytics />} />
             <Route path="/submit" element={<AccidentForm />} />
             <Route path="/submission/:id" element={<SubmissionView />} />
             <Route path="*" element={<NotFound />} />

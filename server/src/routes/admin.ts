@@ -9,7 +9,7 @@ router.use(authMiddleware);
 
 async function requireAdmin(req: AuthRequest, res: Response): Promise<boolean> {
   const roleResult = await pool.query(
-    "SELECT role FROM user_roles WHERE user_id = $1 AND role = 'admin'",
+    "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp')",
     [req.user!.userId]
   );
   if (roleResult.rows.length === 0) {

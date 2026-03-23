@@ -10,9 +10,12 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Role enum
 DO $$ BEGIN
-  CREATE TYPE app_role AS ENUM ('admin', 'user');
+  CREATE TYPE app_role AS ENUM ('admin', 'user', 'dgp', 'adgp');
 EXCEPTION
-  WHEN duplicate_object THEN NULL;
+  WHEN duplicate_object THEN
+    -- Add new roles if enum exists but doesn't have them
+    BEGIN ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'dgp'; EXCEPTION WHEN others THEN NULL; END;
+    BEGIN ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'adgp'; EXCEPTION WHEN others THEN NULL; END;
 END $$;
 
 -- Users table (replaces Supabase auth.users)

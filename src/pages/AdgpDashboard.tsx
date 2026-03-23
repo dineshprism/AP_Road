@@ -31,7 +31,7 @@ interface Submission {
   [key: string]: any;
 }
 
-const AdminDashboard = () => {
+const AdgpDashboard = () => {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ const AdminDashboard = () => {
       <GovHeader />
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="gov-page-title mb-0">Admin Dashboard &mdash; All Submissions</h2>
+          <h2 className="gov-page-title mb-0">ADGP Dashboard &mdash; All Submissions</h2>
           <Button 
             onClick={() => navigate("/analytics")} 
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
@@ -204,4 +204,4 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+export default AdgpDashboard;

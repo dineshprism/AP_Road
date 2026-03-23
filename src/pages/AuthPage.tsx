@@ -11,55 +11,40 @@ import { AP_DISTRICTS } from "@/lib/constants";
 import { toast } from "sonner";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
 
+const LOGIN_USERS = [
+  ...AP_DISTRICTS.map((d) => ({ label: d, value: d })),
+  { label: "DGP", value: "DGP" },
+  { label: "ADGP", value: "ADGP" },
+];
+
 const AuthPage = () => {
-  const { user, loading: authLoading, isAdmin, refreshAuth } = useAuth();
+  const { user, loading: authLoading, isAdmin, roles } = useAuth();
   const navigate = useNavigate();
-  const [isSignup, setIsSignup] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [district, setDistrict] = useState("");
-  const [designation, setDesignation] = useState("");
 
   // Redirect if already logged in
   if (!authLoading && user) {
-    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
+    if (roles.includes("dgp")) return <Navigate to="/admin" replace />;
+    if (roles.includes("adgp")) return <Navigate to="/adgp-dashboard" replace />;
+    if (isAdmin) return <Navigate to="/admin" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!username) {
+      toast.error("Please select a user");
+      return;
+    }
     setLoading(true);
-    const { data, error } = await api.auth.login(email, password);
+    const { data, error } = await api.auth.login(username, password);
     if (error || !data) {
       toast.error(error || "Login failed");
     } else {
       setToken(data.token);
-      await refreshAuth();
-    }
-    setLoading(false);
-  };
-
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullName || !district) {
-      toast.error("Please fill all required fields");
-      return;
-    }
-    setLoading(true);
-    const { data, error } = await api.auth.signup({
-      email,
-      password,
-      full_name: fullName,
-      district,
-      designation: designation || undefined,
-    });
-    if (error || !data) {
-      toast.error(error || "Signup failed");
-    } else {
-      setToken(data.token);
-      toast.success("Account created successfully!");
-      await refreshAuth();
+      window.location.reload();
     }
     setLoading(false);
   };
@@ -89,58 +74,36 @@ const AuthPage = () => {
           <div className="h-1.5 bg-gradient-to-r from-[#ff9933] via-white to-[#138808]" />
           <CardHeader className="text-center bg-gradient-to-b from-primary/5 to-transparent pb-4">
             <CardTitle className="text-primary text-xl font-bold">
-              {isSignup ? "Create Account" : "Sign In"}
+              Sign In
             </CardTitle>
             <p className="text-muted-foreground text-sm">
-              {isSignup ? "Register as a District User" : "Access the DRSC Portal"}
+              Access the DRSC Portal
             </p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={isSignup ? handleSignup : handleLogin} className="space-y-4">
-              {isSignup && (
-                <>
-                  <div>
-                    <Label htmlFor="fullName">Full Name *</Label>
-                    <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
-                  </div>
-                  <div>
-                    <Label htmlFor="district">District *</Label>
-                    <Select value={district} onValueChange={setDistrict}>
-                      <SelectTrigger><SelectValue placeholder="Select District" /></SelectTrigger>
-                      <SelectContent>
-                        {AP_DISTRICTS.map((d) => (
-                          <SelectItem key={d} value={d}>{d}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="designation">Designation</Label>
-                    <Input id="designation" value={designation} onChange={(e) => setDesignation(e.target.value)} placeholder="e.g., DSP, CI, SHO" />
-                  </div>
-                </>
-              )}
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <Label htmlFor="email">Email *</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Label htmlFor="username">Select User *</Label>
+                <Select value={username} onValueChange={setUsername}>
+                  <SelectTrigger><SelectValue placeholder="Select District / Role" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DGP" className="font-bold text-primary">DGP</SelectItem>
+                    <SelectItem value="ADGP" className="font-bold text-primary">ADGP</SelectItem>
+                    <SelectItem disabled value="---">── Districts ──</SelectItem>
+                    {AP_DISTRICTS.map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label htmlFor="password">Password *</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
               </div>
               <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-semibold shadow-md" disabled={loading}>
-                {loading ? "Please wait..." : isSignup ? "Create Account" : "Sign In"}
+                {loading ? "Please wait..." : "Sign In"}
               </Button>
             </form>
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => setIsSignup(!isSignup)}
-                className="text-sm text-secondary font-medium hover:text-secondary/80 hover:underline"
-              >
-                {isSignup ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
-              </button>
-            </div>
           </CardContent>
         </Card>
       </div>
