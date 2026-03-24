@@ -64,7 +64,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const profile = profileResult.rows[0] || null;
     const roles = roleResult.rows.map((r) => r.role);
-    const isAdmin = roles.includes("admin") || roles.includes("dgp");
+    const isAdmin = roles.includes("admin") || roles.includes("dgp") || roles.includes("adgp");
 
     res.json({
       user: { id: userId, email: req.user!.email },

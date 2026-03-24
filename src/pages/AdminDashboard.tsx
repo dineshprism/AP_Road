@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
+import AccidentMap from "@/components/AccidentMap";
 import { AP_DISTRICTS, MONTHS } from "@/lib/constants";
-import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3 } from "lucide-react";
+import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -25,6 +27,8 @@ interface Submission {
   fir_number: string;
   road_type: string;
   accident_date: string;
+  accident_time: string;
+  lat_long?: string;
   persons_died: number;
   persons_injured: number;
   created_at: string;
@@ -35,6 +39,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"list" | "map">("list");
 
   // Filters
   const [filterDistrict, setFilterDistrict] = useState<string>("all");
@@ -143,62 +148,110 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Table */}
-        {loading ? (
-          <p className="text-muted-foreground text-center py-8">Loading submissions...</p>
-        ) : submissions.length === 0 ? (
-          <Card><CardContent className="py-12 text-center text-muted-foreground">No submissions found for the selected filters.</CardContent></Card>
-        ) : (
-          <div className="space-y-3">
-            {submissions.map((s) => (
-              <Card key={s.id} className="hover:shadow-lg transition-all border-l-4 border-l-secondary/60 hover:border-l-secondary">
-                <CardContent className="py-4 flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="font-bold text-primary">FIR: {s.fir_number}</span>
-                      <Badge className="bg-primary/10 text-primary border-primary/20">{s.district}</Badge>
-                      <Badge variant="outline" className="border-secondary/40 text-secondary">{s.road_type}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {s.place_of_accident}, {s.mandal} — {new Date(s.accident_date).toLocaleDateString("en-IN")}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Died: {s.persons_died} | Injured: {s.persons_injured} | PS: {s.police_station}
-                    </p>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/submission/${s.id}`)}>
-                      <Eye className="w-4 h-4 mr-1" /> View
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <Download className="w-4 h-4" />
+        {/* Tabs for List and Map View */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "list" | "map")} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="list" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              List View
+            </TabsTrigger>
+            <TabsTrigger value="map" className="flex items-center gap-2">
+              <Map className="w-4 h-4" />
+              State Map View
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="list" className="space-y-4">
+            {/* Table */}
+            {loading ? (
+              <p className="text-muted-foreground text-center py-8">Loading submissions...</p>
+            ) : submissions.length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">No submissions found for the selected filters.</CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                {submissions.map((s) => (
+                  <Card key={s.id} className="hover:shadow-lg transition-all border-l-4 border-l-secondary/60 hover:border-l-secondary">
+                    <CardContent className="py-4 flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-bold text-primary">FIR: {s.fir_number}</span>
+                          <Badge className="bg-primary/10 text-primary border-primary/20">{s.district}</Badge>
+                          <Badge variant="outline" className="border-secondary/40 text-secondary">{s.road_type}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {s.place_of_accident}, {s.mandal} — {new Date(s.accident_date).toLocaleDateString("en-IN")}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Died: {s.persons_died} | Injured: {s.persons_injured} | PS: {s.police_station}
+                        </p>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/submission/${s.id}`)}>
+                          <Eye className="w-4 h-4 mr-1" /> View
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={async () => {
-                          const { data } = await api.submissions.get(s.id);
-                          if (data) exportSubmissionPDF(data);
-                          else toast.error("Failed to load submission");
-                        }}>
-                          <FileDown className="w-4 h-4 mr-2" /> Download PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={async () => {
-                          const { data } = await api.submissions.get(s.id);
-                          if (data) await exportSubmissionDOCX(data);
-                          else toast.error("Failed to load submission");
-                        }}>
-                          <FileText className="w-4 h-4 mr-2" /> Download DOC
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem onClick={async () => {
+                              const { data } = await api.submissions.get(s.id);
+                              if (data) exportSubmissionPDF(data);
+                              else toast.error("Failed to load submission");
+                            }}>
+                              <FileDown className="w-4 h-4 mr-2" /> Download PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={async () => {
+                              const { data } = await api.submissions.get(s.id);
+                              if (data) await exportSubmissionDOCX(data);
+                              else toast.error("Failed to load submission");
+                            }}>
+                              <FileText className="w-4 h-4 mr-2" /> Download DOC
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="map" className="space-y-4">
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-0">
+                <div className="p-4 border-b">
+                  <h3 className="text-lg font-semibold">Andhra Pradesh State Accident Map</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Comprehensive state-wide view of accident locations and hotspots across all districts
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <Badge variant="outline" className="bg-blue-50">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {submissions.length} Total Accidents
+                    </Badge>
+                    <Badge variant="outline" className="bg-red-50">
+                      {totalDied} Fatalities
+                    </Badge>
+                    <Badge variant="outline" className="bg-orange-50">
+                      {totalInjured} Injuries
+                    </Badge>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                </div>
+                <AccidentMap
+                  accidents={submissions}
+                  height="650px"
+                  showHeatmap={true}
+                  showDistrictBoundaries={true}
+                  zoom={7}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

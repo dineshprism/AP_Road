@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🤖 Gemini AI RAG Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .test-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background: white; }
+        .button { padding: 12px 24px; margin: 8px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        .button-primary { background: #4285f4; color: white; }
+        .button-success { background: #34a853; color: white; }
+        .result { margin-top: 15px; padding: 20px; border-radius: 6px; }
+        .success { background: #d4edda; color: #155724; border-left: 4px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border-left: 4px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #bee5eb; }
+        .performance { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 15px; }
+        .metric { text-align: center; padding: 10px; border-radius: 4px; background: #f8f9fa; }
+        .loading { color: #666; font-style: italic; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+        .gemini-icon { color: #4285f4; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Gemini AI RAG Test</h1>
+        <p>Testing the new Gemini AI-powered accident analysis system.</p>
+        
+        <div class="test-section">
+            <h2>🔧 Backend Health Check</h2>
+            <button class="button button-primary" onclick="testBackend()">Test Backend</button>
+            <div id="backend-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🤖 Single Accident Analysis</h2>
+            <button class="button button-success" onclick="testSingleAnalysis()">Test Single Analysis</button>
+            <div id="single-result" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Batch Accident Analysis</h2>
+            <button class="button button-primary" onclick="testBatchAnalysis()">Test Batch Analysis</button>
+            <div id="batch-result" class="result"></div>
+        </div>
+
+        <div class="performance">
+            <h3>📊 Gemini Performance Metrics</h3>
+            <div class="performance">
+                <div class="metric">
+                    <strong>Response Time</strong><br>
+                    <span id="response-time" class="loading">--</span>
+                </div>
+                <div class="metric">
+                    <strong>Model Used</strong><br>
+                    <span id="model-used" class="loading">--</span>
+                </div>
+                <div class="metric">
+                    <strong>Tokens</strong><br>
+                    <span id="tokens-count" class="loading">--</span>
+                </div>
+                <div class="metric">
+                    <strong>Status</strong><br>
+                    <span id="status" class="loading">Ready</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Test data
+        const testSubmission = {
+            id: 'test-gemini-id',
+            fir_number: 'DEMO/GT/2026/GEMINI-001',
+            district: 'Guntur',
+            place_of_accident: 'Tenali Railway Station Road Crossing',
+            mandal: 'Tenali',
+            police_station: 'Tenali',
+            road_type: 'NH-16',
+            accident_date: '2024-03-15',
+            accident_time: '14:30',
+            persons_died: 2,
+            persons_injured: 3,
+            vehicles: ['Car', 'Truck'],
+            driver_related_causes: ['Overspeeding', 'Fatigue'],
+            vehicle_condition_causes: ['Brake failure'],
+            road_engineering_nature: ['Poor lighting'],
+            road_engineering_junctions: ['No traffic signals'],
+            road_engineering_signages: ['Missing warning signs']
+        };
+
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.innerHTML = '<div class="info">🔄 Testing backend health...</div>';
+            resultDiv.className = 'result info';
+            
+            try {
+                const response = await fetch('http://localhost:3000/api/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Backend is Healthy!</h4>
+                            <p><strong>Status:</strong> ${data.status}</p>
+                            <p><strong>Timestamp:</strong> ${data.timestamp}</p>
+                            <p><strong>Server:</strong> http://localhost:3000</p>
+                            <p><strong>Gemini Integration:</strong> Ready</p>
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                } else {
+                    throw new Error('Backend not responding');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Backend Health Check Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Solution:</strong> Start backend server: <code>cd server && npm start</code></p>
+                    </div>
+                `;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testSingleAnalysis() {
+            const resultDiv = document.getElementById('single-result');
+            resultDiv.innerHTML = '<div class="info">🔄 Testing Gemini single analysis...</div>';
+            resultDiv.className = 'result info';
+            
+            document.getElementById('status').textContent = 'Testing...';
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch('http://localhost:3000/api/rag/analyze-gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token'
+                    },
+                    body: JSON.stringify({
+                        submissionId: testSubmission.id,
+                        question: 'What were the main causes of this traffic accident and what preventive measures would you recommend?'
+                    })
+                });
+                
+                const endTime = Date.now();
+                const responseTime = ((endTime - startTime) / 1000).toFixed(2);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ <span class="gemini-icon">Gemini</span> Single Analysis Working!</h4>
+                            <div class="performance">
+                                <div><strong>Response Time:</strong> ${responseTime}s</div>
+                                <div><strong>Model:</strong> ${data.model}</div>
+                                <div><strong>Tokens:</strong> ${data.performance?.tokens || 'N/A'}</div>
+                                <div><strong>API:</strong> ${data.performance?.api || 'Gemini'}</div>
+                            </div>
+                            <pre>${data.response?.substring(0, 800) || 'No response'}...</pre>
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                    
+                    // Update metrics
+                    document.getElementById('response-time').textContent = responseTime + 's';
+                    document.getElementById('model-used').textContent = data.model || 'gemini-1.5-flash';
+                    document.getElementById('tokens-count').textContent = data.performance?.tokens || 'N/A';
+                    document.getElementById('status').textContent = '✅ Success';
+                    
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Analysis failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Gemini Analysis Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Solution:</strong> Check Gemini API key in server/.env</p>
+                        <p><strong>Help:</strong> Get API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></p>
+                    </div>
+                `;
+                resultDiv.className = 'result error';
+                
+                document.getElementById('status').textContent = '❌ Failed';
+            }
+        }
+
+        async function testBatchAnalysis() {
+            const resultDiv = document.getElementById('batch-result');
+            resultDiv.innerHTML = '<div class="info">🔄 Testing Gemini batch analysis...</div>';
+            resultDiv.className = 'result info';
+            
+            document.getElementById('status').textContent = 'Testing...';
+            
+            try {
+                const startTime = Date.now();
+                
+                const response = await fetch('http://localhost:3000/api/rag/batch-analyze-gemini', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token'
+                    },
+                    body: JSON.stringify({
+                        submissionIds: [testSubmission.id, 'test-id-2', 'test-id-3'],
+                        question: 'What common patterns exist in these accidents and what systemic improvements would you recommend?'
+                    })
+                });
+                
+                const endTime = Date.now();
+                const responseTime = ((endTime - startTime) / 1000).toFixed(2);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ <span class="gemini-icon">Gemini</span> Batch Analysis Working!</h4>
+                            <div class="performance">
+                                <div><strong>Response Time:</strong> ${responseTime}s</div>
+                                <div><strong>Submissions:</strong> ${data.submissionsAnalyzed}</div>
+                                <div><strong>Model:</strong> ${data.model}</div>
+                                <div><strong>Batch Size:</strong> ${data.performance?.batch_size || 'N/A'}</div>
+                            </div>
+                            <pre>${data.response?.substring(0, 800) || 'No response'}...</pre>
+                        </div>
+                    `;
+                    resultDiv.className = 'result success';
+                    
+                    // Update metrics
+                    document.getElementById('response-time').textContent = responseTime + 's';
+                    document.getElementById('model-used').textContent = data.model || 'gemini-1.5-flash';
+                    document.getElementById('tokens-count').textContent = data.performance?.tokens || 'N/A';
+                    document.getElementById('status').textContent = '✅ Success';
+                    
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'Batch analysis failed');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Gemini Batch Analysis Failed</h4>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Solution:</strong> Check Gemini API key and quota</p>
+                    </div>
+                `;
+                resultDiv.className = 'result error';
+                
+                document.getElementById('status').textContent = '❌ Failed';
+            }
+        }
+
+        // Initialize
+        console.log('🤖 Gemini AI RAG Test Ready');
+        console.log('Test Features:', ['Backend Health', 'Single Analysis', 'Batch Analysis']);
+    </script>
+</body>
+</html>

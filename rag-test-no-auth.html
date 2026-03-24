@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RAG Test - No Auth</title>
+</head>
+<body>
+    <h1>RAG API Test (No Authentication)</h1>
+    
+    <h2>Test Ollama Connection (No Auth)</h2>
+    <button onclick="testOllamaNoAuth()">Test Ollama Directly</button>
+    <div id="ollama-result"></div>
+    
+    <h2>Test RAG API (No Auth)</h2>
+    <button onclick="testRAGNoAuth()">Test RAG Analysis</button>
+    <div id="rag-result"></div>
+
+    <script>
+        async function testOllamaNoAuth() {
+            try {
+                document.getElementById('ollama-result').innerHTML = 'Testing...';
+                
+                const response = await fetch('http://localhost:3000/api/rag-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                const data = await response.json();
+                
+                document.getElementById('ollama-result').innerHTML = 
+                    `<span style="color: green;">✅ Ollama: ${data.success ? 'Working' : 'Failed'}</span><br>
+                    <pre>${data.response || data.error || 'No response'}</pre>`;
+            } catch (error) {
+                document.getElementById('ollama-result').innerHTML = 
+                    `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testRAGNoAuth() {
+            try {
+                document.getElementById('rag-result').innerHTML = 'Testing...';
+                
+                const response = await fetch('http://localhost:3000/api/rag-test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        submissionId: 'test-id',
+                        question: 'What are the main causes of traffic accidents?'
+                    })
+                });
+                const data = await response.json();
+                
+                document.getElementById('rag-result').innerHTML = 
+                    `<span style="color: green;">✅ RAG: ${data.success ? 'Working' : 'Failed'}</span><br>
+                    <pre>${data.response || data.error || 'No response'}</pre>`;
+            } catch (error) {
+                document.getElementById('rag-result').innerHTML = 
+                    `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -77,9 +77,18 @@ CREATE TABLE IF NOT EXISTS accident_submissions (
     approved_by_name TEXT,
     approved_by_designation TEXT,
     approved_by_date DATE,
+    signed_copy_uploaded BOOLEAN NOT NULL DEFAULT FALSE,
+    signed_copy_name TEXT,
+    signed_copy_path TEXT,
+    signed_copy_uploaded_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_name TEXT;
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_path TEXT;
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded_at TIMESTAMPTZ;
 
 -- Trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

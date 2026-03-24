@@ -1,0 +1,174 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Srikakulam",
+        "district": "Srikakulam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [83.75, 18.60], [84.20, 18.60], [84.20, 18.20], [83.75, 18.20], [83.75, 18.60]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vizianagaram",
+        "district": "Vizianagaram"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [83.20, 18.60], [83.75, 18.60], [83.75, 18.20], [83.20, 18.20], [83.20, 18.60]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Visakhapatnam",
+        "district": "Visakhapatnam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [82.80, 18.20], [83.75, 18.20], [83.75, 17.60], [82.80, 17.60], [82.80, 18.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "East Godavari",
+        "district": "East Godavari"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [81.60, 17.60], [82.80, 17.60], [82.80, 16.80], [81.60, 16.80], [81.60, 17.60]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "West Godavari",
+        "district": "West Godavari"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [80.90, 17.20], [81.60, 17.20], [81.60, 16.60], [80.90, 16.60], [80.90, 17.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Krishna",
+        "district": "Krishna"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [80.20, 16.60], [80.90, 16.60], [80.90, 16.20], [80.20, 16.20], [80.20, 16.60]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Guntur",
+        "district": "Guntur"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.80, 16.40], [80.20, 16.40], [80.20, 15.80], [79.80, 15.80], [79.80, 16.40]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Prakasam",
+        "district": "Prakasam"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.40, 15.80], [80.20, 15.80], [80.20, 15.20], [79.40, 15.20], [79.40, 15.80]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nellore",
+        "district": "Nellore"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.40, 15.20], [80.20, 15.20], [80.20, 14.40], [79.40, 14.40], [79.40, 15.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Chittoor",
+        "district": "Chittoor"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.40, 14.00], [79.40, 14.00], [79.40, 13.20], [78.40, 13.20], [78.40, 14.00]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kurnool",
+        "district": "Kurnool"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.80, 15.80], [78.80, 15.80], [78.80, 15.00], [77.80, 15.00], [77.80, 15.80]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Anantapur",
+        "district": "Anantapur"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.00, 15.20], [78.00, 15.20], [78.00, 14.20], [77.00, 14.20], [77.00, 15.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Kadapa",
+        "district": "Kadapa"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.40, 15.00], [79.40, 15.00], [79.40, 14.00], [78.40, 14.00], [78.40, 15.00]
+        ]]
+      }
+    }
+  ]
+}

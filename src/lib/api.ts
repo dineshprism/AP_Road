@@ -17,10 +17,14 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null }> {
   const token = getToken();
+  const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(options.headers as Record<string, string> || {}),
   };
+
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -100,6 +104,19 @@ export const api = {
     get(id: string) {
       return request<any>(`/submissions/${encodeURIComponent(id)}`);
     },
+
+    uploadSignedCopy(id: string, file: File) {
+      const formData = new FormData();
+      formData.append("signedCopy", file);
+
+      return request<{ signed_copy_uploaded: boolean; signed_copy_name: string; signed_copy_url: string }>(
+        `/submissions/${encodeURIComponent(id)}/signed-copy`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+    },
   },
 
   admin: {
@@ -136,4 +153,30 @@ export const api = {
       return request<any>(`/analytics/export?${params.toString()}`);
     },
   },
+
+  rag: {
+    analyze(payload: { submissionId: string; question?: string }) {
+      return request<{ response: string; submission: any; performance: any }>('/rag/analyze-gemini', {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+
+    batchAnalyze(payload: { submissionIds: string[]; question?: string }) {
+      return request<{ response: string; submissionsAnalyzed: number; submissions: any[]; performance: any }>('/rag/batch-analyze-gemini', {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+
+    getSimilar(submissionId: string) {
+      return request<{ reference: any; similarAccidents: any[] }>(`/rag/similar/${submissionId}`);
+    },
+  },
 };
+
+export function getApiAssetUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+  return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+}

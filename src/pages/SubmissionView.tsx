@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "@/lib/api";
+import { api, getApiAssetUrl } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,15 +39,9 @@ interface Submission {
   road_engineering_median: Record<string, boolean>;
   road_engineering_nature: Record<string, boolean>;
   road_engineering_signages: Record<string, boolean>;
-  prepared_by_name: string | null;
-  prepared_by_designation: string | null;
-  prepared_by_date: string | null;
-  verified_by_name: string | null;
-  verified_by_designation: string | null;
-  verified_by_date: string | null;
-  approved_by_name: string | null;
-  approved_by_designation: string | null;
-  approved_by_date: string | null;
+  signed_copy_uploaded: boolean;
+  signed_copy_name: string | null;
+  signed_copy_url: string | null;
   [key: string]: any;
 }
 
@@ -70,6 +64,7 @@ const SubmissionView = () => {
   if (!submission) return <div className="min-h-screen bg-background"><GovHeader /><p className="text-center py-12 text-muted-foreground">Submission not found.</p></div>;
 
   const s = submission;
+  const signedCopyUrl = getApiAssetUrl(s.signed_copy_url);
   const vehicles = (Array.isArray(s.vehicles) ? s.vehicles : []) as { registration_number: string; class_type: string }[];
   const drivers = (Array.isArray(s.drivers) ? s.drivers : []) as { name: string; dl_number: string; licensing_authority: string }[];
 
@@ -96,10 +91,10 @@ const SubmissionView = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onClick={() => exportSubmissionPDF(s)}>
-                <FileDown className="w-4 h-4 mr-2" /> Download PDF
+                <FileDown className="w-4 h-4 mr-2" /> Download Unsigned PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => exportSubmissionDOCX(s)}>
-                <FileTextIcon className="w-4 h-4 mr-2" /> Download DOC
+                <FileTextIcon className="w-4 h-4 mr-2" /> Download Unsigned DOC
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -184,27 +179,39 @@ const SubmissionView = () => {
 
           <Card>
             <CardContent className="pt-6">
-              <h3 className="gov-section-title">Approval Chain</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="font-semibold text-sm text-primary mb-2">Prepared by (IO / SHO)</p>
-                  <InfoRow label="Name" value={s.prepared_by_name} />
-                  <InfoRow label="Designation" value={s.prepared_by_designation} />
-                  <InfoRow label="Date" value={s.prepared_by_date ? new Date(s.prepared_by_date).toLocaleDateString("en-IN") : null} />
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="font-semibold text-sm text-primary mb-2">Verified by (DSP / CI)</p>
-                  <InfoRow label="Name" value={s.verified_by_name} />
-                  <InfoRow label="Designation" value={s.verified_by_designation} />
-                  <InfoRow label="Date" value={s.verified_by_date ? new Date(s.verified_by_date).toLocaleDateString("en-IN") : null} />
-                </div>
-                <div className="p-4 bg-muted/30 rounded-lg">
-                  <p className="font-semibold text-sm text-primary mb-2">Approved by (SP / Addl. SP)</p>
-                  <InfoRow label="Name" value={s.approved_by_name} />
-                  <InfoRow label="Designation" value={s.approved_by_designation} />
-                  <InfoRow label="Date" value={s.approved_by_date ? new Date(s.approved_by_date).toLocaleDateString("en-IN") : null} />
-                </div>
+              <h3 className="gov-section-title">Signatures and Seal</h3>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {[
+                  "Prepared by (IO / SHO)",
+                  "Verified by (DSP / CI)",
+                  "Approved by (SP / Addl. SP)",
+                ].map((label) => (
+                  <div key={label} className="rounded-lg border border-dashed border-slate-300 bg-slate-50/60 p-4">
+                    <p className="mb-3 text-sm font-semibold text-primary">{label}</p>
+                    <div className="h-28 rounded-md border border-dashed border-slate-300 bg-white" />
+                    <div className="mt-4 border-t border-slate-400 pt-2 text-xs text-muted-foreground">
+                      Signature / Stamp
+                    </div>
+                  </div>
+                ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="pt-6">
+              <h3 className="gov-section-title">Signed Copy Record</h3>
+              <InfoRow label="Status" value={s.signed_copy_uploaded ? "Uploaded" : "Pending"} />
+              <InfoRow label="File Name" value={s.signed_copy_name} />
+              {signedCopyUrl && (
+                <div className="pt-3">
+                  <Button variant="outline" asChild>
+                    <a href={signedCopyUrl} target="_blank" rel="noreferrer">
+                      Signed Copy
+                    </a>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

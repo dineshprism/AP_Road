@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import submissionRoutes from "./routes/submissions.js";
 import adminRoutes from "./routes/admin.js";
 import analyticsRoutes from "./routes/analytics.js";
+import ragGeminiRoutes from "./routes/rag-gemini.js";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: "2mb" }));
+app.use("/api/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Health check (must be before other /api routes)
 app.get("/api/health", (_req, res) => {
@@ -32,6 +34,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api", analyticsRoutes);
+app.use("/api/rag", ragGeminiRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === "production") {

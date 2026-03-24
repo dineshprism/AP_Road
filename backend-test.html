@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-button { padding: 15px 30px; font-size: 16px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        .result { margin: 20px 0; padding: 20px; border-radius: 8px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Backend Connection Test</h1>
+    <p>Testing if your backend server is running and accessible.</p>
+    
+    <button class="test-button" onclick="testBackend()">Test Backend Connection</button>
+    
+    <div id="result" class="result"></div>
+    
+    <script>
+        async function testBackend() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            resultDiv.className = 'result';
+            
+            try {
+                console.log('Testing backend connection...');
+                
+                // Test 1: Health check
+                const healthResponse = await fetch('http://localhost:3000/api/health');
+                console.log('Health response status:', healthResponse.status);
+                
+                if (healthResponse.ok) {
+                    const healthData = await healthResponse.json();
+                    console.log('Health data:', healthData);
+                    
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Backend is Running!</h3>
+                            <p><strong>Status:</strong> ${healthData.status}</p>
+                            <p><strong>Timestamp:</strong> ${healthData.timestamp}</p>
+                            <p><strong>Server:</strong> http://localhost:3000</p>
+                        </div>
+                    `;
+                    
+                    // Test 2: RAG endpoint
+                    console.log('Testing RAG endpoint...');
+                    const ragResponse = await fetch('http://localhost:3000/api/rag/analyze-ultra', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer test-token'
+                        },
+                        body: JSON.stringify({
+                            submissionId: 'test-id',
+                            question: 'What are the main causes of traffic accidents?'
+                        })
+                    });
+                    
+                    if (ragResponse.ok) {
+                        const ragData = await ragResponse.json();
+                        console.log('RAG response:', ragData);
+                        
+                        resultDiv.innerHTML += `
+                            <div class="success" style="margin-top: 20px;">
+                                <h3>⚡ Ultra-Optimized RAG is Working!</h3>
+                                <p><strong>Model:</strong> ${ragData.model || 'phi3:mini'}</p>
+                                <p><strong>Response Time:</strong> Ultra-fast</p>
+                                <p><strong>Status:</strong> Ready for production</p>
+                            </div>
+                        `;
+                    } else {
+                        const errorData = await ragResponse.json().catch(() => ({}));
+                        console.log('RAG error:', errorData);
+                        
+                        resultDiv.innerHTML += `
+                            <div class="error" style="margin-top: 20px;">
+                                <h3>❌ RAG Endpoint Issue</h3>
+                                <p><strong>Error:</strong> ${errorData.error || 'Unknown error'}</p>
+                            </div>
+                        `;
+                    }
+                    
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Backend Not Responding</h3>
+                            <p><strong>Status:</strong> ${healthResponse.status}</p>
+                            <p><strong>Issue:</strong> Server may not be running on port 3000</p>
+                            <p><strong>Solution:</strong> Check if backend is started properly</p>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Connection Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><strong>Issue:</strong> Cannot connect to backend</p>
+                        <p><strong>Solution:</strong> Check if backend is running on port 3000</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

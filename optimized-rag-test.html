@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Optimized RAG Test</title>
+</head>
+<body>
+    <h1>🚀 Optimized RAG System Test</h1>
+    
+    <h2>Test Optimized Ollama Analysis</h2>
+    <button onclick="testOptimized()">Test Optimized Analysis</button>
+    <div id="optimized-result"></div>
+    
+    <h2>Test Regular Ollama Analysis</h2>
+    <button onclick="testRegular()">Test Regular Analysis</button>
+    <div id="regular-result"></div>
+
+    <script>
+        async function testOptimized() {
+            try {
+                document.getElementById('optimized-result').innerHTML = 'Testing...';
+                
+                const response = await fetch('http://localhost:3000/api/rag/analyze-optimized', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                    },
+                    body: JSON.stringify({
+                        submissionId: 'test-id',
+                        question: 'What are the main causes of traffic accidents?'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('optimized-result').innerHTML = 
+                    `<span style="color: green;">✅ Optimized Working!</span><br>
+                    <strong>Response Time:</strong> Fast<br>
+                    <strong>Model:</strong> phi3:mini (optimized)<br>
+                    <strong>Tokens:</strong> 400<br>
+                    <pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">${data.response?.substring(0, 500) || 'No response'}</pre>`;
+            } catch (error) {
+                document.getElementById('optimized-result').innerHTML = 
+                    `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testRegular() {
+            try {
+                document.getElementById('regular-result').innerHTML = 'Testing...';
+                
+                const response = await fetch('http://localhost:3000/api/rag/analyze', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                    },
+                    body: JSON.stringify({
+                        submissionId: 'test-id',
+                        question: 'What are the main causes of traffic accidents?'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('regular-result').innerHTML = 
+                    `<span style="color: green;">✅ Regular Working!</span><br>
+                    <strong>Response Time:</strong> Standard<br>
+                    <strong>Model:</strong> phi3:mini<br>
+                    <strong>Tokens:</strong> 200<br>
+                    <pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">${data.response?.substring(0, 500) || 'No response'}</pre>`;
+            } catch (error) {
+                document.getElementById('regular-result').innerHTML = 
+                    `<span style="color: red;">❌ Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

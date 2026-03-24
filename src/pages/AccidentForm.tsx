@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import GovHeader from "@/components/GovHeader";
 import CausativeSection from "@/components/CausativeSection";
 import {
-  AP_DISTRICTS, ROAD_TYPES,
+  ROAD_TYPES,
   DRIVER_RELATED_CAUSES, VEHICLE_CONDITION_CAUSES,
   ROAD_CULVERTS_CAUSES, ROAD_JUNCTIONS_CAUSES,
   ROAD_MEDIAN_CAUSES, ROAD_NATURE_CAUSES, ROAD_SIGNAGES_CAUSES,
@@ -30,11 +30,10 @@ const AccidentForm = () => {
   const [loading, setLoading] = useState(false);
 
   // Location
-  const [district, setDistrict] = useState(profile?.district || "");
+  const district = profile?.district || "";
   const [placeOfAccident, setPlaceOfAccident] = useState("");
   const [mandal, setMandal] = useState("");
   const [policeStation, setPoliceStation] = useState(navState.policeStation || "");
-  const [sdpo, setSdpo] = useState(navState.sdpo || "");
   const [firNumber, setFirNumber] = useState("");
   const [latLong, setLatLong] = useState("");
   const [roadType, setRoadType] = useState("");
@@ -58,16 +57,12 @@ const AccidentForm = () => {
   const [natureCauses, setNatureCauses] = useState<Record<string, boolean>>({});
   const [signagesCauses, setSignagesCauses] = useState<Record<string, boolean>>({});
 
-  // Approval
-  const [preparedByName, setPreparedByName] = useState("");
-  const [preparedByDesignation, setPreparedByDesignation] = useState("");
-  const [preparedByDate, setPreparedByDate] = useState("");
-  const [verifiedByName, setVerifiedByName] = useState("");
-  const [verifiedByDesignation, setVerifiedByDesignation] = useState("");
-  const [verifiedByDate, setVerifiedByDate] = useState("");
-  const [approvedByName, setApprovedByName] = useState("");
-  const [approvedByDesignation, setApprovedByDesignation] = useState("");
-  const [approvedByDate, setApprovedByDate] = useState("");
+  const policeStationOptions = district
+    ? Object.entries(DISTRICT_HIERARCHY[district] || {})
+        .flatMap(([, stations]) => stations)
+        .slice()
+        .sort()
+    : [];
 
   const addVehicle = () => setVehicles([...vehicles, { registration_number: "", class_type: "" }]);
   const removeVehicle = (i: number) => setVehicles(vehicles.filter((_, idx) => idx !== i));
@@ -110,15 +105,6 @@ const AccidentForm = () => {
       road_engineering_median: medianCauses,
       road_engineering_nature: natureCauses,
       road_engineering_signages: signagesCauses,
-      prepared_by_name: preparedByName || null,
-      prepared_by_designation: preparedByDesignation || null,
-      prepared_by_date: preparedByDate || null,
-      verified_by_name: verifiedByName || null,
-      verified_by_designation: verifiedByDesignation || null,
-      verified_by_date: verifiedByDate || null,
-      approved_by_name: approvedByName || null,
-      approved_by_designation: approvedByDesignation || null,
-      approved_by_date: approvedByDate || null,
     });
 
     if (error) {
@@ -152,34 +138,19 @@ const AccidentForm = () => {
             <CardContent className="pt-6">
               <h3 className="gov-section-title">A. Location Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>District *</Label>
-                  <Input value={district} disabled className="bg-muted font-medium" />
-                </div>
-                <div>
-                  <Label>SDPO Circle *</Label>
-                  <Select value={sdpo} onValueChange={(v) => { setSdpo(v); setPoliceStation(""); }}>
-                    <SelectTrigger><SelectValue placeholder="Select SDPO" /></SelectTrigger>
-                    <SelectContent>
-                      {(district && DISTRICT_HIERARCHY[district] ? Object.keys(DISTRICT_HIERARCHY[district]).sort() : []).map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <div><Label>Place of Accident *</Label><Input value={placeOfAccident} onChange={(e) => setPlaceOfAccident(e.target.value)} required /></div>
+                <div><Label>Mandal *</Label><Input value={mandal} onChange={(e) => setMandal(e.target.value)} required /></div>
                 <div>
                   <Label>Police Station Limits *</Label>
-                  <Select value={policeStation} onValueChange={setPoliceStation} disabled={!sdpo}>
-                    <SelectTrigger><SelectValue placeholder={sdpo ? "Select PS" : "Select SDPO first"} /></SelectTrigger>
+                  <Select value={policeStation} onValueChange={setPoliceStation}>
+                    <SelectTrigger><SelectValue placeholder="Select Police Station" /></SelectTrigger>
                     <SelectContent>
-                      {(district && sdpo && DISTRICT_HIERARCHY[district]?.[sdpo] ? DISTRICT_HIERARCHY[district][sdpo].slice().sort() : []).map((ps) => (
+                      {policeStationOptions.map((ps) => (
                         <SelectItem key={ps} value={ps}>{ps}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Place of Accident *</Label><Input value={placeOfAccident} onChange={(e) => setPlaceOfAccident(e.target.value)} required /></div>
-                <div><Label>Mandal *</Label><Input value={mandal} onChange={(e) => setMandal(e.target.value)} required /></div>
                 <div><Label>FIR Number *</Label><Input value={firNumber} onChange={(e) => setFirNumber(e.target.value)} required /></div>
                 <div><Label>LAT - LONG (GPS)</Label><Input value={latLong} onChange={(e) => setLatLong(e.target.value)} placeholder="e.g., 15.9129, 79.7400" /></div>
                 <div>
@@ -271,29 +242,30 @@ const AccidentForm = () => {
             </CardContent>
           </Card>
 
-          {/* Approval Chain */}
+          {/* Signature Blocks */}
           <Card>
             <CardContent className="pt-6">
-              <h3 className="gov-section-title">Approval Chain</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-semibold text-sm text-primary">Prepared by (IO / SHO)</h4>
-                  <div><Label>Name</Label><Input value={preparedByName} onChange={(e) => setPreparedByName(e.target.value)} /></div>
-                  <div><Label>Designation / Rank</Label><Input value={preparedByDesignation} onChange={(e) => setPreparedByDesignation(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={preparedByDate} onChange={(e) => setPreparedByDate(e.target.value)} /></div>
-                </div>
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-semibold text-sm text-primary">Verified by (DSP / CI)</h4>
-                  <div><Label>Name</Label><Input value={verifiedByName} onChange={(e) => setVerifiedByName(e.target.value)} /></div>
-                  <div><Label>Designation / Rank</Label><Input value={verifiedByDesignation} onChange={(e) => setVerifiedByDesignation(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={verifiedByDate} onChange={(e) => setVerifiedByDate(e.target.value)} /></div>
-                </div>
-                <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
-                  <h4 className="font-semibold text-sm text-primary">Approved by (SP / Addl. SP)</h4>
-                  <div><Label>Name</Label><Input value={approvedByName} onChange={(e) => setApprovedByName(e.target.value)} /></div>
-                  <div><Label>Designation / Rank</Label><Input value={approvedByDesignation} onChange={(e) => setApprovedByDesignation(e.target.value)} /></div>
-                  <div><Label>Date</Label><Input type="date" value={approvedByDate} onChange={(e) => setApprovedByDate(e.target.value)} /></div>
-                </div>
+              <h3 className="gov-section-title">Signatures and Seal</h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Leave this space blank in the downloaded report for physical signatures and official stamp.
+              </p>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                {[
+                  "Prepared by (IO / SHO)",
+                  "Verified by (DSP / CI)",
+                  "Approved by (SP / Addl. SP)",
+                ].map((label) => (
+                  <div key={label} className="rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-4">
+                    <p className="mb-3 text-sm font-semibold text-primary">{label}</p>
+                    <div className="h-28 rounded-md border border-dashed border-slate-300 bg-white" />
+                    <div className="mt-4 border-t border-slate-400 pt-2 text-xs text-muted-foreground">
+                      Signature / Stamp
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">
+                After download and physical approval, upload the signed copy from the past submissions page for records.
               </div>
             </CardContent>
           </Card>

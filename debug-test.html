@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RAG Debug Test</title>
+</head>
+<body>
+    <h1>RAG API Debug Test</h1>
+    
+    <h2>Step 1: Test Backend</h2>
+    <button onclick="testBackend()">Test Backend Health</button>
+    <div id="backend-result"></div>
+    
+    <h2>Step 2: Test Ollama</h2>
+    <button onclick="testOllama()">Test Ollama Directly</button>
+    <div id="ollama-result"></div>
+    
+    <h2>Step 3: Test RAG API</h2>
+    <button onclick="testRAG()">Test RAG Analysis</button>
+    <div id="rag-result"></div>
+
+    <script>
+        async function testBackend() {
+            try {
+                const response = await fetch('http://localhost:3000/api/health');
+                const data = await response.json();
+                document.getElementById('backend-result').innerHTML = 
+                    `<span style="color: green;">✅ Backend: ${data.status}</span>`;
+            } catch (error) {
+                document.getElementById('backend-result').innerHTML = 
+                    `<span style="color: red;">❌ Backend Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testOllama() {
+            try {
+                const response = await fetch('http://localhost:3000/api/test-ollama', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+                const data = await response.json();
+                document.getElementById('ollama-result').innerHTML = 
+                    `<span style="color: green;">✅ Ollama: ${data.success ? 'Working' : 'Failed'}</span>`;
+            } catch (error) {
+                document.getElementById('ollama-result').innerHTML = 
+                    `<span style="color: red;">❌ Ollama Error: ${error.message}</span>`;
+            }
+        }
+        
+        async function testRAG() {
+            try {
+                const response = await fetch('http://localhost:3000/api/rag/analyze', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token'
+                    },
+                    body: JSON.stringify({
+                        submissionId: 'test-id',
+                        question: 'What are the main causes of traffic accidents?'
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('rag-result').innerHTML = 
+                    `<span style="color: green;">✅ RAG: ${data.response ? 'Working' : 'Failed'}</span><br>
+                    <pre>${data.error || data.response || 'No response'}</pre>`;
+            } catch (error) {
+                document.getElementById('rag-result').innerHTML = 
+                    `<span style="color: red;">❌ RAG Error: ${error.message}</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

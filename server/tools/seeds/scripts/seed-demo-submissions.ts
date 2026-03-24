@@ -1,4 +1,4 @@
-import pool from "./db.js";
+import pool from "../../../src/db.js";
 
 type CauseMap = Record<string, boolean>;
 

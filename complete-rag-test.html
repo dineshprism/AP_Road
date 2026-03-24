@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🚀 Complete RAG Optimization Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin-bottom: 30px; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .button { padding: 10px 20px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .performance { background: #e3f2fd; padding: 10px; border-radius: 5px; margin-top: 10px; }
+        .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        .metric { text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Complete RAG Optimization Test</h1>
+    <p>Test all four optimization levels of your AI-powered accident analysis system.</p>
+
+    <div class="test-section">
+        <h2>🦙 Standard Ollama</h2>
+        <button class="button" onclick="testStandard()">Test Standard Analysis</button>
+        <div id="standard-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>⚡ Optimized Ollama</h2>
+        <button class="button" onclick="testOptimized()">Test Optimized Analysis</button>
+        <div id="optimized-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>⚡ Ultra-Optimized Ollama</h2>
+        <button class="button" onclick="testUltra()">Test Ultra Analysis</button>
+        <div id="ultra-result" class="result"></div>
+    </div>
+
+    <div class="performance">
+        <h3>📊 Performance Comparison</h3>
+        <div class="metrics">
+            <div class="metric">
+                <strong>Standard</strong><br>
+                <span id="standard-time">--</span><br>
+                <span id="standard-tokens">--</span>
+            </div>
+            <div class="metric">
+                <strong>Optimized</strong><br>
+                <span id="optimized-time">--</span><br>
+                <span id="optimized-tokens">--</span>
+            </div>
+            <div class="metric">
+                <strong>Ultra</strong><br>
+                <span id="ultra-time">--</span><br>
+                <span id="ultra-tokens">--</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function testStandard() {
+            await testAnalysis('standard', 'standard-result');
+        }
+
+        async function testOptimized() {
+            await testAnalysis('optimized', 'optimized-result');
+        }
+
+        async function testUltra() {
+            await testAnalysis('ultra', 'ultra-result');
+        }
+
+        async function testAnalysis(type, resultId) {
+            try {
+                document.getElementById(resultId).innerHTML = 'Testing...';
+                
+                const startTime = Date.now();
+                
+                const response = await fetch('http://localhost:3000/api/rag/' + (type === 'ultra' ? 'analyze-ultra' : type === 'optimized' ? 'analyze-optimized' : 'analyze'), {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+                    },
+                    body: JSON.stringify({
+                        submissionId: 'test-id',
+                        question: 'What are the main causes of traffic accidents?'
+                    })
+                });
+                
+                const data = await response.json();
+                const endTime = Date.now();
+                const responseTime = ((endTime - startTime) / 1000).toFixed(2);
+                
+                let performanceInfo = {};
+                if (data.performance) {
+                    performanceInfo = data.performance;
+                }
+                
+                document.getElementById(resultId).innerHTML = 
+                    '<div class="success">✅ ' + type.charAt(0).toUpperCase() + ' Working!</div>' +
+                    '<div class="performance">' +
+                        '<strong>Response Time:</strong> ' + responseTime + 's<br>' +
+                        '<strong>Model:</strong> ' + (data.model || 'phi3:mini') + '<br>' +
+                        '<strong>Tokens:</strong> ' + (performanceInfo.tokens_used || '--') + '<br>' +
+                        '<strong>Timeout:</strong> ' + (performanceInfo.timeout || '--') + 's<br>' +
+                        '<strong>Optimization:</strong> ' + (performanceInfo.optimization_level || '--') + '<br>' +
+                    '</div>' +
+                    '<pre style="background: #f0f0f0; padding: 10px; border-radius: 5px;">' + (data.response?.substring(0, 500) || 'No response') + '</pre>';
+                
+                // Update performance comparison
+                updatePerformanceMetrics(type, responseTime, performanceInfo);
+                
+            } catch (error) {
+                document.getElementById(resultId).innerHTML = 
+                    '<div class="error">❌ Error: ' + error.message + '</div>';
+            }
+        }
+
+        function updatePerformanceMetrics(type, responseTime, performanceInfo) {
+            document.getElementById(type + '-time').textContent = responseTime + 's';
+            document.getElementById(type + '-tokens').textContent = performanceInfo.tokens_used || '--';
+            
+            if (performanceInfo.timeout) {
+                document.getElementById(type + '-timeout').textContent = performanceInfo.timeout + 's';
+            }
+            
+            if (performanceInfo.optimization_level) {
+                document.getElementById(type + '-optimization').textContent = performanceInfo.optimization_level;
+            }
+        }
+
+        // Initialize performance metrics
+        ['standard', 'optimized', 'ultra'].forEach(type => {
+            updatePerformanceMetrics(type, '--', { tokens_used: '--', timeout: '--', optimization_level: '--' });
+        });
+    </script>
+</body>
+</html>

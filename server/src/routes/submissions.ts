@@ -1,8 +1,43 @@
 import { Router, Response } from "express";
+import fs from "fs";
+import path from "path";
+import multer from "multer";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 
 const router = Router();
+const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    cb(null, `${Date.now()}-${req.params.id}-${safeName}`);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimeTypes = new Set([
+      "application/pdf",
+      "image/jpeg",
+      "image/png",
+    ]);
+
+    if (allowedMimeTypes.has(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+
+    cb(new Error("Only PDF, JPG, and PNG files are allowed"));
+  },
+});
 
 // All routes require authentication
 router.use(authMiddleware);
@@ -82,7 +117,12 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       [userId]
     );
 
-    res.json(result.rows);
+    res.json(
+      result.rows.map((row) => ({
+        ...row,
+        signed_copy_url: row.signed_copy_path ? `/uploads/${row.signed_copy_path}` : null,
+      }))
+    );
   } catch (err: any) {
     console.error("Get submissions error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -124,10 +164,71 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    res.json({
+      ...row,
+      signed_copy_url: row.signed_copy_path ? `/uploads/${row.signed_copy_path}` : null,
+    });
   } catch (err: any) {
     console.error("Get submission error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const id = req.params.id as string;
+    const file = req.file;
+
+    if (!file) {
+      res.status(400).json({ error: "Signed copy file is required" });
+      return;
+    }
+
+    const roleResult = await pool.query(
+      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp')",
+      [userId]
+    );
+    const isAdmin = roleResult.rows.length > 0;
+
+    const existingResult = isAdmin
+      ? await pool.query("SELECT signed_copy_path FROM accident_submissions WHERE id = $1", [id])
+      : await pool.query("SELECT signed_copy_path FROM accident_submissions WHERE id = $1 AND user_id = $2", [id, userId]);
+
+    if (existingResult.rows.length === 0) {
+      fs.unlinkSync(file.path);
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
+
+    const previousPath = existingResult.rows[0].signed_copy_path as string | null;
+    if (previousPath) {
+      const absolutePreviousPath = path.resolve(process.cwd(), "uploads", previousPath);
+      if (fs.existsSync(absolutePreviousPath)) {
+        fs.unlinkSync(absolutePreviousPath);
+      }
+    }
+
+    const relativePath = path.posix.join("signed-copies", path.basename(file.path));
+    await pool.query(
+      `UPDATE accident_submissions
+       SET signed_copy_uploaded = TRUE,
+           signed_copy_name = $1,
+           signed_copy_path = $2,
+           signed_copy_uploaded_at = now()
+       WHERE id = $3`,
+      [file.originalname, relativePath, id]
+    );
+
+    res.json({
+      signed_copy_uploaded: true,
+      signed_copy_name: file.originalname,
+      signed_copy_url: `/uploads/${relativePath}`,
+    });
+  } catch (err: any) {
+    console.error("Upload signed copy error:", err);
+    res.status(500).json({ error: err?.message || "Internal server error" });
   }
 });
 
