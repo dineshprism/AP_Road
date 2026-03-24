@@ -9,6 +9,7 @@ import adminRoutes from "./routes/admin.js";
 import analyticsRoutes from "./routes/analytics.js";
 import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
+import { runMigrations } from "./migrate.js";
 
 dotenv.config();
 
@@ -17,10 +18,22 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Middleware
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:8080").split(",").map(o => o.trim());
+const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:8080")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowAnyOrigin = configuredOrigins.includes("*");
+
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
+  origin(origin, callback) {
+    if (allowAnyOrigin || !origin || configuredOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: !allowAnyOrigin,
 }));
 app.use(express.json({ limit: "2mb" }));
 app.use("/api/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -47,8 +60,17 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on http://0.0.0.0:${PORT}`);
+async function startServer() {
+  await runMigrations();
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error("Server startup failed:", err);
+  process.exit(1);
 });
 
 export default app;

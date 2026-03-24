@@ -108,7 +108,7 @@ const AccidentForm = () => {
     });
 
     if (error) {
-      toast.error("Submission failed: " + error.message);
+      toast.error("Submission failed: " + error);
     } else {
       toast.success("Form submitted successfully!");
       navigate("/dashboard");

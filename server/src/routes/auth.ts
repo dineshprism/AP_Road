@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import bcrypt from "bcrypt";
 import pool from "../db.js";
 import { generateToken, authMiddleware, AuthRequest } from "../auth.js";
+import { findUserForLogin } from "../user-store.js";
 
 const router = Router();
 
@@ -15,19 +16,13 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const normalizedUsername = username.trim().toLowerCase().replace(/\s+/g, "_");
+    const user = await findUserForLogin(username);
 
-    const result = await pool.query(
-      "SELECT u.id, u.email, u.password_hash FROM users u INNER JOIN profiles p ON p.user_id = u.id WHERE u.email = $1",
-      [normalizedUsername]
-    );
-
-    if (result.rows.length === 0) {
+    if (!user) {
       res.status(401).json({ error: "Invalid username or password" });
       return;
     }
 
-    const user = result.rows[0];
     const valid = await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
@@ -43,7 +38,7 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Login error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ error: "Login service unavailable" });
   }
 });
 

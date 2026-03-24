@@ -87,10 +87,10 @@ const UserDashboard = () => {
   const [listPs, setListPs] = useState("__all__");
 
   // Get hierarchy for current district
-  const hierarchy = DISTRICT_HIERARCHY.find((h) => h.district === district);
-  const sdpoList = hierarchy ? hierarchy.sdpos : [];
-  const listPsOptions = listSdpo && listSdpo !== "__all__" 
-    ? (hierarchy?.ps[listSdpo] || [])
+  const hierarchy = DISTRICT_HIERARCHY[district] || {};
+  const sdpoList = Object.keys(hierarchy);
+  const listPsOptions = listSdpo && listSdpo !== "__all__"
+    ? (hierarchy[listSdpo] || [])
     : [];
 
   const filteredSubmissions = useMemo(() => {
@@ -193,7 +193,7 @@ const UserDashboard = () => {
                   <Select value={selectedPs} onValueChange={setSelectedPs} disabled={!selectedSdpo}>
                     <SelectTrigger><SelectValue placeholder="Select Police Station" /></SelectTrigger>
                     <SelectContent>
-                      {selectedSdpo && (hierarchy?.ps[selectedSdpo] || []).map((ps) => (
+                      {selectedSdpo && (hierarchy[selectedSdpo] || []).map((ps) => (
                         <SelectItem key={ps} value={ps}>{ps}</SelectItem>
                       ))}
                     </SelectContent>

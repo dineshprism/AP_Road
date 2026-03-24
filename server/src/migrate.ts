@@ -1,6 +1,7 @@
 import pool from "./db.js";
+import { fileURLToPath } from "url";
 
-const migration = `
+export const migration = `
 -- =============================================
 -- Road Accident Data Hub — PostgreSQL Schema
 -- =============================================
@@ -112,17 +113,25 @@ CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
 `;
 
-async function migrate() {
+export async function runMigrations(options?: { closePool?: boolean }) {
   console.log("Running database migration...");
   try {
     await pool.query(migration);
     console.log("Migration completed successfully.");
   } catch (err) {
     console.error("Migration failed:", err);
-    process.exit(1);
+    throw err;
   } finally {
-    await pool.end();
+    if (options?.closePool) {
+      await pool.end();
+    }
   }
 }
 
-migrate();
+const isDirectRun = process.argv[1] === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  runMigrations({ closePool: true }).catch(() => {
+    process.exit(1);
+  });
+}

@@ -84,12 +84,14 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
   });
 
   const runAnalysis = async (question?: string) => {
-    const endpoint = submissions.length === 1 ? 'analyze' : 'batchAnalyze';
-    const payload = submissions.length === 1
-      ? { submissionId: submissions[0].id, question }
-      : { submissionIds: submissions.map((submission) => submission.id), question };
+    if (submissions.length === 1) {
+      return api.rag.analyze({ submissionId: submissions[0].id, question });
+    }
 
-    return api.rag[endpoint](payload);
+    return api.rag.batchAnalyze({
+      submissionIds: submissions.map((submission) => submission.id),
+      question,
+    });
   };
 
   useEffect(() => {
