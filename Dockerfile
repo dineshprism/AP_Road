@@ -18,7 +18,7 @@ FROM node:20-alpine AS backend-build
 WORKDIR /app/server
 COPY server/package.json ./
 RUN npm install
-COPY server/ 
+COPY server/ .
 RUN npx tsc
 
 # --- Stage 3: Production ---
