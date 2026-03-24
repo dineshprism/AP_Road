@@ -137,12 +137,20 @@ export const api = {
   },
 
   analytics: {
-    getAnalytics(filters: { district?: string; year?: string }) {
+    getAnalytics(payload: { district?: string; year?: string }) {
       const params = new URLSearchParams();
-      if (filters.district) params.set("district", filters.district);
-      if (filters.year) params.set("year", filters.year);
-      const qs = params.toString();
-      return request<any>(`/analytics${qs ? `?${qs}` : ""}`);
+      if (payload.district && payload.district !== "all") params.set("district", payload.district);
+      if (payload.year) params.set("year", payload.year);
+      
+      return request<any>(`/analytics/analytics?${params.toString()}`);
+    },
+
+    getEnhancedAnalytics(payload: { district?: string; year?: string }) {
+      const params = new URLSearchParams();
+      if (payload.district && payload.district !== "all") params.set("district", payload.district);
+      if (payload.year) params.set("year", payload.year);
+      
+      return request<any>(`/analytics/enhanced?${params.toString()}`);
     },
 
     export(format: string, filters: { district?: string; year?: string }) {
@@ -150,6 +158,7 @@ export const api = {
       params.set("format", format);
       if (filters.district) params.set("district", filters.district);
       if (filters.year) params.set("year", filters.year);
+      
       return request<any>(`/analytics/export?${params.toString()}`);
     },
   },

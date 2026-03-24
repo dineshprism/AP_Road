@@ -23,6 +23,7 @@ import {
   Map,
   MapPin,
   Brain,
+  BarChart3,
   PanelRightClose,
   Upload,
   FileCheck,
@@ -260,7 +261,7 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
             <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={handleSubmitNew}>
               <div className="h-1.5 bg-gradient-to-r from-[#e8710a] to-[#f5a623]" />
               <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
@@ -302,6 +303,19 @@ const UserDashboard = () => {
                   <MapPin className="mr-1 h-3 w-3" />
                   Map View
                 </Badge>
+              </CardContent>
+            </Card>
+
+            <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={() => navigate("/analytics")}>
+              <div className="h-1.5 bg-gradient-to-r from-[#163a70] to-[#355f9a]" />
+              <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <BarChart3 className="h-8 w-8 text-primary" />
+                </div>
+                <h3 className="text-lg font-bold text-primary">District Analytics</h3>
+                <p className="text-center text-sm text-muted-foreground">
+                  Review police station comparisons, hotspots, and field completeness in your district
+                </p>
               </CardContent>
             </Card>
           </div>

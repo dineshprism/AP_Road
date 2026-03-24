@@ -81,7 +81,7 @@ const AdgpDashboard = () => {
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
           >
             <BarChart3 className="w-4 h-4" />
-            View Analytics
+            Analytics Dashboard
           </Button>
         </div>
 

@@ -83,10 +83,10 @@ const AdminDashboard = () => {
           <h2 className="gov-page-title mb-0">Admin Dashboard &mdash; All Submissions</h2>
           <Button 
             onClick={() => navigate("/analytics")} 
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md flex items-center gap-2"
           >
             <BarChart3 className="w-4 h-4" />
-            View Analytics
+            Analytics Dashboard
           </Button>
         </div>
 

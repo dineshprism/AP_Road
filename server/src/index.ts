@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.js";
 import submissionRoutes from "./routes/submissions.js";
 import adminRoutes from "./routes/admin.js";
 import analyticsRoutes from "./routes/analytics.js";
+import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
 
 dotenv.config();
@@ -33,7 +34,8 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
-app.use("/api", analyticsRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/analytics", enhancedAnalyticsRoutes);
 app.use("/api/rag", ragGeminiRoutes);
 
 // Serve static frontend in production
