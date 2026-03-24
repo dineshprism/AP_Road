@@ -23,7 +23,11 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-Github#20262027}@db:5432/road_accident_db
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ${DB_PASSWORD:-Github#20262027}
+      PGDATABASE: road_accident_db
       JWT_SECRET: ${JWT_SECRET:-change-this-to-a-random-64-char-secret-in-production}
       PORT: 3000
       NODE_ENV: production
