@@ -28,8 +28,15 @@ services:
       PORT: 3000
       NODE_ENV: production
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_THINKING_BUDGET: ${GEMINI_THINKING_BUDGET:-0}
+      GEMINI_MAX_OUTPUT_TOKENS: ${GEMINI_MAX_OUTPUT_TOKENS:-1200}
     ports:
       - "3000:3000"
+    volumes:
+      - app_uploads:/app/server/uploads
 
 volumes:
   pgdata:
+  app_uploads:
