@@ -1,172 +1,289 @@
-{
+﻿{
   "type": "FeatureCollection",
   "features": [
     {
       "type": "Feature",
-      "properties": {
-        "name": "Srikakulam",
-        "district": "Srikakulam"
-      },
+      "properties": { "name": "Srikakulam", "district": "Srikakulam" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [83.75, 18.60], [84.20, 18.60], [84.20, 18.20], [83.75, 18.20], [83.75, 18.60]
+          [83.60, 19.00], [84.05, 19.00], [84.35, 18.55],
+          [84.10, 18.25], [83.60, 18.30], [83.60, 19.00]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Vizianagaram",
-        "district": "Vizianagaram"
-      },
+      "properties": { "name": "Parvathipuram Manyam", "district": "Parvathipuram Manyam" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [83.20, 18.60], [83.75, 18.60], [83.75, 18.20], [83.20, 18.20], [83.20, 18.60]
+          [82.90, 19.10], [83.60, 19.10], [83.60, 18.55],
+          [82.90, 18.40], [82.90, 19.10]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Visakhapatnam",
-        "district": "Visakhapatnam"
-      },
+      "properties": { "name": "Vizianagaram", "district": "Vizianagaram" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [82.80, 18.20], [83.75, 18.20], [83.75, 17.60], [82.80, 17.60], [82.80, 18.20]
+          [83.05, 18.60], [83.60, 18.60], [83.60, 18.00],
+          [83.05, 17.95], [83.05, 18.60]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "East Godavari",
-        "district": "East Godavari"
-      },
+      "properties": { "name": "Alluri Sitharama Raju", "district": "Alluri Sitharama Raju" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [81.60, 17.60], [82.80, 17.60], [82.80, 16.80], [81.60, 16.80], [81.60, 17.60]
+          [81.65, 18.50], [82.90, 18.50], [82.90, 17.95],
+          [82.60, 17.40], [81.65, 17.40], [81.65, 18.50]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "West Godavari",
-        "district": "West Godavari"
-      },
+      "properties": { "name": "Visakhapatnam", "district": "Visakhapatnam" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [80.90, 17.20], [81.60, 17.20], [81.60, 16.60], [80.90, 16.60], [80.90, 17.20]
+          [83.10, 17.88], [83.35, 17.88], [83.38, 17.68],
+          [83.28, 17.58], [83.05, 17.62], [83.10, 17.88]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Krishna",
-        "district": "Krishna"
-      },
+      "properties": { "name": "Anakapalli", "district": "Anakapalli" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [80.20, 16.60], [80.90, 16.60], [80.90, 16.20], [80.20, 16.20], [80.20, 16.60]
+          [82.60, 18.00], [83.10, 18.00], [83.20, 17.58],
+          [82.95, 17.30], [82.60, 17.35], [82.60, 18.00]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Guntur",
-        "district": "Guntur"
-      },
+      "properties": { "name": "Kakinada", "district": "Kakinada" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [79.80, 16.40], [80.20, 16.40], [80.20, 15.80], [79.80, 15.80], [79.80, 16.40]
+          [81.80, 17.35], [82.25, 17.35], [82.30, 16.90],
+          [81.80, 16.85], [81.80, 17.35]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Prakasam",
-        "district": "Prakasam"
-      },
+      "properties": { "name": "East Godavari", "district": "East Godavari" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [79.40, 15.80], [80.20, 15.80], [80.20, 15.20], [79.40, 15.20], [79.40, 15.80]
+          [81.35, 17.40], [81.90, 17.40], [81.90, 16.85],
+          [81.35, 16.85], [81.35, 17.40]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Nellore",
-        "district": "Nellore"
-      },
+      "properties": { "name": "Konaseema", "district": "Konaseema" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [79.40, 15.20], [80.20, 15.20], [80.20, 14.40], [79.40, 14.40], [79.40, 15.20]
+          [81.55, 16.90], [82.10, 16.90], [82.05, 16.35],
+          [81.55, 16.40], [81.55, 16.90]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Chittoor",
-        "district": "Chittoor"
-      },
+      "properties": { "name": "West Godavari", "district": "West Godavari" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [78.40, 14.00], [79.40, 14.00], [79.40, 13.20], [78.40, 13.20], [78.40, 14.00]
+          [81.05, 16.85], [81.55, 16.85], [81.55, 16.35],
+          [81.05, 16.35], [81.05, 16.85]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Kurnool",
-        "district": "Kurnool"
-      },
+      "properties": { "name": "Eluru", "district": "Eluru" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [77.80, 15.80], [78.80, 15.80], [78.80, 15.00], [77.80, 15.00], [77.80, 15.80]
+          [80.75, 17.10], [81.40, 17.10], [81.40, 16.50],
+          [80.75, 16.50], [80.75, 17.10]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Anantapur",
-        "district": "Anantapur"
-      },
+      "properties": { "name": "Krishna", "district": "Krishna" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [77.00, 15.20], [78.00, 15.20], [78.00, 14.20], [77.00, 14.20], [77.00, 15.20]
+          [80.65, 16.50], [81.15, 16.50], [81.20, 16.10],
+          [80.85, 15.95], [80.60, 16.05], [80.65, 16.50]
         ]]
       }
     },
     {
       "type": "Feature",
-      "properties": {
-        "name": "Kadapa",
-        "district": "Kadapa"
-      },
+      "properties": { "name": "NTR", "district": "NTR" },
       "geometry": {
         "type": "Polygon",
         "coordinates": [[
-          [78.40, 15.00], [79.40, 15.00], [79.40, 14.00], [78.40, 14.00], [78.40, 15.00]
+          [80.35, 16.72], [80.80, 16.72], [80.80, 16.32],
+          [80.35, 16.32], [80.35, 16.72]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Guntur", "district": "Guntur" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [80.05, 16.50], [80.60, 16.50], [80.60, 16.05],
+          [80.05, 16.05], [80.05, 16.50]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Bapatla", "district": "Bapatla" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.95, 16.10], [80.50, 16.10], [80.45, 15.55],
+          [79.95, 15.60], [79.95, 16.10]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Palnadu", "district": "Palnadu" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.35, 16.55], [80.15, 16.55], [80.15, 15.85],
+          [79.35, 15.85], [79.35, 16.55]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Prakasam", "district": "Prakasam" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.25, 15.75], [80.10, 15.75], [80.05, 15.05],
+          [79.25, 15.05], [79.25, 15.75]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Nellore", "district": "Nellore" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.45, 15.05], [80.05, 15.05], [80.05, 14.10],
+          [79.45, 14.10], [79.45, 15.05]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Tirupati", "district": "Tirupati" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [79.10, 14.15], [79.95, 14.15], [79.90, 13.40],
+          [79.10, 13.45], [79.10, 14.15]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Chittoor", "district": "Chittoor" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.60, 13.65], [79.45, 13.65], [79.45, 12.95],
+          [78.60, 12.95], [78.60, 13.65]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Annamayya", "district": "Annamayya" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.30, 14.50], [79.15, 14.50], [79.15, 13.75],
+          [78.30, 13.75], [78.30, 14.50]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "YSR Kadapa", "district": "YSR Kadapa" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.30, 15.05], [79.15, 15.05], [79.15, 14.30],
+          [78.30, 14.30], [78.30, 15.05]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Nandyal", "district": "Nandyal" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [78.00, 15.80], [78.80, 15.80], [78.80, 15.10],
+          [78.00, 15.10], [78.00, 15.80]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Kurnool", "district": "Kurnool" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.35, 16.15], [78.30, 16.15], [78.30, 15.50],
+          [77.35, 15.50], [77.35, 16.15]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Anantapur", "district": "Anantapur" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [76.85, 15.20], [77.90, 15.20], [77.90, 14.35],
+          [76.85, 14.35], [76.85, 15.20]
+        ]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sri Sathya Sai", "district": "Sri Sathya Sai" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [77.25, 14.45], [78.35, 14.45], [78.35, 13.75],
+          [77.25, 13.75], [77.25, 14.45]
         ]]
       }
     }

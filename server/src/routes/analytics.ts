@@ -260,7 +260,7 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Analytics error:", err);
-    res.status(500).json({ error: "Failed to generate analytics: " + err.message });
+    res.status(500).json({ error: "Failed to generate analytics" });
   }
 });
 
@@ -314,7 +314,7 @@ router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
     }
   } catch (err: any) {
     console.error("Analytics export error:", err);
-    res.status(500).json({ error: "Failed to export analytics: " + err.message });
+    res.status(500).json({ error: "Failed to export analytics" });
   }
 });
 

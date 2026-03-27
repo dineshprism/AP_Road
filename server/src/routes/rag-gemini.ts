@@ -214,8 +214,7 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
   } catch (err: any) {
     console.error("Gemini analyze error:", err);
     res.status(500).json({ 
-      error: err.message,
-      details: err.toString()
+      error: "AI analysis failed. Please try again later."
     });
   }
 });
@@ -318,8 +317,7 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 12
   } catch (err: any) {
     console.error("Gemini batch analyze error:", err);
     res.status(500).json({ 
-      error: err.message,
-      details: err.toString()
+      error: "AI batch analysis failed. Please try again later."
     });
   }
 });

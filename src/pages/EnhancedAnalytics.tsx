@@ -357,7 +357,7 @@ const EnhancedAnalytics = () => {
                     <AreaChart data={analyticsData.trendData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="month" stroke="#64748b" />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
                       <Area type="monotone" dataKey="accidents" stackId="1" stroke="#163a70" fill="#8ea7cb" name="Accidents" />
@@ -378,7 +378,7 @@ const EnhancedAnalytics = () => {
                     <BarChart data={analyticsData.timeAnalysis}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="hour" stroke="#64748b" interval={2} />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Bar dataKey="accidents" fill="#163a70" radius={[4, 4, 0, 0]} name="Accidents" />
                     </BarChart>
@@ -401,7 +401,7 @@ const EnhancedAnalytics = () => {
                   <ResponsiveContainer width="100%" height={360}>
                     <BarChart data={chartComparisonData} layout="vertical" margin={{ left: 16 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" stroke="#64748b" />
+                      <XAxis type="number" stroke="#64748b" allowDecimals={false} />
                       <YAxis dataKey="name" type="category" width={120} stroke="#64748b" />
                       <Tooltip />
                       <Legend />
@@ -463,7 +463,7 @@ const EnhancedAnalytics = () => {
                     <BarChart data={chartMandals}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" stroke="#64748b" angle={-20} textAnchor="end" height={70} />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="accidents" fill="#163a70" name="Accidents" />
@@ -635,7 +635,7 @@ const EnhancedAnalytics = () => {
                     <BarChart data={analyticsData.vehicleAnalysis.slice(0, 10)}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="type" stroke="#64748b" angle={-15} textAnchor="end" height={70} />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="count" fill="#163a70" name="Vehicles" />
@@ -662,7 +662,7 @@ const EnhancedAnalytics = () => {
                     <BarChart data={analyticsData.signedCopyAnalysis}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" stroke="#64748b" />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Bar dataKey="count" fill="#2a7c4a" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -700,7 +700,7 @@ const EnhancedAnalytics = () => {
                     <BarChart data={chartPoliceStations}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="name" stroke="#64748b" angle={-20} textAnchor="end" height={80} />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
                       <Bar dataKey="accidents" fill="#163a70" name="Accidents" />
@@ -723,7 +723,7 @@ const EnhancedAnalytics = () => {
                     <LineChart data={analyticsData.dayOfWeekAnalysis}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="day" stroke="#64748b" />
-                      <YAxis stroke="#64748b" />
+                      <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
                       <Line type="monotone" dataKey="accidents" stroke="#163a70" strokeWidth={3} name="Accidents" />

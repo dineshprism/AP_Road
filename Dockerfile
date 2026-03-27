@@ -8,16 +8,18 @@
 # --- Stage 1: Build frontend ---
 FROM node:20-alpine AS frontend-build
 WORKDIR /app
-COPY package.json ./
-RUN npm install --legacy-peer-deps
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
 COPY . .
+ARG VITE_GOOGLE_MAPS_API_KEY
+ENV VITE_GOOGLE_MAPS_API_KEY=$VITE_GOOGLE_MAPS_API_KEY
 RUN npm run build
 
 # --- Stage 2: Build backend ---
 FROM node:20-alpine AS backend-build
 WORKDIR /app/server
-COPY server/package.json ./
-RUN npm install
+COPY server/package.json server/package-lock.json ./
+RUN npm ci
 COPY server/ .
 RUN npx tsc
 
@@ -27,12 +29,14 @@ WORKDIR /app
 
 # Copy backend build
 COPY --from=backend-build /app/server/dist ./server/dist
-COPY --from=backend-build /app/server/src ./server/src
 COPY --from=backend-build /app/server/node_modules ./server/node_modules
 COPY --from=backend-build /app/server/package.json ./server/package.json
 
 # Copy frontend build
 COPY --from=frontend-build /app/dist ./dist
+
+# Create uploads directory
+RUN mkdir -p /app/server/uploads/signed-copies && chown -R node:node /app/server/uploads
 
 WORKDIR /app/server
 

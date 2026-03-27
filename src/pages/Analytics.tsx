@@ -318,7 +318,7 @@ const Analytics = () => {
                 <ComposedChart data={analyticsData.trendData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="month" stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
+                  <YAxis stroke="#64748b" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#ffffff",
@@ -348,7 +348,7 @@ const Analytics = () => {
                   layout="vertical"
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#64748b" />
+                  <XAxis type="number" stroke="#64748b" allowDecimals={false} />
                   <YAxis dataKey="district" type="category" width={100} stroke="#64748b" />
                   <Tooltip
                     contentStyle={{
@@ -406,7 +406,7 @@ const Analytics = () => {
                 <BarChart data={analyticsData.driverCauses.slice(0, 5)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="cause" angle={-45} textAnchor="end" height={80} stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
+                  <YAxis stroke="#64748b" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#ffffff",
@@ -431,7 +431,7 @@ const Analytics = () => {
                 <BarChart data={analyticsData.roadConditionCauses.slice(0, 5)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="cause" angle={-45} textAnchor="end" height={80} stroke="#64748b" />
-                  <YAxis stroke="#64748b" />
+                  <YAxis stroke="#64748b" allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: "#ffffff",

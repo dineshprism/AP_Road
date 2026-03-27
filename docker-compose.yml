@@ -4,12 +4,12 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-Github#20262027}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       POSTGRES_DB: road_accident_db
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -17,7 +17,10 @@ services:
       retries: 5
 
   app:
-    build: .
+    build:
+      context: .
+      args:
+        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     restart: always
     depends_on:
       db:
@@ -26,12 +29,12 @@ services:
       PGHOST: db
       PGPORT: 5432
       PGUSER: postgres
-      PGPASSWORD: ${DB_PASSWORD:-Github#20262027}
+      PGPASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
       PGDATABASE: road_accident_db
-      JWT_SECRET: ${JWT_SECRET:-change-this-to-a-random-64-char-secret-in-production}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       PORT: 3000
       NODE_ENV: production
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN must be set in .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       GEMINI_THINKING_BUDGET: ${GEMINI_THINKING_BUDGET:-0}

@@ -63,6 +63,29 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Input length validation to prevent abuse
+    const textFields = { district, place_of_accident, mandal, police_station, fir_number, road_type, accident_time };
+    for (const [field, value] of Object.entries(textFields)) {
+      if (typeof value !== "string" || value.length > 500) {
+        res.status(400).json({ error: `Invalid or too long value for ${field}` });
+        return;
+      }
+    }
+
+    // Validate date format
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(accident_date)) {
+      res.status(400).json({ error: "Invalid date format" });
+      return;
+    }
+
+    // Validate numeric fields
+    const died = parseInt(persons_died, 10);
+    const injured = parseInt(persons_injured, 10);
+    if (isNaN(died) || isNaN(injured) || died < 0 || injured < 0 || died > 10000 || injured > 10000) {
+      res.status(400).json({ error: "Invalid victim count" });
+      return;
+    }
+
     const result = await pool.query(
       `INSERT INTO accident_submissions (
         user_id, district, place_of_accident, mandal, police_station, fir_number,
@@ -181,6 +204,14 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     const id = req.params.id as string;
     const file = req.file;
 
+    // Validate UUID format to prevent path traversal
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      if (file) fs.unlinkSync(file.path);
+      res.status(400).json({ error: "Invalid submission ID" });
+      return;
+    }
+
     if (!file) {
       res.status(400).json({ error: "Signed copy file is required" });
       return;
@@ -228,7 +259,7 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);
-    res.status(500).json({ error: err?.message || "Internal server error" });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

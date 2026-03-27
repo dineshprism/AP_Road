@@ -1,13 +1,23 @@
 import { Router, Response } from "express";
 import bcrypt from "bcrypt";
+import rateLimit from "express-rate-limit";
 import pool from "../db.js";
 import { generateToken, authMiddleware, AuthRequest } from "../auth.js";
 import { findUserForLogin } from "../user-store.js";
 
 const router = Router();
 
+// Rate limit login: 10 attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: "Too many login attempts. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // POST /api/auth/login — login by username (district name or DGP/ADGP)
-router.post("/login", async (req: AuthRequest, res: Response) => {
+router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { username, password } = req.body;
 

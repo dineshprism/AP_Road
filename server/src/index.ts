@@ -1,5 +1,7 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -10,6 +12,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
 import { runMigrations } from "./migrate.js";
+import { authMiddleware } from "./auth.js";
 
 dotenv.config();
 
@@ -17,26 +20,49 @@ const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Middleware
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://*.googleapis.com"],
+      connectSrc: ["'self'", "https://*.googleapis.com", "https://*.google.com"],
+      fontSrc: ["'self'", "https:", "data:"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+    },
+  },
+}));
+
+// Global rate limiter: 200 requests per 15 minutes per IP
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+}));
+
 const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:8080")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
-const allowAnyOrigin = configuredOrigins.includes("*");
 
 app.use(cors({
   origin(origin, callback) {
-    if (allowAnyOrigin || !origin || configuredOrigins.includes(origin)) {
+    if (!origin || configuredOrigins.includes(origin)) {
       callback(null, true);
       return;
     }
-
     callback(new Error(`CORS blocked for origin: ${origin}`));
   },
-  credentials: !allowAnyOrigin,
+  credentials: true,
 }));
 app.use(express.json({ limit: "2mb" }));
-app.use("/api/uploads", express.static(path.join(__dirname, "../uploads")));
+
+// Serve uploaded files only to authenticated users
+app.use("/api/uploads", authMiddleware, express.static(path.join(__dirname, "../uploads")));
 
 // Health check (must be before other /api routes)
 app.get("/api/health", (_req, res) => {

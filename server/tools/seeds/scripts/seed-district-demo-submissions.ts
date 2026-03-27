@@ -154,9 +154,49 @@ function makeTime(seed: number): string {
   return `${hour}:${minute}`;
 }
 
-function makeLatLong(seed: number): string {
-  const lat = (13.2 + (seed % 20) * 0.17).toFixed(4);
-  const lng = (77.8 + (seed % 20) * 0.21).toFixed(4);
+// District headquarters coordinates (lat, lng) for all 26 AP districts
+const DISTRICT_CENTERS: Record<string, [number, number]> = {
+  "Srikakulam":             [18.2960, 83.8976],
+  "Vizianagaram":           [18.1067, 83.3956],
+  "Parvathipuram Manyam":   [18.7664, 83.4256],
+  "Alluri Sitharama Raju":  [17.9900, 82.3500],
+  "Visakhapatnam":          [17.6868, 83.2185],
+  "Anakapalli":             [17.6910, 83.0041],
+  "Kakinada":               [16.9891, 82.2475],
+  "East Godavari":          [17.0005, 81.8040],
+  "Konaseema":              [16.5789, 81.8049],
+  "West Godavari":          [16.5449, 81.5212],
+  "Eluru":                  [16.7107, 81.0952],
+  "Krishna":                [16.1875, 80.9389],
+  "NTR":                    [16.5062, 80.6480],
+  "Guntur":                 [16.3067, 80.4365],
+  "Bapatla":                [15.9048, 80.4674],
+  "Palnadu":                [16.2348, 80.0487],
+  "Prakasam":               [15.5057, 79.7494],
+  "Nellore":                [14.4426, 79.9865],
+  "Tirupati":               [13.6288, 79.4192],
+  "Chittoor":               [13.2172, 79.1003],
+  "Annamayya":              [14.0577, 78.7506],
+  "YSR Kadapa":             [14.4674, 78.8242],
+  "Nandyal":                [15.4776, 78.4836],
+  "Kurnool":                [15.8281, 78.0469],
+  "Anantapur":              [14.6819, 77.6006],
+  "Sri Sathya Sai":         [14.1650, 77.8120],
+};
+
+function makeLatLong(seed: number, district?: string): string {
+  const center = district ? DISTRICT_CENTERS[district] : undefined;
+  if (center) {
+    // Add small jitter (±0.05°) around district headquarters
+    const jitterLat = ((seed % 100) - 50) * 0.001;
+    const jitterLng = (((seed * 7) % 100) - 50) * 0.001;
+    const lat = (center[0] + jitterLat).toFixed(4);
+    const lng = (center[1] + jitterLng).toFixed(4);
+    return `${lat}, ${lng}`;
+  }
+  // Fallback: center of AP
+  const lat = (15.9129 + ((seed % 10) - 5) * 0.01).toFixed(4);
+  const lng = (79.7400 + ((seed % 10) - 5) * 0.01).toFixed(4);
   return `${lat}, ${lng}`;
 }
 
@@ -277,7 +317,7 @@ async function seedDistrictDemoSubmissions() {
             ROAD_TYPES[seed % ROAD_TYPES.length],
             accidentDate,
             makeTime(seed),
-            makeLatLong(seed),
+            makeLatLong(seed, district),
             (seed % 3) + 1,
             (seed % 5) + 1,
             JSON.stringify(makeVehicles(code, seed)),

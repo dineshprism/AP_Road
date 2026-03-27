@@ -327,7 +327,7 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <GovHeader />
-      <div className="container mx-auto px-4 py-6">
+      <div className={`${activeTab === "map" ? "mx-auto max-w-[1700px]" : "container mx-auto"} px-4 py-6`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="gov-page-title">My Submissions</h2>
           <div className="flex flex-wrap gap-2">
@@ -619,18 +619,33 @@ const UserDashboard = () => {
           </TabsContent>
 
           <TabsContent value="map" className="space-y-4">
-            <Card className="border-0 shadow-sm">
+            <Card className="overflow-hidden border-0 shadow-sm">
               <CardContent className="p-0">
-                <div className="border-b p-4">
-                  <h3 className="text-lg font-semibold">Accident Map - {district} District</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Interactive map showing accident locations and hotspots in your jurisdiction
-                  </p>
+                <div className="border-b bg-slate-50 px-5 py-4">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-slate-900">Accident Map - {district} District</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Full district map with accident spots, live traffic, hotspot intensity, and district-only navigation view
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <Badge variant="outline" className="bg-white text-slate-700">
+                        {filteredSubmissions.length} filtered records
+                      </Badge>
+                      <Badge variant="outline" className="bg-white text-slate-700">
+                        {filteredSubmissions.filter((submission) => Boolean(submission.lat_long)).length} mapped spots
+                      </Badge>
+                      <Badge variant="outline" className="bg-white text-slate-700">
+                        {filteredSubmissions.filter((submission) => !submission.lat_long).length} without coordinates
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
                 <AccidentMap
                   accidents={filteredSubmissions}
                   userDistrict={district}
-                  height="600px"
+                  height="calc(100vh - 220px)"
                   showHeatmap={true}
                   showDistrictBoundaries={false}
                   zoom={9}

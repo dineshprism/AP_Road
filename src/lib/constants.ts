@@ -1,10 +1,10 @@
 export const AP_DISTRICTS = [
-  "Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna",
-  "Kurnool", "Nellore", "Prakasam", "Srikakulam", "Visakhapatnam",
-  "Vizianagaram", "West Godavari", "YSR Kadapa", "Bapatla", "Eluru",
-  "Kakinada", "Konaseema", "Nandyal", "NTR", "Palnadu",
-  "Parvathipuram Manyam", "Sri Sathya Sai", "Tirupati", "Anakapalli",
-  "Alluri Sitharama Raju"
+  "Alluri Sitharama Raju", "Anakapalli", "Anantapur", "Annamayya",
+  "Bapatla", "Chittoor", "East Godavari", "Eluru", "Guntur",
+  "Kakinada", "Konaseema", "Krishna", "Kurnool", "Nandyal",
+  "Nellore", "NTR", "Palnadu", "Parvathipuram Manyam", "Prakasam",
+  "Sri Sathya Sai", "Srikakulam", "Tirupati", "Visakhapatnam",
+  "Vizianagaram", "West Godavari", "YSR Kadapa"
 ];
 
 export const ROAD_TYPES = ["NH", "SH", "MDR", "Other"];
