@@ -21,6 +21,11 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Vehicle { registration_number: string; class_type: string; }
 interface Driver { name: string; dl_number: string; licensing_authority: string; }
+type CauseAnswers = Record<string, boolean>;
+
+function hasAnsweredAllQuestions(items: string[], values: CauseAnswers) {
+  return items.every((item) => Object.prototype.hasOwnProperty.call(values, item));
+}
 
 const AccidentForm = () => {
   const { user, profile } = useAuth();
@@ -28,6 +33,7 @@ const AccidentForm = () => {
   const location = useLocation();
   const navState = (location.state as { sdpo?: string; policeStation?: string }) || {};
   const [loading, setLoading] = useState(false);
+  const [showCausativeValidation, setShowCausativeValidation] = useState(false);
 
   // Location
   const district = profile?.district || "";
@@ -49,13 +55,23 @@ const AccidentForm = () => {
   const [personsInjured, setPersonsInjured] = useState(0);
 
   // Causative
-  const [driverCauses, setDriverCauses] = useState<Record<string, boolean>>({});
-  const [vehicleCauses, setVehicleCauses] = useState<Record<string, boolean>>({});
-  const [culvertsCauses, setCulvertsCauses] = useState<Record<string, boolean>>({});
-  const [junctionsCauses, setJunctionsCauses] = useState<Record<string, boolean>>({});
-  const [medianCauses, setMedianCauses] = useState<Record<string, boolean>>({});
-  const [natureCauses, setNatureCauses] = useState<Record<string, boolean>>({});
-  const [signagesCauses, setSignagesCauses] = useState<Record<string, boolean>>({});
+  const [driverCauses, setDriverCauses] = useState<CauseAnswers>({});
+  const [vehicleCauses, setVehicleCauses] = useState<CauseAnswers>({});
+  const [culvertsCauses, setCulvertsCauses] = useState<CauseAnswers>({});
+  const [junctionsCauses, setJunctionsCauses] = useState<CauseAnswers>({});
+  const [medianCauses, setMedianCauses] = useState<CauseAnswers>({});
+  const [natureCauses, setNatureCauses] = useState<CauseAnswers>({});
+  const [signagesCauses, setSignagesCauses] = useState<CauseAnswers>({});
+
+  const causativeSections = [
+    { items: DRIVER_RELATED_CAUSES, values: driverCauses },
+    { items: VEHICLE_CONDITION_CAUSES, values: vehicleCauses },
+    { items: ROAD_CULVERTS_CAUSES, values: culvertsCauses },
+    { items: ROAD_JUNCTIONS_CAUSES, values: junctionsCauses },
+    { items: ROAD_MEDIAN_CAUSES, values: medianCauses },
+    { items: ROAD_NATURE_CAUSES, values: natureCauses },
+    { items: ROAD_SIGNAGES_CAUSES, values: signagesCauses },
+  ];
 
   const policeStationOptions = district
     ? Object.entries(DISTRICT_HIERARCHY[district] || {})
@@ -83,6 +99,16 @@ const AccidentForm = () => {
       toast.error("Please fill all required fields in Basic Details");
       return;
     }
+    const hasCompletedCausativeAnalysis = causativeSections.every(({ items, values }) =>
+      hasAnsweredAllQuestions(items, values)
+    );
+    if (!hasCompletedCausativeAnalysis) {
+      setShowCausativeValidation(true);
+      toast.error("Please answer Yes or No for every question in the Causative Analysis section");
+      return;
+    }
+
+    setShowCausativeValidation(false);
     setLoading(true);
     const { error } = await api.submissions.create({
       district,
@@ -224,18 +250,20 @@ const AccidentForm = () => {
           <Card>
             <CardContent className="pt-6">
               <h3 className="gov-section-title">CAUSATIVE ANALYSIS</h3>
-              <p className="text-xs text-muted-foreground mb-4">Tick the checkbox if the cause applies (Yes)</p>
+              <p className="mb-4 text-xs text-muted-foreground">
+                Every question below is mandatory. Select either <span className="font-semibold text-emerald-700">Yes</span> or <span className="font-semibold text-rose-700">No</span> for each item.
+              </p>
               <div className="space-y-6">
-                <CausativeSection title="A. Driver Related Causes" items={DRIVER_RELATED_CAUSES} values={driverCauses} onChange={setDriverCauses} />
-                <CausativeSection title="B. Vehicle Condition Related Causes" items={VEHICLE_CONDITION_CAUSES} values={vehicleCauses} onChange={setVehicleCauses} />
+                <CausativeSection title="A. Driver Related Causes" items={DRIVER_RELATED_CAUSES} values={driverCauses} onChange={setDriverCauses} showRequiredState={showCausativeValidation} />
+                <CausativeSection title="B. Vehicle Condition Related Causes" items={VEHICLE_CONDITION_CAUSES} values={vehicleCauses} onChange={setVehicleCauses} showRequiredState={showCausativeValidation} />
                 <div className="border-t pt-4">
                   <h4 className="font-bold text-primary mb-3">C. Road Engineering Related Factors</h4>
                   <div className="space-y-4">
-                    <CausativeSection title="Culverts and Curves" items={ROAD_CULVERTS_CAUSES} values={culvertsCauses} onChange={setCulvertsCauses} />
-                    <CausativeSection title="Junctions" items={ROAD_JUNCTIONS_CAUSES} values={junctionsCauses} onChange={setJunctionsCauses} />
-                    <CausativeSection title="Median" items={ROAD_MEDIAN_CAUSES} values={medianCauses} onChange={setMedianCauses} />
-                    <CausativeSection title="Nature of Area" items={ROAD_NATURE_CAUSES} values={natureCauses} onChange={setNatureCauses} />
-                    <CausativeSection title="Signages and Road Markings" items={ROAD_SIGNAGES_CAUSES} values={signagesCauses} onChange={setSignagesCauses} />
+                    <CausativeSection title="Culverts and Curves" items={ROAD_CULVERTS_CAUSES} values={culvertsCauses} onChange={setCulvertsCauses} showRequiredState={showCausativeValidation} />
+                    <CausativeSection title="Junctions" items={ROAD_JUNCTIONS_CAUSES} values={junctionsCauses} onChange={setJunctionsCauses} showRequiredState={showCausativeValidation} />
+                    <CausativeSection title="Median" items={ROAD_MEDIAN_CAUSES} values={medianCauses} onChange={setMedianCauses} showRequiredState={showCausativeValidation} />
+                    <CausativeSection title="Nature of Area" items={ROAD_NATURE_CAUSES} values={natureCauses} onChange={setNatureCauses} showRequiredState={showCausativeValidation} />
+                    <CausativeSection title="Signages and Road Markings" items={ROAD_SIGNAGES_CAUSES} values={signagesCauses} onChange={setSignagesCauses} showRequiredState={showCausativeValidation} />
                   </div>
                 </div>
               </div>

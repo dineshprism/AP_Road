@@ -7,9 +7,10 @@ interface CausativeSectionProps {
   values: Record<string, boolean>;
   onChange: (values: Record<string, boolean>) => void;
   readOnly?: boolean;
+  showRequiredState?: boolean;
 }
 
-const CausativeSection = ({ title, items, values, onChange, readOnly }: CausativeSectionProps) => {
+const CausativeSection = ({ title, items, values, onChange, readOnly, showRequiredState }: CausativeSectionProps) => {
   const handleChange = (item: string, val: string) => {
     onChange({ ...values, [item]: val === "yes" });
   };
@@ -21,11 +22,16 @@ const CausativeSection = ({ title, items, values, onChange, readOnly }: Causativ
         {items.map((item, index) => {
           const currentValue = values[item];
           const radioValue = currentValue === true ? "yes" : currentValue === false ? "no" : "";
+          const isUnanswered = showRequiredState && radioValue === "";
 
           return (
-            <div key={index} className="flex items-center justify-between gap-4 p-2 rounded hover:bg-muted/50">
-              <span className="text-sm leading-tight font-normal flex-1">
+            <div
+              key={index}
+              className={`flex items-center justify-between gap-4 rounded p-2 hover:bg-muted/50 ${isUnanswered ? "border border-destructive/40 bg-destructive/5" : ""}`}
+            >
+              <span className="flex-1 text-sm font-normal leading-tight">
                 {index + 1}. {item}
+                {isUnanswered ? <span className="ml-2 text-xs font-semibold text-destructive">Required</span> : null}
               </span>
               <RadioGroup
                 value={radioValue}
