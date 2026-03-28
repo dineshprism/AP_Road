@@ -185,6 +185,16 @@ function formatDateLabel(value: string) {
   });
 }
 
+function normalizeDateInputValue(value: string) {
+  const parsed = parseDateValue(value);
+  if (!parsed) return "";
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function shortenCauseLabel(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
 
@@ -239,7 +249,7 @@ const EnhancedAnalytics = () => {
     if (!authLoading && user) {
       fetchEnhancedAnalytics();
     }
-  }, [authLoading, user, filterDistrict, filterYear, filterFromDate, filterToDate]);
+  }, [authLoading, user, filterDistrict, filterYear]);
 
   const fetchEnhancedAnalytics = async () => {
     try {
@@ -276,7 +286,11 @@ const EnhancedAnalytics = () => {
     []
   );
   const hasCustomDateRange = Boolean(filterFromDate || filterToDate);
-  const dateRangeLabel = hasCustomDateRange
+  const hasValidCustomDateRange = Boolean(
+    (filterFromDate && parseDateValue(filterFromDate)) ||
+    (filterToDate && parseDateValue(filterToDate))
+  );
+  const dateRangeLabel = hasValidCustomDateRange
     ? `${filterFromDate ? formatDateLabel(filterFromDate) : "Start"} - ${filterToDate ? formatDateLabel(filterToDate) : "Today"}`
     : null;
 
@@ -406,7 +420,13 @@ const EnhancedAnalytics = () => {
                   <input
                     type="date"
                     value={filterFromDate}
-                    onChange={(e) => setFilterFromDate(e.target.value)}
+                    onChange={(e) => {
+                      const nextValue = normalizeDateInputValue(e.target.value);
+                      setFilterFromDate(nextValue);
+                      if (filterToDate && nextValue && filterToDate < nextValue) {
+                        setFilterToDate("");
+                      }
+                    }}
                     className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
                   />
                 </div>
@@ -419,7 +439,7 @@ const EnhancedAnalytics = () => {
                     type="date"
                     value={filterToDate}
                     min={filterFromDate || undefined}
-                    onChange={(e) => setFilterToDate(e.target.value)}
+                    onChange={(e) => setFilterToDate(normalizeDateInputValue(e.target.value))}
                     className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
                   />
                 </div>
