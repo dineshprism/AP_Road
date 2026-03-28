@@ -32,6 +32,7 @@ if [ ! -f "$ENV_FILE" ]; then
     echo ""
     echo "cat > $ENV_FILE << 'EOF'"
     echo 'VITE_GOOGLE_MAPS_API_KEY=your-google-maps-key'
+    echo 'GEMINI_API_KEY=your-gemini-api-key'
     echo 'DB_PASSWORD=CHANGE_ME_STRONG_PASSWORD'
     echo 'DB_PORT=5433'
     echo 'JWT_SECRET=CHANGE_ME_RANDOM_64_CHAR_STRING'

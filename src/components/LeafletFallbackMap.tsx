@@ -51,8 +51,6 @@ type MarkerPoint = AccidentData & {
   severity: "high" | "medium" | "low";
 };
 
-type MapViewMode = "streets" | "satellite" | "topo";
-
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
@@ -63,22 +61,10 @@ const AP_BOUNDS: L.LatLngBoundsExpression = [
   [19.1, 84.3],
 ];
 
-const TILE_LAYERS: Record<MapViewMode, { url: string; attribution: string }> = {
-  streets: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-  },
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution:
-      '&copy; <a href="https://www.esri.com/">Esri</a>, Maxar, Earthstar Geographics',
-  },
-  topo: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-  },
+const STREET_TILE_LAYER = {
+  url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -209,7 +195,6 @@ const LeafletFallbackMap = ({
 }: LeafletFallbackMapProps) => {
   const [heatmapEnabled, setHeatmapEnabled] = useState(showHeatmap);
   const [boundariesEnabled, setBoundariesEnabled] = useState(showDistrictBoundaries);
-  const [mapViewMode, setMapViewMode] = useState<MapViewMode>("streets");
   const recenterRef = useRef<(() => void) | null>(null);
 
   useEffect(() => setHeatmapEnabled(showHeatmap), [showHeatmap]);
@@ -294,10 +279,6 @@ const LeafletFallbackMap = ({
     [districtCounts, userDistrict],
   );
 
-  /* ---------- tile layer ---------- */
-
-  const tile = TILE_LAYERS[mapViewMode];
-
   /* ---------- render ---------- */
 
   return (
@@ -311,7 +292,7 @@ const LeafletFallbackMap = ({
         scrollWheelZoom
         style={{ width: "100%", height: "100%", borderRadius: "24px" }}
       >
-        <TileLayer url={tile.url} attribution={tile.attribution} />
+        <TileLayer url={STREET_TILE_LAYER.url} attribution={STREET_TILE_LAYER.attribution} />
 
         {/* Fit to district or AP */}
         <FitBounds
@@ -324,7 +305,7 @@ const LeafletFallbackMap = ({
         {/* District boundaries */}
         {boundariesEnabled && (
           <GeoJSON
-            key={`geo-${userDistrict || "all"}-${mapViewMode}`}
+            key={`geo-${userDistrict || "all"}`}
             data={districtGeoJson as GeoJSON.FeatureCollection}
             style={geoStyle}
             onEachFeature={onEachFeature}
@@ -409,11 +390,7 @@ const LeafletFallbackMap = ({
             {markerPoints.reduce((s, p) => s + p.persons_died, 0)} fatalities
           </span>
           <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
-            {mapViewMode === "streets"
-              ? "Street view"
-              : mapViewMode === "satellite"
-                ? "Satellite view"
-                : "Topo view"}
+            Street view
           </span>
         </div>
       </div>
@@ -436,21 +413,8 @@ const LeafletFallbackMap = ({
 
       {/* -------- Controls (right panel) -------- */}
       <div className="absolute bottom-3 right-3 z-[1000] flex w-[176px] flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/92 p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.42)] backdrop-blur md:bottom-auto md:right-4 md:top-4 md:w-[220px]">
-        {/* view mode picker */}
-        <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
-          {(["streets", "satellite", "topo"] as MapViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              className={`rounded-lg px-2 py-2 text-[11px] font-semibold transition ${
-                mapViewMode === mode
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-600"
-              }`}
-              onClick={() => setMapViewMode(mode)}
-            >
-              {mode === "streets" ? "Street" : mode === "satellite" ? "Sat" : "Topo"}
-            </button>
-          ))}
+        <div className="rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-700">
+          Street view only
         </div>
 
         <button
