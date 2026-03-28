@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GovHeader from "@/components/GovHeader";
-import AccidentMap from "@/components/AccidentMap";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { AP_DISTRICTS } from "@/lib/constants";
@@ -435,23 +434,6 @@ const EnhancedAnalytics = () => {
           </TabsContent>
 
           <TabsContent value="geography" className="space-y-5">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Accident Heat Map</CardTitle>
-                <CardDescription>GPS-based accident spread and hotspot concentration across the current scope</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-                <AccidentMap
-                  accidents={analyticsData.mapPoints}
-                  userDistrict={!isAdmin ? analyticsData.scope.district || undefined : undefined}
-                  height="620px"
-                  showHeatmap={true}
-                  showDistrictBoundaries={true}
-                  zoom={analyticsData.scope.viewLevel === "state" ? 7 : 9}
-                />
-              </CardContent>
-            </Card>
-
             <div className="grid gap-5 xl:grid-cols-2">
               <Card className="shadow-sm">
                 <CardHeader>
