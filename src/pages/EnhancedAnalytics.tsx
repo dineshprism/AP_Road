@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { AlertTriangle, BarChart3, Brain, Calendar, Car, Clock, FileCheck, Filter, Gauge, MapPin, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Brain, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
@@ -36,7 +36,6 @@ interface EnhancedAnalyticsData {
     mostDangerousRoadType: string;
     signedCopyUploaded: number;
     signedCopyPending: number;
-    gpsAvailable: number;
   };
   trendData: Array<{ month: string; accidents: number; deaths: number; injuries: number; fatalityRate: number }>;
   timeAnalysis: Array<{ hour: string; accidents: number; deaths: number; injuries: number }>;
@@ -155,6 +154,15 @@ function findRoadTypeEntry(
   return roadTypes.find((entry) => entry.roadType.toUpperCase() === roadType.toUpperCase()) || null;
 }
 
+function formatDateLabel(value: string) {
+  if (!value) return "";
+  return new Date(value).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function shortenCauseLabel(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
 
@@ -187,6 +195,10 @@ const EnhancedAnalytics = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [filterDistrict, setFilterDistrict] = useState("all");
   const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
+  const [showAnalyticalBrief, setShowAnalyticalBrief] = useState(false);
+  const [showOperationalSnapshot, setShowOperationalSnapshot] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -205,7 +217,7 @@ const EnhancedAnalytics = () => {
     if (!authLoading && user) {
       fetchEnhancedAnalytics();
     }
-  }, [authLoading, user, filterDistrict, filterYear]);
+  }, [authLoading, user, filterDistrict, filterYear, filterFromDate, filterToDate]);
 
   const fetchEnhancedAnalytics = async () => {
     try {
@@ -215,6 +227,8 @@ const EnhancedAnalytics = () => {
       const { data, error } = await api.analytics.getEnhancedAnalytics({
         district: requestedDistrict,
         year: filterYear,
+        fromDate: filterFromDate || undefined,
+        toDate: filterToDate || undefined,
       });
 
       if (error) {
@@ -239,6 +253,10 @@ const EnhancedAnalytics = () => {
     () => Array.from({ length: 6 }, (_, index) => (new Date().getFullYear() - index).toString()),
     []
   );
+  const hasCustomDateRange = Boolean(filterFromDate || filterToDate);
+  const dateRangeLabel = hasCustomDateRange
+    ? `${filterFromDate ? formatDateLabel(filterFromDate) : "Start"} - ${filterToDate ? formatDateLabel(filterToDate) : "Today"}`
+    : null;
 
   if (loading || authLoading) {
     return <div className="min-h-screen bg-slate-50"><GovHeader /><div className="container mx-auto px-4 py-10"><Card className="border-slate-200"><CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-3"><RefreshCw className="h-10 w-10 animate-spin text-primary" /><p className="text-lg font-semibold text-slate-800">Loading analytics workspace</p><p className="text-sm text-slate-500">Preparing visual summaries and comparison metrics</p></CardContent></Card></div></div>;
@@ -305,6 +323,9 @@ const EnhancedAnalytics = () => {
                   </Badge>
                   <Badge variant="outline" className="border-slate-300 text-slate-700">{analyticsData.scope.scopeLabel}</Badge>
                   <Badge variant="outline" className="border-slate-300 text-slate-700">{analyticsData.scope.year}</Badge>
+                  {dateRangeLabel && (
+                    <Badge variant="outline" className="border-slate-300 text-slate-700">{dateRangeLabel}</Badge>
+                  )}
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-slate-900">Road Accident Analytics</h1>
@@ -316,7 +337,7 @@ const EnhancedAnalytics = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div className="min-w-[150px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <Filter className="mr-1 inline h-3.5 w-3.5" />
@@ -344,7 +365,7 @@ const EnhancedAnalytics = () => {
                     <Calendar className="mr-1 inline h-3.5 w-3.5" />
                     Year
                   </Label>
-                  <Select value={filterYear} onValueChange={setFilterYear}>
+                  <Select value={filterYear} onValueChange={setFilterYear} disabled={hasCustomDateRange}>
                     <SelectTrigger className="bg-white">
                       <SelectValue />
                     </SelectTrigger>
@@ -356,11 +377,48 @@ const EnhancedAnalytics = () => {
                   </Select>
                 </div>
 
+                <div className="min-w-[150px]">
+                  <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    From Date
+                  </Label>
+                  <input
+                    type="date"
+                    value={filterFromDate}
+                    onChange={(e) => setFilterFromDate(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+
+                <div className="min-w-[150px]">
+                  <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    To Date
+                  </Label>
+                  <input
+                    type="date"
+                    value={filterToDate}
+                    min={filterFromDate || undefined}
+                    onChange={(e) => setFilterToDate(e.target.value)}
+                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                  />
+                </div>
+
                 <div className="flex items-end gap-2">
-                  <Button variant="outline" onClick={fetchEnhancedAnalytics} className="w-full bg-white">
+                  <Button variant="outline" onClick={fetchEnhancedAnalytics} className="flex-1 bg-white">
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
                   </Button>
+                  {(filterFromDate || filterToDate) && (
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setFilterFromDate("");
+                        setFilterToDate("");
+                      }}
+                      className="border border-slate-200"
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -373,60 +431,82 @@ const EnhancedAnalytics = () => {
           <Card className="border-l-4 border-l-amber-500 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Injuries</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalInjuries)}</p></div><Users className="h-9 w-9 text-amber-500/80" /></div></CardContent></Card>
           <Card className="border-l-4 border-l-blue-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fatality Rate</p><p className="mt-2 text-3xl font-bold text-slate-900">{formatPercent(analyticsData.summary.averageFatalityRate, true)}</p></div><Gauge className="h-9 w-9 text-blue-700/80" /></div></CardContent></Card>
           <Card className="border-l-4 border-l-emerald-600 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Uploaded</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyUploaded)}</p></div><FileCheck className="h-9 w-9 text-emerald-600/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-slate-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">GPS Available</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.gpsAvailable)}</p></div><MapPin className="h-9 w-9 text-slate-700/80" /></div></CardContent></Card>
+          <Card className="border-l-4 border-l-slate-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Pending</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyPending)}</p></div><Clock className="h-9 w-9 text-slate-700/80" /></div></CardContent></Card>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <Brain className="h-5 w-5 text-primary" />
-                Analytical Brief
-              </CardTitle>
-              <CardDescription>AI-supported summary based on the filtered records and comparison metrics</CardDescription>
+              <Button
+                variant="ghost"
+                className="h-auto justify-between px-0 py-0 hover:bg-transparent"
+                onClick={() => setShowAnalyticalBrief((prev) => !prev)}
+              >
+                <div className="text-left">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Brain className="h-5 w-5 text-primary" />
+                    Analytical Brief
+                  </CardTitle>
+                  <CardDescription className="mt-1">AI-supported summary based on the filtered records and comparison metrics</CardDescription>
+                </div>
+                {showAnalyticalBrief ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm leading-6 text-slate-700">{analyticsData.geminiInsights.overallAssessment}</p>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold text-slate-900">Key Findings</h3>
-                  <div className="space-y-2">
-                    {analyticsData.geminiInsights.keyFindings.map((item, index) => (
-                      <div key={`${item}-${index}`} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{item}</div>
-                    ))}
+            {showAnalyticalBrief && (
+              <CardContent className="space-y-5">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm leading-6 text-slate-700">{analyticsData.geminiInsights.overallAssessment}</p>
+                </div>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-900">Key Findings</h3>
+                    <div className="space-y-2">
+                      {analyticsData.geminiInsights.keyFindings.map((item, index) => (
+                        <div key={`${item}-${index}`} className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">{item}</div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="mb-2 text-sm font-semibold text-slate-900">Priority Actions</h3>
+                    <div className="space-y-2">
+                      {analyticsData.geminiInsights.recommendations.map((item, index) => (
+                        <div key={`${item}-${index}`} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{item}</div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <h3 className="mb-2 text-sm font-semibold text-slate-900">Priority Actions</h3>
-                  <div className="space-y-2">
-                    {analyticsData.geminiInsights.recommendations.map((item, index) => (
-                      <div key={`${item}-${index}`} className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{item}</div>
-                    ))}
-                  </div>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Forward View</p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">{analyticsData.geminiInsights.predictiveAnalysis}</p>
                 </div>
-              </div>
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Forward View</p>
-                <p className="mt-2 text-sm leading-6 text-amber-900">{analyticsData.geminiInsights.predictiveAnalysis}</p>
-              </div>
-            </CardContent>
+              </CardContent>
+            )}
           </Card>
 
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-xl">Operational Snapshot</CardTitle>
-              <CardDescription>Quick reading for monitoring, enforcement, and reporting</CardDescription>
+              <Button
+                variant="ghost"
+                className="h-auto justify-between px-0 py-0 hover:bg-transparent"
+                onClick={() => setShowOperationalSnapshot((prev) => !prev)}
+              >
+                <div className="text-left">
+                  <CardTitle className="text-xl">Operational Snapshot</CardTitle>
+                  <CardDescription className="mt-1">Quick reading for monitoring, enforcement, and reporting</CardDescription>
+                </div>
+                {showOperationalSnapshot ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Peak Accident Hour</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.peakAccidentHour}</p></div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Peak Accident Month</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.peakAccidentMonth}</p></div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Highest Risk Road Type</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.mostDangerousRoadType}</p></div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leading {comparisonHeadline}</p><p className="mt-1 text-lg font-bold text-slate-900">{topComparison?.name || "Not available"}</p>{topComparison && <p className="mt-1 text-sm text-slate-600">{topComparison.accidents} accidents, {topComparison.deaths} deaths</p>}</div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Hotspot</p><p className="mt-1 text-lg font-bold text-slate-900">{topHotspot?.place || "Not available"}</p>{topHotspot && <p className="mt-1 text-sm text-slate-600">Risk score {topHotspot.riskScore} in {topHotspot.district}</p>}</div>
-              <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Mandal</p><p className="mt-1 text-lg font-bold text-slate-900">{topMandal?.name || "Not available"}</p>{topMandal && <p className="mt-1 text-sm text-slate-600">{topMandal.accidents} accidents, {topMandal.deaths} deaths</p>}</div>
-            </CardContent>
+            {showOperationalSnapshot && (
+              <CardContent className="space-y-3">
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Peak Accident Hour</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.peakAccidentHour}</p></div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Peak Accident Month</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.peakAccidentMonth}</p></div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Highest Risk Road Type</p><p className="mt-1 text-lg font-bold text-slate-900">{analyticsData.summary.mostDangerousRoadType}</p></div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leading {comparisonHeadline}</p><p className="mt-1 text-lg font-bold text-slate-900">{topComparison?.name || "Not available"}</p>{topComparison && <p className="mt-1 text-sm text-slate-600">{topComparison.accidents} accidents, {topComparison.deaths} deaths</p>}</div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Hotspot</p><p className="mt-1 text-lg font-bold text-slate-900">{topHotspot?.place || "Not available"}</p>{topHotspot && <p className="mt-1 text-sm text-slate-600">Risk score {topHotspot.riskScore} in {topHotspot.district}</p>}</div>
+                <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Top Mandal</p><p className="mt-1 text-lg font-bold text-slate-900">{topMandal?.name || "Not available"}</p>{topMandal && <p className="mt-1 text-sm text-slate-600">{topMandal.accidents} accidents, {topMandal.deaths} deaths</p>}</div>
+              </CardContent>
+            )}
           </Card>
         </div>
 

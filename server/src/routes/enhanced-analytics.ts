@@ -142,11 +142,33 @@ async function getAccessContext(req: AuthRequest, res: Response) {
   };
 }
 
-function buildScopedWhere(year?: string, district?: string, access?: { isAdmin: boolean; profileDistrict: string | null }): ScopeResult {
+function buildScopedWhere(
+  year?: string,
+  district?: string,
+  fromDate?: string,
+  toDate?: string,
+  access?: { isAdmin: boolean; profileDistrict: string | null }
+): ScopeResult {
   const yearNum = parseInt(year || "", 10) || new Date().getFullYear();
-  const params: Array<string> = [`${yearNum}-01-01`, `${yearNum + 1}-01-01`];
-  let whereClause = "accident_date >= $1 AND accident_date < $2";
+  const params: Array<string> = [];
+  let whereClause = "1=1";
   let effectiveDistrict: string | null = null;
+  const isValidDate = (value?: string) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+
+  if (isValidDate(fromDate)) {
+    params.push(fromDate!);
+    whereClause += ` AND accident_date >= $${params.length}`;
+  }
+
+  if (isValidDate(toDate)) {
+    params.push(toDate!);
+    whereClause += ` AND accident_date <= $${params.length}`;
+  }
+
+  if (!isValidDate(fromDate) && !isValidDate(toDate)) {
+    params.push(`${yearNum}-01-01`, `${yearNum + 1}-01-01`);
+    whereClause += ` AND accident_date >= $${params.length - 1} AND accident_date < $${params.length}`;
+  }
 
   if (access?.isAdmin) {
     if (district && district !== "all") {
@@ -263,8 +285,14 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     const access = await getAccessContext(req, res);
     if (!access) return;
 
-    const { district, year } = req.query;
-    const scope = buildScopedWhere(year as string, district as string, access);
+    const { district, year, fromDate, toDate } = req.query;
+    const scope = buildScopedWhere(
+      year as string,
+      district as string,
+      fromDate as string,
+      toDate as string,
+      access
+    );
     const result = await pool.query<AnalyticsRow>(
       `SELECT
         id, district, place_of_accident, mandal, police_station, fir_number,
@@ -303,7 +331,6 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
           mostDangerousRoadType: "N/A",
           signedCopyUploaded: 0,
           signedCopyPending: 0,
-          gpsAvailable: 0,
         },
         trendData: [],
         timeAnalysis: [],
@@ -373,14 +400,12 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     let totalVehicles = 0;
     let totalDrivers = 0;
     let signedCopyUploaded = 0;
-    let gpsAvailable = 0;
     const monthlyCounts = new Map<string, number>();
 
     rows.forEach((row) => {
       totalDeaths += Number(row.persons_died || 0);
       totalInjuries += Number(row.persons_injured || 0);
       if (row.signed_copy_uploaded) signedCopyUploaded += 1;
-      if (row.lat_long) gpsAvailable += 1;
 
       const vehicles = toArray(row.vehicles);
       const drivers = toArray(row.drivers);
@@ -533,7 +558,6 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
       mostDangerousRoadType: mostDangerousRoadType?.roadType || "N/A",
       signedCopyUploaded,
       signedCopyPending: totalAccidents - signedCopyUploaded,
-      gpsAvailable,
     };
 
     const trendData = [...trendMap.entries()]
@@ -668,8 +692,6 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     const signedCopyAnalysis = [
       { name: "Uploaded", count: signedCopyUploaded },
       { name: "Pending", count: totalAccidents - signedCopyUploaded },
-      { name: "GPS Available", count: gpsAvailable },
-      { name: "GPS Missing", count: totalAccidents - gpsAvailable },
     ];
 
     const policeStationAnalysis = [...policeStationMap.values()]

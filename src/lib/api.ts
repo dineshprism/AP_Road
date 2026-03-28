@@ -145,10 +145,12 @@ export const api = {
       return request<any>(`/analytics/analytics?${params.toString()}`);
     },
 
-    getEnhancedAnalytics(payload: { district?: string; year?: string }) {
+    getEnhancedAnalytics(payload: { district?: string; year?: string; fromDate?: string; toDate?: string }) {
       const params = new URLSearchParams();
       if (payload.district && payload.district !== "all") params.set("district", payload.district);
       if (payload.year) params.set("year", payload.year);
+      if (payload.fromDate) params.set("fromDate", payload.fromDate);
+      if (payload.toDate) params.set("toDate", payload.toDate);
       
       return request<any>(`/analytics/enhanced?${params.toString()}`);
     },
