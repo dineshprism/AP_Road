@@ -154,9 +154,31 @@ function findRoadTypeEntry(
   return roadTypes.find((entry) => entry.roadType.toUpperCase() === roadType.toUpperCase()) || null;
 }
 
+function parseDateValue(value: string) {
+  if (!value) return null;
+
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  }
+
+  const localMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (localMatch) {
+    const [, day, month, year] = localMatch;
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  }
+
+  const fallback = new Date(value);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
 function formatDateLabel(value: string) {
   if (!value) return "";
-  return new Date(value).toLocaleDateString("en-IN", {
+  const parsed = parseDateValue(value);
+  if (!parsed) return value;
+
+  return parsed.toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
