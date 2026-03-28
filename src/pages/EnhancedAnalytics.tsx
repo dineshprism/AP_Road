@@ -249,7 +249,7 @@ const EnhancedAnalytics = () => {
     if (!authLoading && user) {
       fetchEnhancedAnalytics();
     }
-  }, [authLoading, user, filterDistrict, filterYear]);
+  }, [authLoading, user, filterDistrict, filterYear, filterFromDate, filterToDate]);
 
   const fetchEnhancedAnalytics = async () => {
     try {
