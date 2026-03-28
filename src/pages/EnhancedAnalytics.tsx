@@ -148,6 +148,13 @@ function compact(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
 }
 
+function findRoadTypeEntry(
+  roadTypes: EnhancedAnalyticsData["roadTypeAnalysis"],
+  roadType: string
+) {
+  return roadTypes.find((entry) => entry.roadType.toUpperCase() === roadType.toUpperCase()) || null;
+}
+
 function shortenCauseLabel(value: string) {
   const normalized = value.replace(/\s+/g, " ").trim();
 
@@ -254,6 +261,24 @@ const EnhancedAnalytics = () => {
   const topRoadTypeByVolume = analyticsData.roadTypeInsights.highestVolume;
   const topRoadTypeBySeverity = analyticsData.roadTypeInsights.highestSeverityIndex;
   const topRoadTypeByFatalityRate = analyticsData.roadTypeInsights.highestFatalityRate;
+  const nhVsShComparison = ["NH", "SH", "MDR", "Other"].map((roadType) => {
+    const entry = findRoadTypeEntry(analyticsData.roadTypeAnalysis, roadType);
+    return {
+      roadType,
+      accidents: entry?.accidents || 0,
+      deaths: entry?.deaths || 0,
+      injuries: entry?.injuries || 0,
+      accidentShare: entry?.accidentShare || 0,
+      fatalityRate: entry?.fatalityRate || 0,
+      severityIndex: entry?.severityIndex || 0,
+      casualtiesPerAccident: entry?.casualtiesPerAccident || 0,
+    };
+  });
+  const roadTypeShareChartData = analyticsData.roadTypeAnalysis.map((item) => ({
+    name: item.roadType,
+    value: item.accidentShare,
+    accidents: item.accidents,
+  }));
   const driverCauseChartData = analyticsData.driverCauses.slice(0, 10).map((entry) => ({
     ...entry,
     shortCause: shortenCauseLabel(entry.cause),
@@ -592,6 +617,91 @@ const EnhancedAnalytics = () => {
                       </div>
                     ))}
                   </div>
+
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <Card className="border border-slate-200 shadow-none">
+                      <CardHeader>
+                        <CardTitle className="text-base">NH / SH Share Comparison</CardTitle>
+                        <CardDescription>Accident share and fatality rate across the main road classes</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={nhVsShComparison}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="roadType" stroke="#64748b" />
+                            <YAxis yAxisId="left" stroke="#64748b" />
+                            <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                            <Tooltip
+                              formatter={(value: number, name: string) => [
+                                name.toLowerCase().includes("rate") || name.toLowerCase().includes("share")
+                                  ? `${value.toFixed(1)}%`
+                                  : value.toFixed(2),
+                                name,
+                              ]}
+                            />
+                            <Legend />
+                            <Bar yAxisId="left" dataKey="accidentShare" fill="#163a70" name="Accident Share %" radius={[4, 4, 0, 0]} />
+                            <Bar yAxisId="left" dataKey="fatalityRate" fill="#c75b12" name="Fatality Rate %" radius={[4, 4, 0, 0]} />
+                            <Line yAxisId="right" type="monotone" dataKey="severityIndex" stroke="#aa3d47" strokeWidth={3} name="Severity Index" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border border-slate-200 shadow-none">
+                      <CardHeader>
+                        <CardTitle className="text-base">Road Type Share Mix</CardTitle>
+                        <CardDescription>How total accidents are distributed across NH, SH, MDR, and other roads</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <PieChart>
+                            <Pie
+                              data={roadTypeShareChartData}
+                              dataKey="value"
+                              nameKey="name"
+                              outerRadius={105}
+                              innerRadius={55}
+                              paddingAngle={3}
+                            >
+                              {roadTypeShareChartData.map((entry, index) => (
+                                <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(value: number, _name, props: any) => [
+                                `${value.toFixed(1)}% (${compact(props?.payload?.accidents || 0)} accidents)`,
+                                props?.payload?.name,
+                              ]}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card className="border border-slate-200 shadow-none">
+                    <CardHeader>
+                      <CardTitle className="text-base">Casualty Intensity by Road Type</CardTitle>
+                      <CardDescription>Compares accidents with casualties per accident so NH and SH patterns stand out more clearly</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={320}>
+                        <BarChart data={nhVsShComparison}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="roadType" stroke="#64748b" />
+                          <YAxis yAxisId="left" stroke="#64748b" allowDecimals={false} />
+                          <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                          <Tooltip />
+                          <Legend />
+                          <Bar yAxisId="left" dataKey="accidents" fill="#163a70" name="Accidents" radius={[4, 4, 0, 0]} />
+                          <Bar yAxisId="left" dataKey="deaths" fill="#aa3d47" name="Deaths" radius={[4, 4, 0, 0]} />
+                          <Line yAxisId="right" type="monotone" dataKey="casualtiesPerAccident" stroke="#2a7c4a" strokeWidth={3} name="Casualties Per Accident" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
                 </CardContent>
               </Card>
             </div>
