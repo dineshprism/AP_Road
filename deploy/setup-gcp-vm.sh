@@ -31,7 +31,7 @@ else
 fi
 
 echo "=== [3/5] Installing Git ==="
-apt-get install -y git
+apt-get install -y git curl
 
 echo "=== [4/5] Creating app user ==="
 if ! id "appuser" &>/dev/null; then
@@ -46,6 +46,12 @@ echo "=== [5/5] Setting up application directory ==="
 APP_DIR="/opt/road-accident-hub"
 mkdir -p "$APP_DIR"
 chown appuser:appuser "$APP_DIR"
+
+if [ -f "$(dirname "$0")/deploy.sh" ]; then
+    cp "$(dirname "$0")/deploy.sh" "$APP_DIR/deploy.sh"
+    chown appuser:appuser "$APP_DIR/deploy.sh"
+    chmod +x "$APP_DIR/deploy.sh"
+fi
 
 echo ""
 echo "=============================================="

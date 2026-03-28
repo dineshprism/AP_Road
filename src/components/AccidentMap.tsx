@@ -1,4 +1,4 @@
-import LeafletFallbackMap from "./LeafletFallbackMap";
+import GoogleAccidentMap from "./GoogleAccidentMap";
 
 interface AccidentData {
   id: string;
@@ -22,7 +22,8 @@ interface AccidentMapProps {
 }
 
 const AccidentMap = (props: AccidentMapProps) => {
-  return <LeafletFallbackMap {...props} />;
+  return <GoogleAccidentMap {...props} />;
 };
 
+export type { AccidentData, AccidentMapProps };
 export default AccidentMap;
