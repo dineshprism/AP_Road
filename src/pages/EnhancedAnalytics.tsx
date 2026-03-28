@@ -43,7 +43,73 @@ interface EnhancedAnalyticsData {
   causeAnalysis: Array<{ cause: string; count: number; percentage: number; category: string }>;
   comparisonData: Array<{ name: string; accidents: number; deaths: number; injuries: number; fatalityRate: number; severity: string }>;
   mandalAnalysis: Array<{ name: string; accidents: number; deaths: number; injuries: number }>;
-  roadTypeAnalysis: Array<{ roadType: string; accidents: number; deaths: number; injuries: number; fatalityRate: number }>;
+  roadTypeAnalysis: Array<{
+    roadType: string;
+    accidents: number;
+    deaths: number;
+    injuries: number;
+    fatalityRate: number;
+    accidentShare: number;
+    deathShare: number;
+    injuryShare: number;
+    casualties: number;
+    casualtiesPerAccident: number;
+    severityIndex: number;
+  }>;
+  roadTypeInsights: {
+    highestVolume: {
+      roadType: string;
+      accidents: number;
+      deaths: number;
+      injuries: number;
+      fatalityRate: number;
+      accidentShare: number;
+      deathShare: number;
+      injuryShare: number;
+      casualties: number;
+      casualtiesPerAccident: number;
+      severityIndex: number;
+    } | null;
+    highestDeaths: {
+      roadType: string;
+      accidents: number;
+      deaths: number;
+      injuries: number;
+      fatalityRate: number;
+      accidentShare: number;
+      deathShare: number;
+      injuryShare: number;
+      casualties: number;
+      casualtiesPerAccident: number;
+      severityIndex: number;
+    } | null;
+    highestFatalityRate: {
+      roadType: string;
+      accidents: number;
+      deaths: number;
+      injuries: number;
+      fatalityRate: number;
+      accidentShare: number;
+      deathShare: number;
+      injuryShare: number;
+      casualties: number;
+      casualtiesPerAccident: number;
+      severityIndex: number;
+    } | null;
+    highestSeverityIndex: {
+      roadType: string;
+      accidents: number;
+      deaths: number;
+      injuries: number;
+      fatalityRate: number;
+      accidentShare: number;
+      deathShare: number;
+      injuryShare: number;
+      casualties: number;
+      casualtiesPerAccident: number;
+      severityIndex: number;
+    } | null;
+  };
   hotspotsLocations: Array<{ place: string; district: string; accidents: number; deaths: number; injured: number; severity: string; riskScore: number }>;
   driverCauses: Array<{ cause: string; count: number; percentage: number; severity: "high" | "medium" | "low" }>;
   vehicleCauses: Array<{ cause: string; count: number; percentage: number; severity: "high" | "medium" | "low" }>;
@@ -185,6 +251,9 @@ const EnhancedAnalytics = () => {
   const chartRoadTypes = analyticsData.roadTypeAnalysis.slice(0, 8);
   const chartHotspots = analyticsData.hotspotsLocations.slice(0, 8);
   const chartCoverage = analyticsData.fieldCompleteness;
+  const topRoadTypeByVolume = analyticsData.roadTypeInsights.highestVolume;
+  const topRoadTypeBySeverity = analyticsData.roadTypeInsights.highestSeverityIndex;
+  const topRoadTypeByFatalityRate = analyticsData.roadTypeInsights.highestFatalityRate;
   const driverCauseChartData = analyticsData.driverCauses.slice(0, 10).map((entry) => ({
     ...entry,
     shortCause: shortenCauseLabel(entry.cause),
@@ -458,9 +527,39 @@ const EnhancedAnalytics = () => {
               <Card className="shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-lg">Road Type Comparison</CardTitle>
-                  <CardDescription>Road category-wise accident and fatality distribution</CardDescription>
+                  <CardDescription>Road category-wise volume, casualty burden, and severity comparison</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Highest Volume</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{topRoadTypeByVolume?.roadType || "N/A"}</p>
+                      {topRoadTypeByVolume && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          {compact(topRoadTypeByVolume.accidents)} accidents, {formatPercent(topRoadTypeByVolume.accidentShare)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Highest Severity</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{topRoadTypeBySeverity?.roadType || "N/A"}</p>
+                      {topRoadTypeBySeverity && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          Severity index {topRoadTypeBySeverity.severityIndex.toFixed(2)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Highest Fatality Rate</p>
+                      <p className="mt-1 text-sm font-bold text-slate-900">{topRoadTypeByFatalityRate?.roadType || "N/A"}</p>
+                      {topRoadTypeByFatalityRate && (
+                        <p className="mt-1 text-xs text-slate-600">
+                          {formatPercent(topRoadTypeByFatalityRate.fatalityRate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <ResponsiveContainer width="100%" height={340}>
                     <RadarChart data={chartRoadTypes}>
                       <PolarGrid />
@@ -472,6 +571,27 @@ const EnhancedAnalytics = () => {
                       <Tooltip />
                     </RadarChart>
                   </ResponsiveContainer>
+
+                  <div className="space-y-3">
+                    {analyticsData.roadTypeAnalysis.slice(0, 6).map((item) => (
+                      <div key={item.roadType} className="rounded-lg border border-slate-200 bg-white p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <p className="font-semibold text-slate-900">{item.roadType}</p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {compact(item.accidents)} accidents, {compact(item.casualties)} total casualties
+                            </p>
+                          </div>
+                          <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-4">
+                            <div><span className="font-semibold">{formatPercent(item.accidentShare)}</span> accident share</div>
+                            <div><span className="font-semibold">{formatPercent(item.deathShare)}</span> death share</div>
+                            <div><span className="font-semibold">{item.casualtiesPerAccident.toFixed(2)}</span> casualties per accident</div>
+                            <div><span className="font-semibold">{item.severityIndex.toFixed(2)}</span> severity index</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </div>

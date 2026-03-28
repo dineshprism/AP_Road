@@ -39,6 +39,13 @@ interface AnalyticsRow {
   signed_copy_uploaded: boolean;
 }
 
+interface RoadTypeAggregate {
+  roadType: string;
+  accidents: number;
+  deaths: number;
+  injuries: number;
+}
+
 interface ScopeResult {
   whereClause: string;
   params: Array<string>;
@@ -304,6 +311,12 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
         comparisonData: [],
         mandalAnalysis: [],
         roadTypeAnalysis: [],
+        roadTypeInsights: {
+          highestVolume: null,
+          highestDeaths: null,
+          highestFatalityRate: null,
+          highestSeverityIndex: null,
+        },
         hotspotsLocations: [],
         driverCauses: [],
         vehicleCauses: [],
@@ -326,7 +339,7 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     const hourMap = new Map<number, { hour: string; accidents: number; deaths: number; injuries: number }>();
     const comparisonMap = new Map<string, { name: string; accidents: number; deaths: number; injuries: number }>();
     const mandalMap = new Map<string, { name: string; accidents: number; deaths: number; injuries: number }>();
-    const roadTypeMap = new Map<string, { roadType: string; accidents: number; deaths: number; injuries: number }>();
+    const roadTypeMap = new Map<string, RoadTypeAggregate>();
     const hotspotMap = new Map<string, { place: string; district: string; accidents: number; deaths: number; injured: number }>();
     const policeStationMap = new Map<string, { name: string; accidents: number; deaths: number; injuries: number }>();
     const dayMap = new Map<string, { day: string; accidents: number; deaths: number; injuries: number }>();
@@ -565,7 +578,24 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
         deaths: item.deaths,
         injuries: item.injuries,
         fatalityRate: safePercentage(item.deaths, item.deaths + item.injuries),
+        accidentShare: safePercentage(item.accidents, totalAccidents),
+        deathShare: safePercentage(item.deaths, totalDeaths),
+        injuryShare: safePercentage(item.injuries, totalInjuries),
+        casualties: item.deaths + item.injuries,
+        casualtiesPerAccident: item.accidents > 0 ? (item.deaths + item.injuries) / item.accidents : 0,
+        severityIndex: item.accidents > 0 ? ((item.deaths * 2) + item.injuries) / item.accidents : 0,
       }));
+
+    const roadTypeInsights = {
+      highestVolume: roadTypeAnalysis[0] || null,
+      highestDeaths: [...roadTypeAnalysis].sort((a, b) => b.deaths - a.deaths || b.accidents - a.accidents)[0] || null,
+      highestFatalityRate: [...roadTypeAnalysis]
+        .filter((item) => item.accidents > 0)
+        .sort((a, b) => b.fatalityRate - a.fatalityRate || b.deaths - a.deaths || b.accidents - a.accidents)[0] || null,
+      highestSeverityIndex: [...roadTypeAnalysis]
+        .filter((item) => item.accidents > 0)
+        .sort((a, b) => b.severityIndex - a.severityIndex || b.deaths - a.deaths || b.accidents - a.accidents)[0] || null,
+    };
 
     const driverCauses = [...driverCauseMap.entries()]
       .sort((a, b) => b[1] - a[1])
@@ -708,6 +738,7 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
       comparisonData,
       mandalAnalysis,
       roadTypeAnalysis,
+      roadTypeInsights,
       hotspotsLocations,
       driverCauses,
       vehicleCauses,
