@@ -11,8 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { AlertTriangle, BarChart3, Brain, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, BarChart3, Brain, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
   scope: {
@@ -309,7 +309,6 @@ const EnhancedAnalytics = () => {
   const chartComparisonData = analyticsData.comparisonData.slice(0, 10);
   const chartPoliceStations = analyticsData.policeStationAnalysis.slice(0, 10);
   const chartMandals = analyticsData.mandalAnalysis.slice(0, 8);
-  const chartRoadTypes = analyticsData.roadTypeAnalysis.slice(0, 8);
   const chartHotspots = analyticsData.hotspotsLocations.slice(0, 8);
   const chartCoverage = analyticsData.fieldCompleteness;
   const topRoadTypeByVolume = analyticsData.roadTypeInsights.highestVolume;
@@ -347,11 +346,27 @@ const EnhancedAnalytics = () => {
     <div className="min-h-screen bg-[linear-gradient(180deg,#f6f8fc_0%,#eef3fb_100%)]">
       <GovHeader />
 
+      <div className="sticky top-[86px] z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="container mx-auto flex items-center justify-between px-4 py-3">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/")}
+            className="bg-white shadow-sm"
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Home
+          </Button>
+          <p className="hidden text-xs font-medium text-slate-500 sm:block">
+            Quick access while reviewing analytics
+          </p>
+        </div>
+      </div>
+
       <div className="container mx-auto space-y-6 px-4 py-6">
         <Card className="overflow-hidden border-slate-200 shadow-sm">
           <div className="h-1.5 bg-gradient-to-r from-[#163a70] via-[#2f5d97] to-[#c75b12]" />
           <CardContent className="pt-6">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-primary text-white">
@@ -365,16 +380,11 @@ const EnhancedAnalytics = () => {
                 </div>
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-slate-900">Road Accident Analytics</h1>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    Comprehensive accident monitoring for {analyticsData.scope.scopeLabel}. This workspace compares
-                    {analyticsData.scope.viewLevel === "state" ? " districts across the state" : " police stations within the district"},
-                    highlights hotspots, reviews field completeness, and surfaces operational safety priorities.
-                  </p>
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                <div className="min-w-[150px]">
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5 xl:gap-6">
+                <div className="min-w-[170px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <Filter className="mr-1 inline h-3.5 w-3.5" />
                     District
@@ -384,7 +394,7 @@ const EnhancedAnalytics = () => {
                     onValueChange={setFilterDistrict}
                     disabled={!isAdmin}
                   >
-                    <SelectTrigger className="bg-white">
+                    <SelectTrigger className="h-11 border-slate-300 bg-slate-50 text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:ring-[#163a70]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -396,13 +406,13 @@ const EnhancedAnalytics = () => {
                   </Select>
                 </div>
 
-                <div className="min-w-[130px]">
+                <div className="min-w-[140px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                     <Calendar className="mr-1 inline h-3.5 w-3.5" />
                     Year
                   </Label>
                   <Select value={filterYear} onValueChange={setFilterYear} disabled={hasCustomDateRange}>
-                    <SelectTrigger className="bg-white">
+                    <SelectTrigger className="h-11 border-slate-300 bg-slate-50 text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:ring-[#163a70]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -427,11 +437,11 @@ const EnhancedAnalytics = () => {
                         setFilterToDate("");
                       }
                     }}
-                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                    className="flex h-11 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:outline-none focus:ring-2 focus:ring-[#163a70]/20"
                   />
                 </div>
 
-                <div className="min-w-[150px]">
+                <div className="min-w-[170px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                     To Date
                   </Label>
@@ -440,12 +450,15 @@ const EnhancedAnalytics = () => {
                     value={filterToDate}
                     min={filterFromDate || undefined}
                     onChange={(e) => setFilterToDate(normalizeDateInputValue(e.target.value))}
-                    className="flex h-10 w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                    className="flex h-11 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:outline-none focus:ring-2 focus:ring-[#163a70]/20"
                   />
                 </div>
 
-                <div className="flex items-end gap-2">
-                  <Button variant="outline" onClick={fetchEnhancedAnalytics} className="flex-1 bg-white">
+                <div className="flex items-end gap-3 pt-1">
+                  <Button
+                    onClick={fetchEnhancedAnalytics}
+                    className="h-11 flex-1 border border-[#163a70] bg-[#163a70] text-white shadow-sm transition-colors hover:bg-[#224d8c]"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
                   </Button>
@@ -456,7 +469,7 @@ const EnhancedAnalytics = () => {
                         setFilterFromDate("");
                         setFilterToDate("");
                       }}
-                      className="border border-slate-200"
+                      className="h-11 border border-[#c75b12]/20 bg-[#fff7f0] text-[#c75b12] shadow-sm hover:bg-[#fee8d6] hover:text-[#a54910]"
                     >
                       Clear
                     </Button>
@@ -476,20 +489,20 @@ const EnhancedAnalytics = () => {
           <Card className="border-l-4 border-l-slate-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Pending</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyPending)}</p></div><Clock className="h-9 w-9 text-slate-700/80" /></div></CardContent></Card>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="grid items-start gap-4 xl:grid-cols-[1.2fr_0.8fr]">
           <Card className="shadow-sm">
             <CardHeader className="pb-3">
               <Button
                 variant="ghost"
-                className="h-auto justify-between px-0 py-0 hover:bg-transparent"
+                className="h-auto w-full items-start justify-between px-0 py-0 text-slate-900 hover:bg-transparent hover:text-slate-900"
                 onClick={() => setShowAnalyticalBrief((prev) => !prev)}
               >
                 <div className="text-left">
-                  <CardTitle className="flex items-center gap-2 text-xl">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-900">
                     <Brain className="h-5 w-5 text-primary" />
                     Analytical Brief
                   </CardTitle>
-                  <CardDescription className="mt-1">AI-supported summary based on the filtered records and comparison metrics</CardDescription>
+                  <CardDescription className="mt-1 text-slate-600">AI-supported summary based on the filtered records and comparison metrics</CardDescription>
                 </div>
                 {showAnalyticalBrief ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
               </Button>
@@ -529,12 +542,12 @@ const EnhancedAnalytics = () => {
             <CardHeader className="pb-3">
               <Button
                 variant="ghost"
-                className="h-auto justify-between px-0 py-0 hover:bg-transparent"
+                className="h-auto w-full items-start justify-between px-0 py-0 text-slate-900 hover:bg-transparent hover:text-slate-900"
                 onClick={() => setShowOperationalSnapshot((prev) => !prev)}
               >
                 <div className="text-left">
-                  <CardTitle className="text-xl">Operational Snapshot</CardTitle>
-                  <CardDescription className="mt-1">Quick reading for monitoring, enforcement, and reporting</CardDescription>
+                  <CardTitle className="text-xl text-slate-900">Operational Snapshot</CardTitle>
+                  <CardDescription className="mt-1 text-slate-600">Quick reading for monitoring, enforcement, and reporting</CardDescription>
                 </div>
                 {showOperationalSnapshot ? <ChevronUp className="h-5 w-5 text-slate-500" /> : <ChevronDown className="h-5 w-5 text-slate-500" />}
               </Button>
@@ -707,17 +720,40 @@ const EnhancedAnalytics = () => {
                     </div>
                   </div>
 
-                  <ResponsiveContainer width="100%" height={340}>
-                    <RadarChart data={chartRoadTypes}>
-                      <PolarGrid />
-                      <PolarAngleAxis dataKey="roadType" />
-                      <PolarRadiusAxis />
-                      <Radar name="Accidents" dataKey="accidents" stroke="#163a70" fill="#163a70" fillOpacity={0.35} />
-                      <Radar name="Deaths" dataKey="deaths" stroke="#c75b12" fill="#c75b12" fillOpacity={0.2} />
-                      <Legend />
-                      <Tooltip />
-                    </RadarChart>
-                  </ResponsiveContainer>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">Road Type Priority View</p>
+                        <p className="mt-1 text-xs text-slate-600">Simple comparison of the main road classes by accidents, deaths, and severity.</p>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      {nhVsShComparison.map((item) => (
+                        <div key={item.roadType} className="rounded-lg border border-slate-200 bg-white p-4">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="min-w-[90px]">
+                              <p className="text-base font-semibold text-slate-900">{item.roadType}</p>
+                              <p className="text-xs text-slate-500">Road class</p>
+                            </div>
+                            <div className="grid flex-1 gap-3 sm:grid-cols-3">
+                              <div className="rounded-md bg-slate-50 px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Accidents</p>
+                                <p className="mt-1 text-lg font-bold text-[#163a70]">{compact(item.accidents)}</p>
+                              </div>
+                              <div className="rounded-md bg-red-50 px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600">Deaths</p>
+                                <p className="mt-1 text-lg font-bold text-red-700">{compact(item.deaths)}</p>
+                              </div>
+                              <div className="rounded-md bg-amber-50 px-3 py-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Severity</p>
+                                <p className="mt-1 text-lg font-bold text-amber-800">{item.severityIndex.toFixed(2)}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
                   <div className="space-y-3">
                     {analyticsData.roadTypeAnalysis.slice(0, 6).map((item) => (

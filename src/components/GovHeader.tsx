@@ -14,7 +14,7 @@ const GovHeader = () => {
   };
 
   return (
-    <header>
+    <header className="sticky top-0 z-50 shadow-sm">
       <div className="gov-tricolor-top" />
       <div className="gov-banner px-4 py-3">
         <div className="container mx-auto flex items-center justify-between">
