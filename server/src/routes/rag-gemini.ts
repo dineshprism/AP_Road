@@ -7,6 +7,7 @@ const router = Router();
 const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const geminiThinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET ?? 0);
 const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 1200);
+const geminiRetryAttempts = 2;
 
 // Initialize Gemini AI
 const ai = new GoogleGenAI({
@@ -70,56 +71,143 @@ function formatStructuredField(value: unknown): string {
 
 // Gemini API call for accident analysis
 async function callGemini(prompt: string) {
-  try {
-    console.log(`Calling Gemini model ${geminiModel} with prompt:`, prompt.substring(0, 100) + "...");
-    
-    const startTime = Date.now();
-    const result = await ai.models.generateContent({
-      model: geminiModel,
-      contents: prompt,
-      config: {
-        thinkingConfig: {
-          thinkingBudget: geminiThinkingBudget,
+  for (let attempt = 1; attempt <= geminiRetryAttempts; attempt += 1) {
+    try {
+      console.log(`Calling Gemini model ${geminiModel} with prompt:`, prompt.substring(0, 100) + "...");
+
+      const startTime = Date.now();
+      const result = await ai.models.generateContent({
+        model: geminiModel,
+        contents: prompt,
+        config: {
+          thinkingConfig: {
+            thinkingBudget: geminiThinkingBudget,
+          },
+          maxOutputTokens: geminiMaxOutputTokens,
+          temperature: 0.4,
         },
-        maxOutputTokens: geminiMaxOutputTokens,
-        temperature: 0.4,
-      },
-    });
-    const endTime = Date.now();
-    const responseTime = ((endTime - startTime) / 1000).toFixed(2);
-    
-    const response = result.text ?? "";
-    console.log("Gemini response received in", responseTime, "seconds, length:", response.length);
-    
-    if (!response || response.trim().length === 0) {
-      throw new Error("Gemini returned empty response.");
-    }
-    
-    return {
-      response: response,
-      responseTime: parseFloat(responseTime),
-      model: geminiModel,
-      tokens: response.length // Approximate token count
-    };
-  } catch (error: any) {
-    console.error("Gemini API error:", error);
-    
-    if (error.message?.includes('API_KEY')) {
-      throw new Error("Invalid Gemini API key. Please check your GEMINI_API_KEY environment variable.");
-    } else if (error.message?.includes("404") || error.message?.includes("not found for API version")) {
-      throw new Error(`Gemini model '${geminiModel}' is unavailable. Update GEMINI_MODEL to a supported model such as 'gemini-2.5-flash'.`);
-    } else if (error.message?.includes('quota')) {
-      throw new Error("Gemini API quota exceeded. Please check your billing.");
-    } else {
-      throw new Error(`Gemini API failed: ${error.message}`);
+      });
+      const endTime = Date.now();
+      const responseTime = ((endTime - startTime) / 1000).toFixed(2);
+
+      const response = result.text ?? "";
+      console.log("Gemini response received in", responseTime, "seconds, length:", response.length);
+
+      if (!response || response.trim().length === 0) {
+        throw new Error("Gemini returned empty response.");
+      }
+
+      return {
+        response: response,
+        responseTime: parseFloat(responseTime),
+        model: geminiModel,
+        tokens: response.length // Approximate token count
+      };
+    } catch (error: any) {
+      console.error(`Gemini API error on attempt ${attempt}:`, error);
+
+      const isTransientNetworkFailure =
+        error?.message?.includes("fetch failed") ||
+        error?.cause?.code === "ETIMEDOUT" ||
+        error?.cause?.code === "ECONNRESET";
+
+      if (isTransientNetworkFailure && attempt < geminiRetryAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+        continue;
+      }
+
+      if (error.message?.includes('API_KEY')) {
+        throw new Error("Invalid Gemini API key. Please check your GEMINI_API_KEY environment variable.");
+      } else if (error.message?.includes("leaked")) {
+        throw new Error("The configured Gemini API key has been reported as leaked. Please replace GEMINI_API_KEY with a new key.");
+      } else if (error.message?.includes("404") || error.message?.includes("not found for API version")) {
+        throw new Error(`Gemini model '${geminiModel}' is unavailable. Update GEMINI_MODEL to a supported model such as 'gemini-2.5-flash'.`);
+      } else if (error.message?.includes('quota')) {
+        throw new Error("Gemini API quota exceeded. Please check your billing.");
+      } else if (isTransientNetworkFailure) {
+        throw new Error("Gemini API request timed out. Please try again.");
+      } else {
+        throw new Error(`Gemini API failed: ${error.message}`);
+      }
     }
   }
+
+  throw new Error("Gemini API failed after multiple attempts.");
+}
+
+function formatConversationHistory(history: Array<{ role?: string; content?: string }> | undefined) {
+  if (!Array.isArray(history) || history.length === 0) {
+    return "No prior conversation.";
+  }
+
+  return history
+    .slice(-6)
+    .map((item) => `${item.role === "user" ? "User" : "Assistant"}: ${String(item.content || "").trim()}`)
+    .filter((line) => line.length > 0)
+    .join("\n");
+}
+
+function isGeminiUnavailable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "");
+  return (
+    message.includes("timed out") ||
+    message.includes("fetch failed") ||
+    message.includes("API key") ||
+    message.includes("leaked") ||
+    message.includes("quota") ||
+    message.includes("unavailable")
+  );
+}
+
+function generateSingleFallbackAnalysis(submission: any, question?: string) {
+  const driverCauses = formatStructuredField(submission.driver_related_causes);
+  const vehicleIssues = formatStructuredField(submission.vehicle_condition_causes);
+  const roadIssues = [
+    formatStructuredField(submission.road_engineering_nature),
+    formatStructuredField(submission.road_engineering_junctions),
+    formatStructuredField(submission.road_engineering_signages),
+    formatStructuredField(submission.road_engineering_median),
+    formatStructuredField(submission.road_engineering_culverts),
+  ].filter((item) => item !== "N/A");
+
+  const casualtySummary =
+    submission.persons_died > 0
+      ? `${submission.persons_died} deaths and ${submission.persons_injured} injuries indicate a high-severity crash.`
+      : `${submission.persons_injured} injuries were reported with no deaths in the current record.`;
+
+  return [
+    `Fallback analysis: Gemini is temporarily unavailable, so this summary is generated directly from the submission data for FIR ${submission.fir_number}.`,
+    `Question focus: ${question || "Initial accident analysis"}.`,
+    `Likely primary factors: ${driverCauses !== "N/A" ? driverCauses : "Driver-side factors were not clearly recorded, so investigator verification is required."}`,
+    `Vehicle condition indicators: ${vehicleIssues !== "N/A" ? vehicleIssues : "No specific vehicle defects were captured in the submitted record."}`,
+    `Road and site context: ${submission.road_type} road at ${submission.place_of_accident}, ${submission.mandal}, ${submission.district}.${roadIssues.length ? ` Reported infrastructure indicators: ${roadIssues.join("; ")}.` : " No explicit infrastructure defect was recorded in the form."}`,
+    `Severity reading: ${casualtySummary}`,
+    `Immediate investigation priorities: record witness statements, inspect both vehicles, verify CCTV availability, and document junction sight distance, markings, and impact points.`,
+    `Immediate prevention focus: targeted speed enforcement, junction warning signage, visibility improvements, and conflict-point review near the bus stop or turning area.`,
+  ].join("\n\n");
+}
+
+function generateBatchFallbackAnalysis(submissions: any[], question?: string) {
+  const totalDeaths = submissions.reduce((sum, item) => sum + Number(item.persons_died || 0), 0);
+  const totalInjuries = submissions.reduce((sum, item) => sum + Number(item.persons_injured || 0), 0);
+  const roadTypes = [...new Set(submissions.map((item) => item.road_type).filter(Boolean))];
+  const districts = [...new Set(submissions.map((item) => item.district).filter(Boolean))];
+
+  return [
+    `Fallback batch analysis: Gemini is temporarily unavailable, so this summary is based directly on ${submissions.length} selected submission records.`,
+    `Question focus: ${question || "Batch accident analysis"}.`,
+    `Coverage: ${submissions.length} records across ${districts.join(", ") || "the selected district set"} with road categories ${roadTypes.join(", ") || "not specified"}.`,
+    `Casualty picture: ${totalDeaths} deaths and ${totalInjuries} injuries across the selected submissions.`,
+    `Common review points: compare repeated driver-related causes, junction or signage defects, and recurring police station locations to identify operational patterns.`,
+    `Immediate action: prioritize the highest-casualty locations for enforcement review, engineering inspection, and corridor-level monitoring.`,
+    `Investigation recommendation: shortlist repeated FIR locations, validate road defects on site, and compare time-of-day recurrence before finalizing interventions.`,
+  ].join("\n\n");
 }
 
 // POST /api/rag/analyze-gemini - Analyze with Gemini
 router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { submissionId, question } = req.body;
+    const { submissionId, question, history } = req.body;
 
     if (!submissionId) {
       res.status(400).json({ error: "Submission ID is required" });
@@ -143,6 +231,7 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
     }
 
     const submission = submissionResult.rows[0];
+    const conversationHistory = formatConversationHistory(history);
 
     // Create comprehensive context for Gemini
     const context = `
@@ -161,6 +250,9 @@ JUNCTION ISSUES: ${submission.road_engineering_junctions}
 SIGNAGE ISSUES: ${submission.road_engineering_signages}
 MEDIAN ISSUES: ${submission.road_engineering_median}
 CULVERT ISSUES: ${submission.road_engineering_culverts}
+
+RECENT CONVERSATION:
+${conversationHistory}
 
 ANALYSIS FOCUS:
 1. Root cause identification
@@ -183,15 +275,48 @@ Focus on:
 - Legal and compliance considerations
 - Data-driven recommendations
 
+Conversation rules:
+- Treat the latest user question as the main task.
+- Use the recent conversation to understand follow-up intent.
+- Do not restart with a full generic summary unless the user explicitly asks for a full analysis.
+- If the user asks a narrow follow-up, answer only that narrow follow-up.
+- If the user message is vague acknowledgement text like "ok", "yes", or "hmm", ask one short clarifying question instead of repeating the full analysis.
+- Do not repeat accident facts already provided unless needed for the answer.
+
 Respond concisely and practically.
-Limit your answer to short sections with bullets.
-Do not repeat the accident facts already provided.
-Keep the response under 10 bullet points total.
+Prefer short sections with bullets only when useful.
+Keep the response focused and under 8 bullets total.
 
 Question: ${question || "Please analyze this accident and provide comprehensive insights and recommendations."}
 `;
 
-    const geminiResult = await callGemini(context);
+    let geminiResult;
+    try {
+      geminiResult = await callGemini(context);
+    } catch (err) {
+      if (!isGeminiUnavailable(err)) {
+        throw err;
+      }
+
+      res.json({
+        response: generateSingleFallbackAnalysis(submission, question),
+        model: "local-fallback",
+        submission: {
+          id: submission.id,
+          fir_number: submission.fir_number,
+          location: `${submission.place_of_accident}, ${submission.mandal}`,
+          district: submission.district
+        },
+        performance: {
+          response_time: 0,
+          model: "local-fallback",
+          tokens: 0,
+          api: "Local fallback",
+          optimization: "rule-based"
+        }
+      });
+      return;
+    }
 
     res.json({
       response: geminiResult.response,
@@ -214,7 +339,7 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
   } catch (err: any) {
     console.error("Gemini analyze error:", err);
     res.status(500).json({ 
-      error: "AI analysis failed. Please try again later."
+      error: err?.message || "AI analysis failed. Please try again later."
     });
   }
 });
@@ -222,7 +347,7 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
 // POST /api/rag/batch-analyze-gemini - Batch analyze with Gemini
 router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const { submissionIds, question } = req.body;
+    const { submissionIds, question, history } = req.body;
 
     if (!submissionIds || !Array.isArray(submissionIds) || submissionIds.length === 0) {
       res.status(400).json({ error: "Submission IDs array is required" });
@@ -245,6 +370,7 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
       res.status(404).json({ error: "No submissions found" });
       return;
     }
+    const conversationHistory = formatConversationHistory(history);
 
     // Create batch context for Gemini
     const batchContext = submissionResult.rows.map((sub, index) => 
@@ -279,6 +405,9 @@ Consider geographical, temporal, and environmental factors that may connect thes
 ACCIDENT BATCH ANALYSIS:
 ${batchContext}
 
+RECENT CONVERSATION:
+${conversationHistory}
+
 Question: ${userQuestion}
 
 Please provide a comprehensive analysis that:
@@ -289,9 +418,45 @@ Please provide a comprehensive analysis that:
 - Considers resource allocation
 - Suggests monitoring and prevention strategies
 
-Keep the answer concise, avoid repeating accident facts, and use no more than 12 bullets total.`;
+Conversation rules:
+- Treat the latest user question as the main task.
+- Use recent conversation to understand follow-up intent.
+- Do not repeat the same overall summary for every follow-up.
+- If the user asks about one theme such as causes, patterns, recommendations, or infrastructure, answer only that theme.
+- If the user message is vague acknowledgement text like "ok", "yes", or "hmm", ask one short clarifying question instead of repeating the batch summary.
 
-    const geminiResult = await callGemini(batchPrompt);
+Keep the answer concise, avoid repeating accident facts, and use no more than 10 bullets total.`;
+
+    let geminiResult;
+    try {
+      geminiResult = await callGemini(batchPrompt);
+    } catch (err) {
+      if (!isGeminiUnavailable(err)) {
+        throw err;
+      }
+
+      res.json({
+        response: generateBatchFallbackAnalysis(submissionResult.rows, userQuestion),
+        model: "local-fallback",
+        submissionsAnalyzed: submissionResult.rows.length,
+        submissions: submissionResult.rows.map(sub => ({
+          id: sub.id,
+          fir_number: sub.fir_number,
+          location: `${sub.place_of_accident}, ${sub.mandal}`,
+          district: sub.district,
+          date: sub.accident_date
+        })),
+        performance: {
+          response_time: 0,
+          model: "local-fallback",
+          tokens: 0,
+          api: "Local fallback",
+          optimization: "rule-based",
+          batch_size: submissionResult.rows.length
+        }
+      });
+      return;
+    }
 
     res.json({
       response: geminiResult.response,
@@ -317,7 +482,7 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 12
   } catch (err: any) {
     console.error("Gemini batch analyze error:", err);
     res.status(500).json({ 
-      error: "AI batch analysis failed. Please try again later."
+      error: err?.message || "AI batch analysis failed. Please try again later."
     });
   }
 });

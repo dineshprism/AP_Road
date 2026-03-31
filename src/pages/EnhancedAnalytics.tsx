@@ -7,11 +7,12 @@ import { AP_DISTRICTS } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { AlertTriangle, BarChart3, Brain, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Brain, Calculator, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
@@ -137,6 +138,54 @@ const severityColors: Record<string, string> = {
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
   Low: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
+
+const analyticsFormulaReference = [
+  {
+    label: "Fatality Rate",
+    formula: "(Deaths / (Deaths + Injuries)) x 100",
+    note: "Used for summary, road type comparisons, police station comparisons, and trend views.",
+  },
+  {
+    label: "Average Deaths Per Accident",
+    formula: "Deaths / Total Accidents",
+    note: "Shows the average number of deaths associated with each accident record.",
+  },
+  {
+    label: "Accident Share",
+    formula: "(Road Type Accidents / Total Accidents) x 100",
+    note: "Shows how much each road category contributes to all accidents in the filtered view.",
+  },
+  {
+    label: "Death Share",
+    formula: "(Road Type Deaths / Total Deaths) x 100",
+    note: "Shows how much each road category contributes to all reported deaths.",
+  },
+  {
+    label: "Injury Share",
+    formula: "(Road Type Injuries / Total Injuries) x 100",
+    note: "Shows how much each road category contributes to all reported injuries.",
+  },
+  {
+    label: "Casualties Per Accident",
+    formula: "(Deaths + Injuries) / Accidents",
+    note: "Measures how many casualties are associated with each accident on average.",
+  },
+  {
+    label: "Severity Index",
+    formula: "((Deaths x 2) + Injuries) / Accidents",
+    note: "Deaths are given double weight so high-fatality road types stand out more clearly.",
+  },
+  {
+    label: "Risk Score",
+    formula: "min(100, (Accidents x 12) + (Deaths x 18) + (Injuries x 5))",
+    note: "Used for hotspot ranking. The score is capped at 100.",
+  },
+  {
+    label: "Hotspot Severity Band",
+    formula: "Critical: score >= 80 | High: score >= 60 | Medium: score >= 35 | Low: score < 35",
+    note: "Converts the hotspot risk score into an operational priority band.",
+  },
+];
 
 function formatPercent(value: number, divideBy100 = false) {
   const actual = divideBy100 ? value * 100 : value;
@@ -348,14 +397,48 @@ const EnhancedAnalytics = () => {
 
       <div className="sticky top-[86px] z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="container mx-auto flex items-center justify-between px-4 py-3">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/")}
-            className="bg-white shadow-sm"
-          >
-            <Home className="mr-2 h-4 w-4" />
-            Home
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/")}
+              className="bg-white shadow-sm"
+            >
+              <Home className="mr-2 h-4 w-4" />
+              Home
+            </Button>
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-[#163a70]/20 bg-[#f4f7fb] text-[#163a70] shadow-sm hover:bg-[#e7eef8] hover:text-[#163a70]"
+                >
+                  <Calculator className="mr-2 h-4 w-4" />
+                  Formulas
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto border-slate-200">
+                <DialogHeader>
+                  <DialogTitle className="text-xl text-slate-900">Analytics Formula Reference</DialogTitle>
+                  <DialogDescription className="text-slate-600">
+                    These formulas match the metrics currently shown in the analytics dashboard for the selected filters.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-3">
+                  {analyticsFormulaReference.map((item) => (
+                    <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-2">
+                        <p className="text-sm font-semibold text-slate-900">{item.label}</p>
+                        <code className="rounded-md bg-white px-3 py-2 font-mono text-sm text-[#163a70]">
+                          {item.formula}
+                        </code>
+                        <p className="text-sm leading-6 text-slate-600">{item.note}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           <p className="hidden text-xs font-medium text-slate-500 sm:block">
             Quick access while reviewing analytics
           </p>

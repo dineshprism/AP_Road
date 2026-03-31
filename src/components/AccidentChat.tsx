@@ -15,6 +15,11 @@ interface Message {
   timestamp: Date;
 }
 
+interface ChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 interface Submission {
   id: string;
   fir_number: string;
@@ -40,6 +45,75 @@ const suggestedQuestions = [
   'How can similar accidents be prevented?'
 ];
 
+const formatInlineContent = (text: string, isUserMessage = false) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    const match = part.match(/^\*\*([^*]+)\*\*$/);
+    if (match) {
+      return (
+        <strong
+          key={`${part}-${index}`}
+          className={cn("font-semibold", isUserMessage ? "text-white" : "text-slate-900")}
+        >
+          {match[1]}
+        </strong>
+      );
+    }
+
+    return <React.Fragment key={`${part}-${index}`}>{part}</React.Fragment>;
+  });
+};
+
+const renderMessageContent = (content: string, isUserMessage = false) => {
+  const blocks = content
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  return blocks.map((block, blockIndex) => {
+    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean);
+    const bulletLines = lines.filter((line) => /^(\*|-)\s+/.test(line));
+    const orderedLines = lines.filter((line) => /^\d+\.\s+/.test(line));
+
+    if (bulletLines.length === lines.length) {
+      return (
+        <ul key={`block-${blockIndex}`} className="space-y-2 pl-5">
+          {lines.map((line, index) => (
+            <li
+              key={`item-${blockIndex}-${index}`}
+              className={cn("list-disc text-[15px] leading-7", isUserMessage ? "text-white" : "text-slate-700")}
+            >
+              {formatInlineContent(line.replace(/^(\*|-)\s+/, ''), isUserMessage)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+
+    if (orderedLines.length === lines.length) {
+      return (
+        <ol key={`block-${blockIndex}`} className="space-y-2 pl-5">
+          {lines.map((line, index) => (
+            <li
+              key={`item-${blockIndex}-${index}`}
+              className={cn("list-decimal text-[15px] leading-7", isUserMessage ? "text-white" : "text-slate-700")}
+            >
+              {formatInlineContent(line.replace(/^\d+\.\s+/, ''), isUserMessage)}
+            </li>
+          ))}
+        </ol>
+      );
+    }
+
+    return (
+      <p key={`block-${blockIndex}`} className={cn("text-[15px] leading-7", isUserMessage ? "text-white" : "text-slate-700")}>
+        {formatInlineContent(block, isUserMessage)}
+      </p>
+    );
+  });
+};
+
 const AccidentChat: React.FC<AccidentChatProps> = ({
   isOpen,
   onClose,
@@ -61,6 +135,7 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
   const messages = sessionMessages[sessionKey] || [];
   const isPanel = variant === 'panel';
   const hasUserMessages = messages.some((message) => message.type === 'user');
+  const visibleSuggestedQuestions = suggestedQuestions.slice(0, 4);
 
   const setMessagesForSession = (updater: Message[] | ((prev: Message[]) => Message[])) => {
     setSessionMessages((prev) => {
@@ -83,14 +158,23 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
     timestamp: new Date(),
   });
 
-  const runAnalysis = async (question?: string) => {
+  const buildHistory = (historyMessages: Message[]): ChatHistoryItem[] =>
+    historyMessages
+      .slice(-6)
+      .map((message) => ({
+        role: message.type,
+        content: message.content,
+      }));
+
+  const runAnalysis = async (question?: string, history?: ChatHistoryItem[]) => {
     if (submissions.length === 1) {
-      return api.rag.analyze({ submissionId: submissions[0].id, question });
+      return api.rag.analyze({ submissionId: submissions[0].id, question, history });
     }
 
     return api.rag.batchAnalyze({
       submissionIds: submissions.map((submission) => submission.id),
       question,
+      history,
     });
   };
 
@@ -158,12 +242,16 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
   const handleSendMessage = async (message: string) => {
     if (!message.trim() || isLoading || submissions.length === 0) return;
 
-    setMessagesForSession((prev) => [...prev, createMessage('user', message)]);
+    const trimmedMessage = message.trim();
+    const nextUserMessage = createMessage('user', trimmedMessage);
+    const requestHistory = buildHistory([...messages, nextUserMessage]);
+
+    setMessagesForSession((prev) => [...prev, nextUserMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const { data, error } = await runAnalysis(message);
+      const { data, error } = await runAnalysis(trimmedMessage, requestHistory);
 
       if (error) {
         throw new Error(error);
@@ -252,7 +340,7 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
         ) : (
           <>
             <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3 sm:px-4">
-              <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+              <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
                 {messages.map((message) => (
                   <div
                     key={message.id}
@@ -265,13 +353,15 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
                     )}
                     <div
                       className={cn(
-                        'max-w-[min(100%,46rem)] rounded-[22px] px-4 py-2.5 text-sm leading-6 shadow-sm',
+                        'max-w-[min(100%,52rem)] rounded-[22px] px-4 py-3 shadow-sm',
                         message.type === 'user'
                           ? 'rounded-br-md bg-primary text-primary-foreground'
                           : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
                       )}
                     >
-                      <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                      <div className="space-y-3 break-words">
+                        {renderMessageContent(message.content, message.type === 'user')}
+                      </div>
                       <p className={cn('mt-2 text-[11px]', message.type === 'user' ? 'text-primary-foreground/70' : 'text-slate-400')}>
                         {message.timestamp.toLocaleTimeString()}
                       </p>
@@ -303,19 +393,19 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
             </div>
 
             {!hasUserMessages && messages.length <= 2 && !isLoading && (
-              <div className="border-t border-slate-200 bg-white/90 px-3 py-2.5 backdrop-blur sm:px-4">
-                <div className="mx-auto w-full max-w-3xl">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-                    Suggested prompts
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedQuestions.slice(0, 4).map((question) => (
+              <div className="border-t border-slate-200 bg-white/95 px-3 py-2 backdrop-blur sm:px-4">
+                <div className="mx-auto w-full max-w-4xl">
+                  <div className="flex items-center gap-3 overflow-x-auto pb-1">
+                    <p className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      Quick prompts
+                    </p>
+                    {visibleSuggestedQuestions.map((question) => (
                       <Button
                         key={question}
                         variant="outline"
                         size="sm"
                         onClick={() => handleSendMessage(question)}
-                        className="h-auto rounded-full border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100"
+                        className="h-8 shrink-0 rounded-full border-slate-200 bg-slate-50 px-3 text-xs text-slate-700 hover:bg-slate-100"
                       >
                         {question}
                       </Button>
@@ -326,7 +416,7 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
             )}
 
             <div className="border-t border-slate-200 bg-white px-3 py-3 sm:px-4">
-              <div className="mx-auto w-full max-w-3xl">
+              <div className="mx-auto w-full max-w-4xl">
                 <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-1.5 shadow-inner">
                   <div className="flex items-center gap-2">
                     <Input

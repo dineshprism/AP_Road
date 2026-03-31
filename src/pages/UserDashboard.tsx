@@ -193,6 +193,7 @@ const UserDashboard = () => {
 
   const handleCloseChatPanel = () => {
     setShowChatPanel(false);
+    setChatSubmissions([]);
   };
 
   const handleSignedCopyUpload = async (submissionId: string, file: File | null) => {

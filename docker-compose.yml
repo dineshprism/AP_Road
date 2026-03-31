@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:16-alpine
     restart: always
+    env_file:
+      - .env.docker
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
@@ -22,6 +24,8 @@ services:
       args:
         VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     restart: always
+    env_file:
+      - .env.docker
     depends_on:
       db:
         condition: service_healthy
