@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
 import AccidentChat from "@/components/AccidentChat";
-import { FilePlus, FileText, Eye, Download, FileDown, Calendar, Map, MapPin, Brain, Bot } from "lucide-react";
+import { FilePlus, FileText, Eye, Download, FileDown, Calendar, Map as MapIcon, MapPin, Brain, Bot } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -235,7 +235,7 @@ const UserDashboard = () => {
               <div className="h-1.5 bg-gradient-to-r from-[#28a745] to-[#34ce57]" />
               <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4">
                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
-                  <Map className="w-8 h-8 text-green-600" />
+                  <MapIcon className="w-8 h-8 text-green-600" />
                 </div>
                 <h3 className="text-lg font-bold text-primary">Accident Map View</h3>
                 <p className="text-sm text-muted-foreground text-center">
@@ -272,7 +272,7 @@ const UserDashboard = () => {
               List View
             </TabsTrigger>
             <TabsTrigger value="map" className="flex items-center gap-2">
-              <Map className="w-4 h-4" />
+              <MapIcon className="w-4 h-4" />
               Map View
             </TabsTrigger>
           </TabsList>

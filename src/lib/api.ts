@@ -167,14 +167,14 @@ export const api = {
 
   rag: {
     analyze(payload: { submissionId: string; question?: string; history?: Array<{ role: "user" | "assistant"; content: string }> }) {
-      return request<{ response: string; submission: any; performance: any }>('/rag/analyze-gemini', {
+      return request<{ response: string; submission: any; retrieval: any; contextSubmissions: any[]; model: string; mode: string }>('/rag/analyze-local', {
         method: "POST",
         body: JSON.stringify(payload),
       });
     },
 
     batchAnalyze(payload: { submissionIds: string[]; question?: string; history?: Array<{ role: "user" | "assistant"; content: string }> }) {
-      return request<{ response: string; submissionsAnalyzed: number; submissions: any[]; performance: any }>('/rag/batch-analyze-gemini', {
+      return request<{ response: string; submissionsAnalyzed: number; submissions: any[]; retrieval: any; contextSubmissions: any[]; model: string; mode: string }>('/rag/batch-analyze-local', {
         method: "POST",
         body: JSON.stringify(payload),
       });

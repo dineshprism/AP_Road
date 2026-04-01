@@ -280,6 +280,51 @@ riskFactors (array of 4 short bullets).`;
   };
 }
 
+async function generateGeminiInsightsWithTimeout(
+  summaryInput: Parameters<typeof generateGeminiInsights>[0],
+  timeoutMs = 1800
+) {
+  try {
+    return await Promise.race([
+      generateGeminiInsights(summaryInput),
+      new Promise<Awaited<ReturnType<typeof generateGeminiInsights>>>((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              overallAssessment: "Analytics loaded with the standard operational summary while AI insights continue to be optional.",
+              keyFindings: [
+                "Base analytics are available immediately.",
+                "Hotspots and trends can be reviewed without waiting for AI generation.",
+                "Date filters and comparison views remain fully accurate.",
+                "AI summaries are skipped when they exceed the response budget.",
+              ],
+              recommendations: [
+                "Use the charts and hotspot rankings for immediate review.",
+                "Focus on police-station and road-type comparison first.",
+                "Apply tighter date ranges for faster operational analysis.",
+                "Treat AI insights as supplemental rather than blocking.",
+              ],
+              predictiveAnalysis: "AI insight generation was skipped to keep analytics responsive.",
+              riskFactors: [
+                "Driver behaviour",
+                "Road environment",
+                "Recurring hotspots",
+                "High-severity corridors",
+              ],
+            }),
+          timeoutMs
+        )
+      ),
+    ]);
+  } catch (error) {
+    console.error("Gemini analytics timed helper failed:", error);
+    return generateGeminiInsights({
+      ...summaryInput,
+      totalAccidents: 0,
+    });
+  }
+}
+
 router.get("/enhanced", async (req: AuthRequest, res: Response) => {
   try {
     const access = await getAccessContext(req, res);
@@ -293,6 +338,16 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
       toDate as string,
       access
     );
+    if (
+      typeof fromDate === "string" &&
+      typeof toDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(fromDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(toDate) &&
+      fromDate > toDate
+    ) {
+      res.status(400).json({ error: "From date cannot be later than To date" });
+      return;
+    }
     const result = await pool.query<AnalyticsRow>(
       `SELECT
         id, district, place_of_accident, mandal, police_station, fir_number,
@@ -350,6 +405,30 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
         roadEngineeringCauses: [],
         vehicleAnalysis: [],
         signedCopyAnalysis: [],
+        policeStationAnalysis: [],
+        dayOfWeekAnalysis: [
+          { day: "Mon", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Tue", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Wed", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Thu", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Fri", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Sat", accidents: 0, deaths: 0, injuries: 0 },
+          { day: "Sun", accidents: 0, deaths: 0, injuries: 0 },
+        ],
+        severityBreakdown: [
+          { name: "Fatal", count: 0, percentage: 0 },
+          { name: "Injury", count: 0, percentage: 0 },
+          { name: "Damage Only", count: 0, percentage: 0 },
+        ],
+        fieldCompleteness: [
+          { field: "GPS Coordinates", available: 0, missing: 0, coverage: 0 },
+          { field: "Signed Copy Uploaded", available: 0, missing: 0, coverage: 0 },
+          { field: "Vehicle Details", available: 0, missing: 0, coverage: 0 },
+          { field: "Driver Details", available: 0, missing: 0, coverage: 0 },
+          { field: "Driver Cause Details", available: 0, missing: 0, coverage: 0 },
+          { field: "Vehicle Condition Details", available: 0, missing: 0, coverage: 0 },
+          { field: "Road Engineering Details", available: 0, missing: 0, coverage: 0 },
+        ],
         mapPoints: [],
         geminiInsights: {
           overallAssessment: "No accident submissions were found for the selected period.",
@@ -733,7 +812,7 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     }));
 
     const scopeLabel = scope.effectiveDistrict || "Andhra Pradesh";
-    const geminiInsights = await generateGeminiInsights({
+    const geminiInsights = await generateGeminiInsightsWithTimeout({
       scopeLabel,
       totalAccidents,
       totalDeaths,

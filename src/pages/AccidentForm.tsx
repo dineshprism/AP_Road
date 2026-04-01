@@ -274,23 +274,8 @@ const AccidentForm = () => {
           <Card>
             <CardContent className="pt-6">
               <h3 className="gov-section-title">Signatures and Seal</h3>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Leave this space blank in the downloaded report for physical signatures and official stamp.
-              </p>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                {[
-                  "Prepared by (IO / SHO)",
-                  "Verified by (DSP / CI)",
-                  "Approved by (SP / Addl. SP)",
-                ].map((label) => (
-                  <div key={label} className="rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-4">
-                    <p className="mb-3 text-sm font-semibold text-primary">{label}</p>
-                    <div className="h-28 rounded-md border border-dashed border-slate-300 bg-white" />
-                    <div className="mt-4 border-t border-slate-400 pt-2 text-xs text-muted-foreground">
-                      Signature / Stamp
-                    </div>
-                  </div>
-                ))}
+              <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50/50 p-4">
+                <div className="min-h-[320px] rounded-md border border-dashed border-slate-300 bg-white" />
               </div>
               <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">
                 After download and physical approval, upload the signed copy from the past submissions page for records.

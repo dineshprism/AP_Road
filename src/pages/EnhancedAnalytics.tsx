@@ -7,12 +7,15 @@ import { AP_DISTRICTS } from "@/lib/constants";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { AlertTriangle, BarChart3, Brain, Calculator, Calendar, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
+import { format } from "date-fns";
+import { AlertTriangle, BarChart3, Brain, Calculator, Calendar as CalendarIcon, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
@@ -196,6 +199,16 @@ function compact(value: number) {
   return new Intl.NumberFormat("en-IN").format(value);
 }
 
+function isIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isoToDate(value: string) {
+  if (!isIsoDate(value)) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function findRoadTypeEntry(
   roadTypes: EnhancedAnalyticsData["roadTypeAnalysis"],
   roadType: string
@@ -209,13 +222,13 @@ function parseDateValue(value: string) {
   const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (isoMatch) {
     const [, year, month, day] = isoMatch;
-    return new Date(`${year}-${month}-${day}T00:00:00`);
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   }
 
   const localMatch = value.match(/^(\d{2})-(\d{2})-(\d{4})$/);
   if (localMatch) {
     const [, day, month, year] = localMatch;
-    return new Date(`${year}-${month}-${day}T00:00:00`);
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   }
 
   const fallback = new Date(value);
@@ -231,17 +244,12 @@ function formatDateLabel(value: string) {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
-function normalizeDateInputValue(value: string) {
-  const parsed = parseDateValue(value);
-  if (!parsed) return "";
-
-  const year = parsed.getFullYear();
-  const month = String(parsed.getMonth() + 1).padStart(2, "0");
-  const day = String(parsed.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function toIsoDate(value: Date | undefined) {
+  return value ? format(value, "yyyy-MM-dd") : "";
 }
 
 function shortenCauseLabel(value: string) {
@@ -270,16 +278,27 @@ function shortenCauseLabel(value: string) {
 const EnhancedAnalytics = () => {
   const navigate = useNavigate();
   const { user, isAdmin, profile, loading: authLoading } = useAuth();
+  const currentYear = new Date().getFullYear().toString();
   const [analyticsData, setAnalyticsData] = useState<EnhancedAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
-  const [filterDistrict, setFilterDistrict] = useState("all");
-  const [filterYear, setFilterYear] = useState(new Date().getFullYear().toString());
-  const [filterFromDate, setFilterFromDate] = useState("");
-  const [filterToDate, setFilterToDate] = useState("");
+  const [filters, setFilters] = useState({
+    district: "all",
+    year: currentYear,
+    fromDate: "",
+    toDate: "",
+  });
+  const [appliedFilters, setAppliedFilters] = useState({
+    district: "all",
+    year: currentYear,
+    fromDate: "",
+    toDate: "",
+  });
   const [showAnalyticalBrief, setShowAnalyticalBrief] = useState(false);
   const [showOperationalSnapshot, setShowOperationalSnapshot] = useState(false);
+  const [fromDateOpen, setFromDateOpen] = useState(false);
+  const [toDateOpen, setToDateOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -290,7 +309,8 @@ const EnhancedAnalytics = () => {
 
   useEffect(() => {
     if (!isAdmin && profile?.district) {
-      setFilterDistrict(profile.district);
+      setFilters((prev) => ({ ...prev, district: profile.district }));
+      setAppliedFilters((prev) => ({ ...prev, district: profile.district }));
     }
   }, [isAdmin, profile?.district]);
 
@@ -298,18 +318,35 @@ const EnhancedAnalytics = () => {
     if (!authLoading && user) {
       fetchEnhancedAnalytics();
     }
-  }, [authLoading, user, filterDistrict, filterYear, filterFromDate, filterToDate]);
+  }, [authLoading, user, appliedFilters, isAdmin, profile?.district]);
+
+  const applyFilters = () => {
+    if (filters.fromDate && !isIsoDate(filters.fromDate)) {
+      toast.error("From date must be in YYYY-MM-DD format");
+      return;
+    }
+    if (filters.toDate && !isIsoDate(filters.toDate)) {
+      toast.error("To date must be in YYYY-MM-DD format");
+      return;
+    }
+    if (filters.fromDate && filters.toDate && filters.fromDate > filters.toDate) {
+      toast.error("From date cannot be later than To date");
+      return;
+    }
+
+    setAppliedFilters(filters);
+  };
 
   const fetchEnhancedAnalytics = async () => {
     try {
       setLoading(true);
       setLoadError(null);
-      const requestedDistrict = isAdmin ? filterDistrict : profile?.district || filterDistrict;
+      const requestedDistrict = isAdmin ? appliedFilters.district : profile?.district || appliedFilters.district;
       const { data, error } = await api.analytics.getEnhancedAnalytics({
         district: requestedDistrict,
-        year: filterYear,
-        fromDate: filterFromDate || undefined,
-        toDate: filterToDate || undefined,
+        year: appliedFilters.year,
+        fromDate: appliedFilters.fromDate || undefined,
+        toDate: appliedFilters.toDate || undefined,
       });
 
       if (error) {
@@ -334,13 +371,17 @@ const EnhancedAnalytics = () => {
     () => Array.from({ length: 6 }, (_, index) => (new Date().getFullYear() - index).toString()),
     []
   );
-  const hasCustomDateRange = Boolean(filterFromDate || filterToDate);
+  const hasCustomDateRange = Boolean(filters.fromDate || filters.toDate);
   const hasValidCustomDateRange = Boolean(
-    (filterFromDate && parseDateValue(filterFromDate)) ||
-    (filterToDate && parseDateValue(filterToDate))
+    (appliedFilters.fromDate && parseDateValue(appliedFilters.fromDate)) ||
+    (appliedFilters.toDate && parseDateValue(appliedFilters.toDate))
   );
   const dateRangeLabel = hasValidCustomDateRange
-    ? `${filterFromDate ? formatDateLabel(filterFromDate) : "Start"} - ${filterToDate ? formatDateLabel(filterToDate) : "Today"}`
+    ? appliedFilters.fromDate && appliedFilters.toDate
+      ? `${formatDateLabel(appliedFilters.fromDate)} - ${formatDateLabel(appliedFilters.toDate)}`
+      : appliedFilters.fromDate
+        ? `From ${formatDateLabel(appliedFilters.fromDate)}`
+        : `Up to ${formatDateLabel(appliedFilters.toDate)}`
     : null;
 
   if (loading || authLoading) {
@@ -356,10 +397,10 @@ const EnhancedAnalytics = () => {
   const topHotspot = analyticsData.hotspotsLocations[0];
   const topMandal = analyticsData.mandalAnalysis[0];
   const chartComparisonData = analyticsData.comparisonData.slice(0, 10);
-  const chartPoliceStations = analyticsData.policeStationAnalysis.slice(0, 10);
+  const chartPoliceStations = (analyticsData.policeStationAnalysis || []).slice(0, 10);
   const chartMandals = analyticsData.mandalAnalysis.slice(0, 8);
   const chartHotspots = analyticsData.hotspotsLocations.slice(0, 8);
-  const chartCoverage = analyticsData.fieldCompleteness;
+  const chartCoverage = analyticsData.fieldCompleteness || [];
   const topRoadTypeByVolume = analyticsData.roadTypeInsights.highestVolume;
   const topRoadTypeBySeverity = analyticsData.roadTypeInsights.highestSeverityIndex;
   const topRoadTypeByFatalityRate = analyticsData.roadTypeInsights.highestFatalityRate;
@@ -385,7 +426,7 @@ const EnhancedAnalytics = () => {
     ...entry,
     shortCause: shortenCauseLabel(entry.cause),
   }));
-  const vehicleCauseChartData = analyticsData.vehicleCauses.map((entry) => ({
+  const vehicleCauseChartData = (analyticsData.vehicleCauses || []).map((entry) => ({
     ...entry,
     shortCause: shortenCauseLabel(entry.cause),
   }));
@@ -473,8 +514,8 @@ const EnhancedAnalytics = () => {
                     District
                   </Label>
                   <Select
-                    value={isAdmin ? filterDistrict : analyticsData.scope.district || profile?.district || "all"}
-                    onValueChange={setFilterDistrict}
+                    value={isAdmin ? filters.district : analyticsData.scope.district || profile?.district || "all"}
+                    onValueChange={(value) => setFilters((prev) => ({ ...prev, district: value }))}
                     disabled={!isAdmin}
                   >
                     <SelectTrigger className="h-11 border-slate-300 bg-slate-50 text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:ring-[#163a70]">
@@ -491,10 +532,14 @@ const EnhancedAnalytics = () => {
 
                 <div className="min-w-[140px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    <Calendar className="mr-1 inline h-3.5 w-3.5" />
+                    <CalendarIcon className="mr-1 inline h-3.5 w-3.5" />
                     Year
                   </Label>
-                  <Select value={filterYear} onValueChange={setFilterYear} disabled={hasCustomDateRange}>
+                  <Select
+                    value={filters.year}
+                    onValueChange={(value) => setFilters((prev) => ({ ...prev, year: value }))}
+                    disabled={hasCustomDateRange}
+                  >
                     <SelectTrigger className="h-11 border-slate-300 bg-slate-50 text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:ring-[#163a70]">
                       <SelectValue />
                     </SelectTrigger>
@@ -508,49 +553,88 @@ const EnhancedAnalytics = () => {
 
                 <div className="min-w-[150px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <CalendarIcon className="mr-1 inline h-3.5 w-3.5" />
                     From Date
                   </Label>
-                  <input
-                    type="date"
-                    value={filterFromDate}
-                    onChange={(e) => {
-                      const nextValue = normalizeDateInputValue(e.target.value);
-                      setFilterFromDate(nextValue);
-                      if (filterToDate && nextValue && filterToDate < nextValue) {
-                        setFilterToDate("");
-                      }
-                    }}
-                    className="flex h-11 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:outline-none focus:ring-2 focus:ring-[#163a70]/20"
-                  />
+                  <Popover open={fromDateOpen} onOpenChange={setFromDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-11 w-full justify-start border-slate-300 bg-slate-50 px-3 text-left font-normal text-slate-800 shadow-sm hover:bg-slate-100"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
+                        {filters.fromDate ? formatDateLabel(filters.fromDate) : "Select From Date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={isoToDate(filters.fromDate)}
+                        onSelect={(selectedDate) => {
+                          const nextValue = toIsoDate(selectedDate);
+                          setFilters((prev) => ({
+                            ...prev,
+                            fromDate: nextValue,
+                            toDate: prev.toDate && nextValue && prev.toDate < nextValue ? "" : prev.toDate,
+                          }));
+                          if (selectedDate) setFromDateOpen(false);
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="min-w-[170px]">
                   <Label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    <CalendarIcon className="mr-1 inline h-3.5 w-3.5" />
                     To Date
                   </Label>
-                  <input
-                    type="date"
-                    value={filterToDate}
-                    min={filterFromDate || undefined}
-                    onChange={(e) => setFilterToDate(normalizeDateInputValue(e.target.value))}
-                    className="flex h-11 w-full rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-800 shadow-sm transition-colors focus:border-[#163a70] focus:outline-none focus:ring-2 focus:ring-[#163a70]/20"
-                  />
+                  <Popover open={toDateOpen} onOpenChange={setToDateOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="h-11 w-full justify-start border-slate-300 bg-slate-50 px-3 text-left font-normal text-slate-800 shadow-sm hover:bg-slate-100"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-slate-500" />
+                        {filters.toDate ? formatDateLabel(filters.toDate) : "Select To Date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={isoToDate(filters.toDate)}
+                        onSelect={(selectedDate) => {
+                          setFilters((prev) => ({ ...prev, toDate: toIsoDate(selectedDate) }));
+                          if (selectedDate) setToDateOpen(false);
+                        }}
+                        disabled={(date) => Boolean(filters.fromDate) && date < (isoToDate(filters.fromDate) || date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="flex items-end gap-3 pt-1">
                   <Button
-                    onClick={fetchEnhancedAnalytics}
+                    onClick={applyFilters}
                     className="h-11 flex-1 border border-[#163a70] bg-[#163a70] text-white shadow-sm transition-colors hover:bg-[#224d8c]"
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />
-                    Refresh
+                    Apply Filters
                   </Button>
-                  {(filterFromDate || filterToDate) && (
+                  {(filters.fromDate || filters.toDate) && (
                     <Button
                       variant="ghost"
                       onClick={() => {
-                        setFilterFromDate("");
-                        setFilterToDate("");
+                        const clearedFilters = {
+                          district: isAdmin ? filters.district : profile?.district || filters.district,
+                          year: currentYear,
+                          fromDate: "",
+                          toDate: "",
+                        };
+                        setFilters(clearedFilters);
+                        setAppliedFilters(clearedFilters);
                       }}
                       className="h-11 border border-[#c75b12]/20 bg-[#fff7f0] text-[#c75b12] shadow-sm hover:bg-[#fee8d6] hover:text-[#a54910]"
                     >

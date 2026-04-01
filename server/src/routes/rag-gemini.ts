@@ -105,29 +105,38 @@ async function callGemini(prompt: string) {
       };
     } catch (error: any) {
       console.error(`Gemini API error on attempt ${attempt}:`, error);
+      const rawMessage = String(error?.message || "");
+      const normalizedMessage = rawMessage.toLowerCase();
 
       const isTransientNetworkFailure =
-        error?.message?.includes("fetch failed") ||
+        normalizedMessage.includes("fetch failed") ||
         error?.cause?.code === "ETIMEDOUT" ||
         error?.cause?.code === "ECONNRESET";
+      const isModelTemporarilyUnavailable =
+        normalizedMessage.includes("503") ||
+        normalizedMessage.includes("unavailable") ||
+        normalizedMessage.includes("high demand") ||
+        normalizedMessage.includes("overloaded");
 
-      if (isTransientNetworkFailure && attempt < geminiRetryAttempts) {
+      if ((isTransientNetworkFailure || isModelTemporarilyUnavailable) && attempt < geminiRetryAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
         continue;
       }
 
-      if (error.message?.includes('API_KEY')) {
+      if (rawMessage.includes('API_KEY')) {
         throw new Error("Invalid Gemini API key. Please check your GEMINI_API_KEY environment variable.");
-      } else if (error.message?.includes("leaked")) {
+      } else if (normalizedMessage.includes("leaked")) {
         throw new Error("The configured Gemini API key has been reported as leaked. Please replace GEMINI_API_KEY with a new key.");
-      } else if (error.message?.includes("404") || error.message?.includes("not found for API version")) {
+      } else if (normalizedMessage.includes("404") || normalizedMessage.includes("not found for api version")) {
         throw new Error(`Gemini model '${geminiModel}' is unavailable. Update GEMINI_MODEL to a supported model such as 'gemini-2.5-flash'.`);
-      } else if (error.message?.includes('quota')) {
+      } else if (normalizedMessage.includes('quota')) {
         throw new Error("Gemini API quota exceeded. Please check your billing.");
+      } else if (isModelTemporarilyUnavailable) {
+        throw new Error("Gemini is temporarily unavailable due to high demand. Using fallback analysis.");
       } else if (isTransientNetworkFailure) {
         throw new Error("Gemini API request timed out. Please try again.");
       } else {
-        throw new Error(`Gemini API failed: ${error.message}`);
+        throw new Error(`Gemini API failed: ${rawMessage}`);
       }
     }
   }
@@ -148,14 +157,17 @@ function formatConversationHistory(history: Array<{ role?: string; content?: str
 }
 
 function isGeminiUnavailable(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error || "");
+  const message = (error instanceof Error ? error.message : String(error || "")).toLowerCase();
   return (
     message.includes("timed out") ||
     message.includes("fetch failed") ||
-    message.includes("API key") ||
+    message.includes("api key") ||
     message.includes("leaked") ||
     message.includes("quota") ||
-    message.includes("unavailable")
+    message.includes("unavailable") ||
+    message.includes("503") ||
+    message.includes("high demand") ||
+    message.includes("overloaded")
   );
 }
 

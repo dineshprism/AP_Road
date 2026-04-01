@@ -111,6 +111,16 @@ CREATE INDEX IF NOT EXISTS idx_submissions_date ON accident_submissions(accident
 CREATE INDEX IF NOT EXISTS idx_submissions_user ON accident_submissions(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
+
+CREATE TABLE IF NOT EXISTS submission_rag_cache (
+    submission_id UUID PRIMARY KEY REFERENCES accident_submissions(id) ON DELETE CASCADE,
+    content_hash TEXT NOT NULL,
+    content TEXT NOT NULL,
+    embedding JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_rag_cache_updated_at ON submission_rag_cache(updated_at);
 `;
 
 export async function runMigrations(options?: { closePool?: boolean }) {

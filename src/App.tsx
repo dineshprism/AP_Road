@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UserDashboard from "./pages/UserDashboard";
@@ -16,6 +16,35 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+const RouteLoader = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <p className="text-muted-foreground">Loading...</p>
+  </div>
+);
+
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) return <RouteLoader />;
+  if (!user) return <Navigate to="/auth" replace />;
+  return children;
+};
+
+const RoleRoute = ({
+  children,
+  allowedRoles,
+}: {
+  children: JSX.Element;
+  allowedRoles: string[];
+}) => {
+  const { user, loading, roles } = useAuth();
+
+  if (loading) return <RouteLoader />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!allowedRoles.some((role) => roles.includes(role))) return <Navigate to="/" replace />;
+  return children;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -26,13 +55,62 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/dashboard" element={<UserDashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/adgp-dashboard" element={<AdgpDashboard />} />
-            <Route path="/analytics" element={<EnhancedAnalytics />} />
-            <Route path="/enhanced-analytics" element={<EnhancedAnalytics />} />
-            <Route path="/submit" element={<AccidentForm />} />
-            <Route path="/submission/:id" element={<SubmissionView />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <UserDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <RoleRoute allowedRoles={["admin", "dgp"]}>
+                  <AdminDashboard />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/adgp-dashboard"
+              element={
+                <RoleRoute allowedRoles={["adgp"]}>
+                  <AdgpDashboard />
+                </RoleRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <EnhancedAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/enhanced-analytics"
+              element={
+                <ProtectedRoute>
+                  <EnhancedAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/submit"
+              element={
+                <ProtectedRoute>
+                  <AccidentForm />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/submission/:id"
+              element={
+                <ProtectedRoute>
+                  <SubmissionView />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

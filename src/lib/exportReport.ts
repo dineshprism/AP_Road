@@ -70,35 +70,6 @@ function causesList(items: string[], values: Record<string, boolean>): string[] 
   return items.filter((item) => values?.[item]);
 }
 
-function drawSignatureBlocks(doc: jsPDF, startY: number, margin: number, pageWidth: number) {
-  const labels = [
-    "Prepared by (IO / SHO)",
-    "Verified by (DSP / CI)",
-    "Approved by (SP / Addl. SP)",
-  ];
-  const gap = 6;
-  const width = (pageWidth - margin * 2 - gap * 2) / 3;
-  const height = 34;
-
-  labels.forEach((label, index) => {
-    const x = margin + index * (width + gap);
-    doc.setDrawColor(186, 194, 204);
-    doc.setFillColor(250, 251, 253);
-    doc.roundedRect(x, startY, width, height, 1.5, 1.5, "FD");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(8);
-    doc.text(label, x + 3, startY + 5);
-    doc.setDrawColor(214, 220, 228);
-    doc.rect(x + 3, startY + 8, width - 6, 19);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.line(x + 3, startY + 30, x + width - 3, startY + 30);
-    doc.text("Signature / Stamp", x + 3, startY + 33);
-  });
-
-  return startY + height + 3;
-}
-
 function docxInfoRow(label: string, value: string | number | null): TableRow {
   return new TableRow({
     children: [
@@ -110,46 +81,6 @@ function docxInfoRow(label: string, value: string | number | null): TableRow {
       new TableCell({
         width: { size: 65, type: WidthType.PERCENTAGE },
         children: [new Paragraph({ children: [new TextRun({ text: String(value ?? "-"), size: 18, font: "Arial" })] })],
-      }),
-    ],
-  });
-}
-
-function docxSignatureTable(borderStyle: any) {
-  const labels = [
-    "Prepared by (IO / SHO)",
-    "Verified by (DSP / CI)",
-    "Approved by (SP / Addl. SP)",
-  ];
-
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: borderStyle,
-    rows: [
-      new TableRow({
-        children: labels.map((label) =>
-          new TableCell({
-            width: { size: 33.33, type: WidthType.PERCENTAGE },
-            borders: borderStyle,
-            shading: { type: ShadingType.SOLID, color: "FAFBFD" },
-            children: [
-              new Paragraph({
-                children: [new TextRun({ text: label, bold: true, size: 18, font: "Arial", color: "003366" })],
-                spacing: { after: 140 },
-              }),
-              new Paragraph({ children: [new TextRun({ text: " ", size: 18, font: "Arial" })], spacing: { after: 140 } }),
-              new Paragraph({ children: [new TextRun({ text: " ", size: 18, font: "Arial" })], spacing: { after: 140 } }),
-              new Paragraph({ children: [new TextRun({ text: " ", size: 18, font: "Arial" })], spacing: { after: 140 } }),
-              new Paragraph({
-                children: [new TextRun({ text: "______________________________", size: 18, font: "Arial" })],
-                spacing: { before: 120, after: 60 },
-              }),
-              new Paragraph({
-                children: [new TextRun({ text: "Signature / Stamp", size: 16, font: "Arial", color: "666666" })],
-              }),
-            ],
-          })
-        ),
       }),
     ],
   });
@@ -306,10 +237,6 @@ export function exportSubmissionPDF(s: Submission) {
   renderCauses("Median", ROAD_MEDIAN_CAUSES, s.road_engineering_median || {});
   renderCauses("Nature of Area", ROAD_NATURE_CAUSES, s.road_engineering_nature || {});
   renderCauses("Signages and Road Markings", ROAD_SIGNAGES_CAUSES, s.road_engineering_signages || {});
-
-  sectionTitle("Signatures and Seal");
-  checkPage(42);
-  y = drawSignatureBlocks(doc, y, margin, pageWidth);
 
   addHeaderFooter();
   doc.save(`FIR_${s.fir_number}_${s.district}.pdf`);
@@ -489,9 +416,6 @@ export async function exportSubmissionDOCX(s: Submission) {
           ...causesSection("Median", ROAD_MEDIAN_CAUSES, s.road_engineering_median || {}),
           ...causesSection("Nature of Area", ROAD_NATURE_CAUSES, s.road_engineering_nature || {}),
           ...causesSection("Signages and Road Markings", ROAD_SIGNAGES_CAUSES, s.road_engineering_signages || {}),
-
-          sectionTitle("Signatures and Seal"),
-          docxSignatureTable(borderStyle),
         ],
       },
     ],

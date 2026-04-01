@@ -136,4 +136,36 @@
   .gov-stat-card {
     @apply bg-card rounded-xl shadow-md border-0 overflow-hidden transition-all hover:shadow-lg;
   }
+  .gov-instruction-marquee {
+    background: linear-gradient(90deg, hsl(28 92% 47%), hsl(36 100% 72%), hsl(28 92% 47%));
+    border-top: 1px solid hsl(224 76% 20% / 0.18);
+    border-bottom: 1px solid hsl(224 76% 20% / 0.18);
+    color: hsl(224 76% 17%);
+    overflow: hidden;
+  }
+  .gov-instruction-marquee__viewport {
+    overflow: hidden;
+    padding: 0.7rem 0;
+    white-space: nowrap;
+  }
+  .gov-instruction-marquee__viewport span {
+    animation: gov-marquee-scroll 18s linear infinite;
+    display: inline-block;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    padding-left: 100%;
+    text-transform: none;
+    white-space: nowrap;
+    will-change: transform;
+  }
+}
+
+@keyframes gov-marquee-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
 }

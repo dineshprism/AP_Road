@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, getApiAssetUrl } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ interface Submission {
 const SubmissionView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { roles, isAdmin } = useAuth();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +69,11 @@ const SubmissionView = () => {
   const signedCopyUrl = getApiAssetUrl(s.signed_copy_url);
   const vehicles = (Array.isArray(s.vehicles) ? s.vehicles : []) as { registration_number: string; class_type: string }[];
   const drivers = (Array.isArray(s.drivers) ? s.drivers : []) as { name: string; dl_number: string; licensing_authority: string }[];
+  const backTarget = roles.includes("adgp")
+    ? "/adgp-dashboard"
+    : roles.includes("dgp") || isAdmin
+      ? "/admin"
+      : "/dashboard";
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null }) => (
     <div className="flex justify-between py-2 border-b border-border/50">
@@ -80,7 +87,7 @@ const SubmissionView = () => {
       <GovHeader />
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="text-primary">
+          <Button variant="ghost" onClick={() => navigate(backTarget)} className="text-primary">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </Button>
           <DropdownMenu>
@@ -173,27 +180,6 @@ const SubmissionView = () => {
                   <CausativeSection title="Nature of Area" items={ROAD_NATURE_CAUSES} values={(s.road_engineering_nature as Record<string, boolean>) || {}} onChange={() => {}} readOnly />
                   <CausativeSection title="Signages and Road Markings" items={ROAD_SIGNAGES_CAUSES} values={(s.road_engineering_signages as Record<string, boolean>) || {}} onChange={() => {}} readOnly />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <h3 className="gov-section-title">Signatures and Seal</h3>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {[
-                  "Prepared by (IO / SHO)",
-                  "Verified by (DSP / CI)",
-                  "Approved by (SP / Addl. SP)",
-                ].map((label) => (
-                  <div key={label} className="rounded-lg border border-dashed border-slate-300 bg-slate-50/60 p-4">
-                    <p className="mb-3 text-sm font-semibold text-primary">{label}</p>
-                    <div className="h-28 rounded-md border border-dashed border-slate-300 bg-white" />
-                    <div className="mt-4 border-t border-slate-400 pt-2 text-xs text-muted-foreground">
-                      Signature / Stamp
-                    </div>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>

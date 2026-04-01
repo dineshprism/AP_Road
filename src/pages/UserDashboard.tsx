@@ -20,7 +20,7 @@ import {
   Download,
   FileDown,
   Calendar,
-  Map,
+  Map as MapIcon,
   MapPin,
   Brain,
   BarChart3,
@@ -57,6 +57,12 @@ interface Submission {
 
 type DateRange = "1m" | "3m" | "6m" | "1y" | "custom" | "all";
 type SignedCopyFilter = "all" | "pending" | "uploaded";
+const DISTRICT_INSTRUCTION_TEXT = "Please do fill severe injuries Accidents and Fatal accidents data available from 01-04-2026";
+const ALL_FILTER_VALUE = "__all__";
+
+function normalizeStationName(value?: string | null) {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 function getDateFrom(range: DateRange): Date | null {
   if (range === "all") return null;
@@ -103,26 +109,56 @@ const UserDashboard = () => {
     return h?.[selectedSdpo]?.slice().sort() || [];
   }, [district, selectedSdpo]);
 
+  const sdpoByPoliceStation = useMemo(() => {
+    const hierarchy = DISTRICT_HIERARCHY[district] || {};
+    const stationMap = new Map<string, string>();
+
+    Object.entries(hierarchy).forEach(([sdpoName, stations]) => {
+      stations.forEach((station) => {
+        stationMap.set(normalizeStationName(station), sdpoName);
+      });
+    });
+
+    return stationMap;
+  }, [district]);
+
+  const submissionSdpoById = useMemo(() => {
+    const mapped = new Map<string, string>();
+
+    submissions.forEach((submission) => {
+      const normalizedStation = normalizeStationName(submission.police_station);
+      const sdpoName = sdpoByPoliceStation.get(normalizedStation);
+      if (sdpoName) {
+        mapped.set(submission.id, sdpoName);
+      }
+    });
+
+    return mapped;
+  }, [submissions, sdpoByPoliceStation]);
+
   const listPsOptions = useMemo(() => {
-    if (!district || !listSdpo) return [];
-    const h = DISTRICT_HIERARCHY[district];
-    return h?.[listSdpo]?.slice().sort() || [];
-  }, [district, listSdpo]);
+    if (!listSdpo || listSdpo === ALL_FILTER_VALUE) return [];
+
+    const options = submissions
+      .filter((submission) => submissionSdpoById.get(submission.id) === listSdpo)
+      .map((submission) => String(submission.police_station || "").trim())
+      .filter((station) => station.length > 0);
+
+    return Array.from(new Set(options)).sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }));
+  }, [listSdpo, submissions, submissionSdpoById]);
 
   const filteredSubmissions = useMemo(() => {
     let result = submissions;
-    if (listSdpo) {
-      const psInSdpo = DISTRICT_HIERARCHY[district]?.[listSdpo] || [];
-      result = result.filter((submission) =>
-        psInSdpo.some((ps) => submission.police_station?.toLowerCase() === ps.toLowerCase())
-      );
+    if (listSdpo && listSdpo !== ALL_FILTER_VALUE) {
+      result = result.filter((submission) => submissionSdpoById.get(submission.id) === listSdpo);
     }
-    if (listPs) {
-      result = result.filter((submission) => submission.police_station?.toLowerCase() === listPs.toLowerCase());
+    if (listPs && listPs !== ALL_FILTER_VALUE) {
+      const selectedPsNormalized = normalizeStationName(listPs);
+      result = result.filter((submission) => normalizeStationName(submission.police_station) === selectedPsNormalized);
     }
     if (firSearch.trim()) {
       const query = firSearch.trim().toLowerCase();
-      result = result.filter((submission) => submission.fir_number?.toLowerCase().includes(query));
+      result = result.filter((submission) => String(submission.fir_number || "").toLowerCase().includes(query));
     }
     if (signedCopyFilter === "uploaded") {
       result = result.filter((submission) => submission.signed_copy_uploaded);
@@ -140,7 +176,7 @@ const UserDashboard = () => {
       }
     }
     return result;
-  }, [submissions, listSdpo, listPs, firSearch, signedCopyFilter, dateRange, customFrom, customTo, district]);
+  }, [submissions, listSdpo, listPs, firSearch, signedCopyFilter, dateRange, customFrom, customTo, submissionSdpoById]);
 
   useEffect(() => {
     if (user) fetchSubmissions();
@@ -224,11 +260,20 @@ const UserDashboard = () => {
     setUploadingSubmissionId(null);
   };
 
+  const instructionBanner = (
+    <div className="gov-instruction-marquee" role="note" aria-label="District data entry instruction">
+      <div className="gov-instruction-marquee__viewport">
+        <span>{DISTRICT_INSTRUCTION_TEXT}</span>
+      </div>
+    </div>
+  );
+
   if (activeTab === "menu") {
     return (
       <div className="min-h-screen bg-background">
         <GovHeader />
-        <div className="container mx-auto max-w-3xl px-4 py-8">
+        {instructionBanner}
+        <div className="container mx-auto max-w-6xl px-4 py-8">
           <h2 className="gov-page-title mb-6 text-center">District Dashboard</h2>
 
           <Card className="mb-8 border-0 shadow-md">
@@ -262,61 +307,69 @@ const UserDashboard = () => {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
             <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={handleSubmitNew}>
               <div className="h-1.5 bg-gradient-to-r from-[#e8710a] to-[#f5a623]" />
-              <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary/10 transition-colors group-hover:bg-secondary/20">
-                  <FilePlus className="h-8 w-8 text-secondary" />
+              <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary/10 transition-colors group-hover:bg-secondary/20">
+                  <FilePlus className="h-5 w-5 text-secondary" />
                 </div>
-                <h3 className="text-lg font-bold text-primary">Submit New Report</h3>
-                <p className="text-center text-sm text-muted-foreground">
-                  Fill the Fatal Road Accident Scientific Investigation Template
-                </p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold leading-snug text-primary">Submit New Report</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Fill the fatal accident investigation template.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 
             <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={() => { setActiveTab("list"); fetchSubmissions(); }}>
               <div className="h-1.5 bg-gradient-to-r from-[#132b5e] to-[#2a4d8f]" />
-              <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <FileText className="h-8 w-8 text-primary" />
+              <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <FileText className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-bold text-primary">View Past Submissions</h3>
-                <p className="text-center text-sm text-muted-foreground">
-                  View all your previously submitted investigation reports
-                </p>
-                <Badge className="bg-primary text-white">{submissions.length} Reports</Badge>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold leading-snug text-primary">View Past Submissions</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Open your previously submitted reports.
+                  </p>
+                  <Badge className="mt-2 bg-primary text-white">{submissions.length} Reports</Badge>
+                </div>
               </CardContent>
             </Card>
 
             <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={() => { setActiveTab("map"); fetchSubmissions(); }}>
               <div className="h-1.5 bg-gradient-to-r from-[#28a745] to-[#34ce57]" />
-              <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10 transition-colors group-hover:bg-green-500/20">
-                  <Map className="h-8 w-8 text-green-600" />
+              <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-500/10 transition-colors group-hover:bg-green-500/20">
+                  <MapIcon className="h-5 w-5 text-green-600" />
                 </div>
-                <h3 className="text-lg font-bold text-primary">Accident Map View</h3>
-                <p className="text-center text-sm text-muted-foreground">
-                  View accident locations and hotspots in your district
-                </p>
-                <Badge className="bg-green-600 text-white">
-                  <MapPin className="mr-1 h-3 w-3" />
-                  Map View
-                </Badge>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold leading-snug text-primary">Accident Map View</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    View accident spots and hotspots in your district.
+                  </p>
+                  <Badge className="mt-2 bg-green-600 text-white">
+                    <MapPin className="mr-1 h-3 w-3" />
+                    Map View
+                  </Badge>
+                </div>
               </CardContent>
             </Card>
 
             <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={() => navigate("/analytics")}>
               <div className="h-1.5 bg-gradient-to-r from-[#163a70] to-[#355f9a]" />
-              <CardContent className="flex flex-col items-center gap-4 pb-8 pt-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 transition-colors group-hover:bg-primary/20">
-                  <BarChart3 className="h-8 w-8 text-primary" />
+              <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 transition-colors group-hover:bg-primary/20">
+                  <BarChart3 className="h-5 w-5 text-primary" />
                 </div>
-                <h3 className="text-lg font-bold text-primary">District Analytics</h3>
-                <p className="text-center text-sm text-muted-foreground">
-                  Review police station comparisons, hotspots, and field completeness in your district
-                </p>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold leading-snug text-primary">District Analytics</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Review station comparisons, hotspots, and field completeness.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -328,6 +381,7 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <GovHeader />
+      {instructionBanner}
       <div className={`${activeTab === "map" ? "mx-auto max-w-[1700px]" : "container mx-auto"} px-4 py-6`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="gov-page-title">My Submissions</h2>
@@ -344,7 +398,7 @@ const UserDashboard = () => {
               List View
             </TabsTrigger>
             <TabsTrigger value="map" className="flex items-center gap-2">
-              <Map className="h-4 w-4" />
+              <MapIcon className="h-4 w-4" />
               Map View
             </TabsTrigger>
           </TabsList>
@@ -357,20 +411,20 @@ const UserDashboard = () => {
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
                       <div>
                         <Label className="text-xs text-muted-foreground">SDPO Circle</Label>
-                        <Select value={listSdpo} onValueChange={(value) => { setListSdpo(value); setListPs(""); }}>
+                        <Select value={listSdpo || ALL_FILTER_VALUE} onValueChange={(value) => { setListSdpo(value === ALL_FILTER_VALUE ? "" : value); setListPs(""); }}>
                           <SelectTrigger className="h-9"><SelectValue placeholder="All SDPOs" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__all__">All SDPOs</SelectItem>
+                            <SelectItem value={ALL_FILTER_VALUE}>All SDPOs</SelectItem>
                             {sdpoList.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
                           </SelectContent>
                         </Select>
                       </div>
                       <div>
                         <Label className="text-xs text-muted-foreground">Police Station</Label>
-                        <Select value={listPs} onValueChange={setListPs} disabled={!listSdpo || listSdpo === "__all__"}>
+                        <Select value={listPs || ALL_FILTER_VALUE} onValueChange={(value) => setListPs(value === ALL_FILTER_VALUE ? "" : value)} disabled={!listSdpo}>
                           <SelectTrigger className="h-9"><SelectValue placeholder="All PS" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="__all__">All PS</SelectItem>
+                            <SelectItem value={ALL_FILTER_VALUE}>All PS</SelectItem>
                             {listPsOptions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
                           </SelectContent>
                         </Select>
@@ -432,7 +486,7 @@ const UserDashboard = () => {
                           Active analysis: {chatSubmissions.length === 1 ? chatSubmissions[0].fir_number : `${chatSubmissions.length} submissions`}
                         </Badge>
                       )}
-                      {(listSdpo && listSdpo !== "__all__" || listPs && listPs !== "__all__" || dateRange !== "all" || firSearch || signedCopyFilter !== "all") && (
+                      {(listSdpo || listPs || dateRange !== "all" || firSearch || signedCopyFilter !== "all") && (
                         <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => { setListSdpo(""); setListPs(""); setDateRange("all"); setCustomFrom(""); setCustomTo(""); setFirSearch(""); setSignedCopyFilter("all"); }}>
                           Clear Filters
                         </Button>
