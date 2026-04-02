@@ -2,12 +2,20 @@ import { Router, Response } from "express";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import pool from "../db.js";
 import { GoogleGenAI } from "@google/genai";
+import { AccidentSubmissionRecord, analyzeWithLocalRag } from "../rag-local.js";
+import crypto from "crypto";
 
 const router = Router();
 const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const geminiThinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET ?? 0);
 const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 1200);
 const geminiRetryAttempts = 2;
+const geminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 12000);
+const geminiCacheTtlMs = Number(process.env.GEMINI_CACHE_TTL_MS ?? 10 * 60 * 1000);
+const geminiResponseCache = new Map<
+  string,
+  { response: string; responseTime: number; model: string; tokens: number; expiresAt: number }
+>();
 
 // Initialize Gemini AI
 const ai = new GoogleGenAI({
@@ -69,24 +77,116 @@ function formatStructuredField(value: unknown): string {
   return String(value);
 }
 
+async function isAdminUser(userId: string) {
+  const roleResult = await pool.query(
+    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp') LIMIT 1",
+    [userId]
+  );
+  return roleResult.rows.length > 0;
+}
+
+async function fetchAccessibleSubmissions(userId: string, submissionIds: string[]) {
+  const admin = await isAdminUser(userId);
+  if (submissionIds.length === 0) return [];
+
+  const result = admin
+    ? await pool.query<AccidentSubmissionRecord>(
+        `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
+                road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
+                vehicles, drivers, driver_related_causes, vehicle_condition_causes,
+                road_engineering_nature, road_engineering_junctions, road_engineering_signages,
+                road_engineering_median, road_engineering_culverts
+         FROM accident_submissions
+         WHERE id = ANY($1::uuid[])`,
+        [submissionIds]
+      )
+    : await pool.query<AccidentSubmissionRecord>(
+        `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
+                road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
+                vehicles, drivers, driver_related_causes, vehicle_condition_causes,
+                road_engineering_nature, road_engineering_junctions, road_engineering_signages,
+                road_engineering_median, road_engineering_culverts
+         FROM accident_submissions
+         WHERE id = ANY($1::uuid[]) AND user_id = $2`,
+        [submissionIds, userId]
+      );
+
+  return result.rows;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
+  return Promise.race<T>([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+    }),
+  ]);
+}
+
+function getPromptCacheKey(prompt: string) {
+  return crypto.createHash("sha256").update(prompt).digest("hex");
+}
+
+function getCachedGeminiResponse(prompt: string) {
+  const key = getPromptCacheKey(prompt);
+  const entry = geminiResponseCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    geminiResponseCache.delete(key);
+    return null;
+  }
+  return entry;
+}
+
+function setCachedGeminiResponse(
+  prompt: string,
+  result: { response: string; responseTime: number; model: string; tokens: number }
+) {
+  const key = getPromptCacheKey(prompt);
+  if (geminiResponseCache.size > 200) {
+    const firstKey = geminiResponseCache.keys().next().value;
+    if (firstKey) {
+      geminiResponseCache.delete(firstKey);
+    }
+  }
+  geminiResponseCache.set(key, {
+    ...result,
+    expiresAt: Date.now() + geminiCacheTtlMs,
+  });
+}
+
 // Gemini API call for accident analysis
 async function callGemini(prompt: string) {
+  const cached = getCachedGeminiResponse(prompt);
+  if (cached) {
+    return {
+      response: cached.response,
+      responseTime: 0.01,
+      model: `${cached.model} (cached)`,
+      tokens: cached.tokens,
+    };
+  }
+
   for (let attempt = 1; attempt <= geminiRetryAttempts; attempt += 1) {
     try {
       console.log(`Calling Gemini model ${geminiModel} with prompt:`, prompt.substring(0, 100) + "...");
 
       const startTime = Date.now();
-      const result = await ai.models.generateContent({
-        model: geminiModel,
-        contents: prompt,
-        config: {
-          thinkingConfig: {
-            thinkingBudget: geminiThinkingBudget,
+      const result = await withTimeout(
+        ai.models.generateContent({
+          model: geminiModel,
+          contents: prompt,
+          config: {
+            thinkingConfig: {
+              thinkingBudget: geminiThinkingBudget,
+            },
+            maxOutputTokens: geminiMaxOutputTokens,
+            temperature: 0.2,
           },
-          maxOutputTokens: geminiMaxOutputTokens,
-          temperature: 0.4,
-        },
-      });
+        }),
+        geminiTimeoutMs,
+        "Gemini request"
+      );
       const endTime = Date.now();
       const responseTime = ((endTime - startTime) / 1000).toFixed(2);
 
@@ -97,12 +197,14 @@ async function callGemini(prompt: string) {
         throw new Error("Gemini returned empty response.");
       }
 
-      return {
+      const geminiResult = {
         response: response,
         responseTime: parseFloat(responseTime),
         model: geminiModel,
         tokens: response.length // Approximate token count
       };
+      setCachedGeminiResponse(prompt, geminiResult);
+      return geminiResult;
     } catch (error: any) {
       console.error(`Gemini API error on attempt ${attempt}:`, error);
       const rawMessage = String(error?.message || "");
@@ -154,6 +256,94 @@ function formatConversationHistory(history: Array<{ role?: string; content?: str
     .map((item) => `${item.role === "user" ? "User" : "Assistant"}: ${String(item.content || "").trim()}`)
     .filter((line) => line.length > 0)
     .join("\n");
+}
+
+function buildSinglePrompt(
+  submission: AccidentSubmissionRecord,
+  question: string | undefined,
+  history: Array<{ role?: string; content?: string }> | undefined
+) {
+  return `You are a senior Andhra Pradesh road-accident analyst.
+
+Answer the latest user request using only the accident record below and the short conversation history.
+Prefer crisp practical reasoning over long explanation.
+If the user asks for a narrow follow-up, answer only that follow-up.
+If data is missing, say so briefly instead of guessing.
+
+Output rules:
+- Keep the answer under 180 words.
+- Use at most 4 short sections.
+- Focus on causes, risk signals, immediate actions, and prevention only when relevant to the user's question.
+- Avoid repeating raw accident facts unless needed.
+
+ACCIDENT RECORD
+FIR: ${submission.fir_number}
+District: ${submission.district}
+Location: ${submission.place_of_accident}, ${submission.mandal}
+Police Station: ${submission.police_station}
+Road Type: ${submission.road_type}
+Date/Time: ${submission.accident_date} ${submission.accident_time || ""}
+Casualties: ${submission.persons_died} died, ${submission.persons_injured} injured
+Vehicles: ${formatStructuredField(submission.vehicles)}
+Drivers: ${formatStructuredField(submission.drivers)}
+Driver Factors: ${formatStructuredField(submission.driver_related_causes)}
+Vehicle Factors: ${formatStructuredField(submission.vehicle_condition_causes)}
+Road Nature: ${formatStructuredField(submission.road_engineering_nature)}
+Junction Factors: ${formatStructuredField(submission.road_engineering_junctions)}
+Signage Factors: ${formatStructuredField(submission.road_engineering_signages)}
+Median Factors: ${formatStructuredField(submission.road_engineering_median)}
+Culvert Factors: ${formatStructuredField(submission.road_engineering_culverts)}
+
+RECENT CONVERSATION
+${formatConversationHistory(history)}
+
+LATEST USER REQUEST
+${question || "Analyze this accident briefly and provide the main causes, key risks, and best preventive actions."}`;
+}
+
+function buildBatchPrompt(
+  submissions: AccidentSubmissionRecord[],
+  question: string | undefined,
+  history: Array<{ role?: string; content?: string }> | undefined
+) {
+  const batchContext = submissions
+    .map(
+      (sub, index) => `Accident ${index + 1}
+FIR: ${sub.fir_number}
+District: ${sub.district}
+Location: ${sub.place_of_accident}, ${sub.mandal}
+Police Station: ${sub.police_station}
+Road Type: ${sub.road_type}
+Date/Time: ${sub.accident_date} ${sub.accident_time || ""}
+Casualties: ${sub.persons_died} died, ${sub.persons_injured} injured
+Driver Factors: ${formatStructuredField(sub.driver_related_causes)}
+Vehicle Factors: ${formatStructuredField(sub.vehicle_condition_causes)}
+Road Factors: ${formatStructuredField(sub.road_engineering_nature)}
+Junction Factors: ${formatStructuredField(sub.road_engineering_junctions)}
+Signage Factors: ${formatStructuredField(sub.road_engineering_signages)}`
+    )
+    .join("\n\n");
+
+  return `You are a senior Andhra Pradesh road-accident analyst.
+
+Analyze this group of accidents for operational decision-making.
+Prefer pattern detection, prioritization, and actions.
+If the latest user request is narrow, answer only that theme.
+
+Output rules:
+- Keep the answer under 220 words.
+- Use at most 5 short bullets or short sections.
+- Highlight repeated causes, shared infrastructure risks, and the top prevention priorities.
+- Do not restate every accident individually.
+
+ACCIDENT SET
+${batchContext}
+
+RECENT CONVERSATION
+${formatConversationHistory(history)}
+
+LATEST USER REQUEST
+${question || "Analyze these accidents and identify the main patterns, recurring causes, and best preventive actions."}`;
 }
 
 function isGeminiUnavailable(error: unknown) {
@@ -226,93 +416,35 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
       return;
     }
 
-    // Get submission details
-    const submissionResult = await pool.query(
-      `SELECT id, district, place_of_accident, mandal, police_station, fir_number, 
-              road_type, accident_date, accident_time, lat_long, persons_died, 
-              persons_injured, vehicles, drivers, driver_related_causes, 
-              vehicle_condition_causes, road_engineering_nature, road_engineering_junctions, 
-              road_engineering_signages, road_engineering_median, road_engineering_culverts
-       FROM accident_submissions WHERE id = $1`,
-      [submissionId]
-    );
-
-    if (submissionResult.rows.length === 0) {
+    const submissions = await fetchAccessibleSubmissions(req.user!.userId, [submissionId]);
+    if (submissions.length === 0) {
       res.status(404).json({ error: "Submission not found" });
       return;
     }
 
-    const submission = submissionResult.rows[0];
-    const conversationHistory = formatConversationHistory(history);
-
-    // Create comprehensive context for Gemini
-    const context = `
-ACCIDENT ANALYSIS REQUEST:
-FIR: ${submission.fir_number}
-LOCATION: ${submission.place_of_accident}, ${submission.mandal}, ${submission.district}
-POLICE STATION: ${submission.police_station}
-ROAD TYPE: ${submission.road_type}
-DATE/TIME: ${submission.accident_date} at ${submission.accident_time}
-CASUALTIES: ${submission.persons_died} died, ${submission.persons_injured} injured
-VEHICLES: ${submission.vehicles}
-DRIVER CAUSES: ${submission.driver_related_causes}
-VEHICLE ISSUES: ${submission.vehicle_condition_causes}
-ROAD ISSUES: ${submission.road_engineering_nature}
-JUNCTION ISSUES: ${submission.road_engineering_junctions}
-SIGNAGE ISSUES: ${submission.road_engineering_signages}
-MEDIAN ISSUES: ${submission.road_engineering_median}
-CULVERT ISSUES: ${submission.road_engineering_culverts}
-
-RECENT CONVERSATION:
-${conversationHistory}
-
-ANALYSIS FOCUS:
-1. Root cause identification
-2. Contributing factors
-3. Preventive measures
-4. Infrastructure recommendations
-5. Safety improvement suggestions
-6. Legal implications
-7. Investigation suggestions
-
-You are an expert traffic accident analyst for Andhra Pradesh Police. 
-Analyze the provided accident data and provide comprehensive, actionable insights.
-
-Focus on:
-- Primary causes and contributing factors
-- Preventive measures for similar accidents
-- Infrastructure improvements needed
-- Safety recommendations for the location
-- Investigation suggestions
-- Legal and compliance considerations
-- Data-driven recommendations
-
-Conversation rules:
-- Treat the latest user question as the main task.
-- Use the recent conversation to understand follow-up intent.
-- Do not restart with a full generic summary unless the user explicitly asks for a full analysis.
-- If the user asks a narrow follow-up, answer only that narrow follow-up.
-- If the user message is vague acknowledgement text like "ok", "yes", or "hmm", ask one short clarifying question instead of repeating the full analysis.
-- Do not repeat accident facts already provided unless needed for the answer.
-
-Respond concisely and practically.
-Prefer short sections with bullets only when useful.
-Keep the response focused and under 8 bullets total.
-
-Question: ${question || "Please analyze this accident and provide comprehensive insights and recommendations."}
-`;
+    const submission = submissions[0];
+    const prompt = buildSinglePrompt(submission, question, history);
 
     let geminiResult;
     try {
-      geminiResult = await callGemini(context);
+      geminiResult = await callGemini(prompt);
     } catch (err) {
       if (!isGeminiUnavailable(err)) {
         throw err;
       }
 
+      const localFallback = await analyzeWithLocalRag({
+        submissions,
+        question:
+          question ||
+          "Analyze this accident briefly and provide the main causes, key risks, and best preventive actions.",
+        history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
+      });
+
       res.json({
-        response: generateSingleFallbackAnalysis(submission, question),
-        model: "local-fallback",
+        response: localFallback.response,
+        model: localFallback.model,
+        mode: "local-rag-fallback",
         submission: {
           id: submission.id,
           fir_number: submission.fir_number,
@@ -321,11 +453,13 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
         },
         performance: {
           response_time: 0,
-          model: "local-fallback",
+          model: localFallback.model,
           tokens: 0,
           api: "Local fallback",
-          optimization: "rule-based"
-        }
+          optimization: "ollama-rag"
+        },
+        retrieval: localFallback.retrieval,
+        contextSubmissions: localFallback.contextSubmissions,
       });
       return;
     }
@@ -333,6 +467,7 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
     res.json({
       response: geminiResult.response,
       model: geminiResult.model,
+      mode: "gemini",
       submission: {
         id: submission.id,
         fir_number: submission.fir_number,
@@ -345,7 +480,9 @@ Question: ${question || "Please analyze this accident and provide comprehensive 
         tokens: geminiResult.tokens,
         api: "Google Gemini",
         optimization: "cloud-based"
-      }
+      },
+      retrieval: null,
+      contextSubmissions: [],
     });
 
   } catch (err: any) {
@@ -366,78 +503,15 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
       return;
     }
 
-    // Get multiple submissions
-    const placeholders = submissionIds.map((_, index) => `$${index + 1}`).join(', ');
-    const submissionResult = await pool.query(
-      `SELECT id, district, place_of_accident, mandal, police_station, fir_number, 
-              road_type, accident_date, accident_time, lat_long, persons_died, 
-              persons_injured, vehicles, drivers, driver_related_causes, 
-              vehicle_condition_causes, road_engineering_nature, road_engineering_junctions, 
-              road_engineering_signages, road_engineering_median, road_engineering_culverts
-       FROM accident_submissions WHERE id IN (${placeholders})`,
-      submissionIds
-    );
-
-    if (submissionResult.rows.length === 0) {
+    const submissions = await fetchAccessibleSubmissions(req.user!.userId, submissionIds);
+    if (submissions.length === 0) {
       res.status(404).json({ error: "No submissions found" });
       return;
     }
-    const conversationHistory = formatConversationHistory(history);
-
-    // Create batch context for Gemini
-    const batchContext = submissionResult.rows.map((sub, index) => 
-      `Accident ${index + 1}: FIR ${sub.fir_number} - ${sub.place_of_accident}, ${sub.district}
-Date: ${sub.accident_date} at ${sub.accident_time}
-Casualties: ${sub.persons_died} died, ${sub.persons_injured} injured
-Vehicles: ${sub.vehicles}
-Causes: ${formatStructuredField(sub.driver_related_causes)}
-Road Issues: ${formatStructuredField(sub.road_engineering_nature)}`
-    ).join('\n');
-
-    const systemPrompt = `You are an expert traffic accident analyst for Andhra Pradesh Police. 
-Analyze the provided batch of accident reports and provide comprehensive insights for multiple accidents.
-
-Focus on:
-1. Common patterns and trends across accidents
-2. Risk factors and contributing elements
-3. Infrastructure issues affecting multiple locations
-4. Preventive strategies for the area
-5. Policy recommendations for road safety
-6. Statistical analysis of accident types
-7. Resource allocation recommendations
-8. Long-term safety improvement strategies
-
-Provide concise analysis with actionable recommendations for improving road safety across multiple locations.
-Consider geographical, temporal, and environmental factors that may connect these accidents.`;
-
-    const userQuestion = question || "Please analyze these accidents and provide comprehensive insights and recommendations for improving road safety across these locations.";
-
-    const batchPrompt = `${systemPrompt}
-
-ACCIDENT BATCH ANALYSIS:
-${batchContext}
-
-RECENT CONVERSATION:
-${conversationHistory}
-
-Question: ${userQuestion}
-
-Please provide a comprehensive analysis that:
-- Identifies patterns and trends across all accidents
-- Suggests systemic improvements
-- Recommends policy changes
-- Provides actionable safety strategies
-- Considers resource allocation
-- Suggests monitoring and prevention strategies
-
-Conversation rules:
-- Treat the latest user question as the main task.
-- Use recent conversation to understand follow-up intent.
-- Do not repeat the same overall summary for every follow-up.
-- If the user asks about one theme such as causes, patterns, recommendations, or infrastructure, answer only that theme.
-- If the user message is vague acknowledgement text like "ok", "yes", or "hmm", ask one short clarifying question instead of repeating the batch summary.
-
-Keep the answer concise, avoid repeating accident facts, and use no more than 10 bullets total.`;
+    const userQuestion =
+      question ||
+      "Analyze these accidents and identify the main patterns, recurring causes, and best preventive actions.";
+    const batchPrompt = buildBatchPrompt(submissions, userQuestion, history);
 
     let geminiResult;
     try {
@@ -447,11 +521,18 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 10
         throw err;
       }
 
+      const localFallback = await analyzeWithLocalRag({
+        submissions,
+        question: userQuestion,
+        history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
+      });
+
       res.json({
-        response: generateBatchFallbackAnalysis(submissionResult.rows, userQuestion),
-        model: "local-fallback",
-        submissionsAnalyzed: submissionResult.rows.length,
-        submissions: submissionResult.rows.map(sub => ({
+        response: localFallback.response,
+        model: localFallback.model,
+        mode: "local-rag-fallback",
+        submissionsAnalyzed: submissions.length,
+        submissions: submissions.map(sub => ({
           id: sub.id,
           fir_number: sub.fir_number,
           location: `${sub.place_of_accident}, ${sub.mandal}`,
@@ -460,12 +541,14 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 10
         })),
         performance: {
           response_time: 0,
-          model: "local-fallback",
+          model: localFallback.model,
           tokens: 0,
           api: "Local fallback",
-          optimization: "rule-based",
-          batch_size: submissionResult.rows.length
-        }
+          optimization: "ollama-rag",
+          batch_size: submissions.length
+        },
+        retrieval: localFallback.retrieval,
+        contextSubmissions: localFallback.contextSubmissions,
       });
       return;
     }
@@ -473,8 +556,9 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 10
     res.json({
       response: geminiResult.response,
       model: geminiResult.model,
-      submissionsAnalyzed: submissionResult.rows.length,
-      submissions: submissionResult.rows.map(sub => ({
+      mode: "gemini",
+      submissionsAnalyzed: submissions.length,
+      submissions: submissions.map(sub => ({
         id: sub.id,
         fir_number: sub.fir_number,
         location: `${sub.place_of_accident}, ${sub.mandal}`,
@@ -487,8 +571,10 @@ Keep the answer concise, avoid repeating accident facts, and use no more than 10
         tokens: geminiResult.tokens,
         api: "Google Gemini",
         optimization: "cloud-based",
-        batch_size: submissionResult.rows.length
-      }
+        batch_size: submissions.length
+      },
+      retrieval: null,
+      contextSubmissions: [],
     });
 
   } catch (err: any) {
