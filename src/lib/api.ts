@@ -191,3 +191,45 @@ export function getApiAssetUrl(path: string | null | undefined): string | null {
   if (/^https?:\/\//i.test(path)) return path;
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+export async function openProtectedAsset(
+  path: string | null | undefined
+): Promise<void> {
+  const assetUrl = getApiAssetUrl(path);
+  if (!assetUrl) {
+    throw new Error("Signed copy is not available");
+  }
+
+  const token = getToken();
+  if (!token) {
+    throw new Error("Please login again to access the signed copy");
+  }
+
+  try {
+    const res = await fetch(assetUrl, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Request failed (${res.status})`);
+    }
+
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (error) {
+    throw error;
+  }
+}

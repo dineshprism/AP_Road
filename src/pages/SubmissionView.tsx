@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api, getApiAssetUrl } from "@/lib/api";
+import { api, openProtectedAsset } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface Submission {
   id: string;
@@ -66,7 +67,6 @@ const SubmissionView = () => {
   if (!submission) return <div className="min-h-screen bg-background"><GovHeader /><p className="text-center py-12 text-muted-foreground">Submission not found.</p></div>;
 
   const s = submission;
-  const signedCopyUrl = getApiAssetUrl(s.signed_copy_url);
   const vehicles = (Array.isArray(s.vehicles) ? s.vehicles : []) as { registration_number: string; class_type: string }[];
   const drivers = (Array.isArray(s.drivers) ? s.drivers : []) as { name: string; dl_number: string; licensing_authority: string }[];
   const backTarget = roles.includes("adgp")
@@ -81,6 +81,14 @@ const SubmissionView = () => {
       <span className="text-sm font-medium">{value ?? "—"}</span>
     </div>
   );
+
+  const handleOpenSignedCopy = async () => {
+    try {
+      await openProtectedAsset(s.signed_copy_url);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to open signed copy");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -189,12 +197,10 @@ const SubmissionView = () => {
               <h3 className="gov-section-title">Signed Copy Record</h3>
               <InfoRow label="Status" value={s.signed_copy_uploaded ? "Uploaded" : "Pending"} />
               <InfoRow label="File Name" value={s.signed_copy_name} />
-              {signedCopyUrl && (
+              {s.signed_copy_url && (
                 <div className="pt-3">
-                  <Button variant="outline" asChild>
-                    <a href={signedCopyUrl} target="_blank" rel="noreferrer">
-                      Signed Copy
-                    </a>
+                  <Button variant="outline" onClick={() => void handleOpenSignedCopy()}>
+                    Signed Copy
                   </Button>
                 </div>
               )}

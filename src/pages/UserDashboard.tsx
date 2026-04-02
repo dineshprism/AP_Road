@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, getApiAssetUrl } from "@/lib/api";
+import { api, openProtectedAsset } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -258,6 +258,14 @@ const UserDashboard = () => {
     );
     toast.success("Signed copy uploaded successfully");
     setUploadingSubmissionId(null);
+  };
+
+  const handleOpenSignedCopy = async (submission: Submission) => {
+    try {
+      await openProtectedAsset(submission.signed_copy_url);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to open signed copy");
+    }
   };
 
   const instructionBanner = (
@@ -622,14 +630,8 @@ const UserDashboard = () => {
                                   {uploadingSubmissionId === submission.id ? "Uploading..." : submission.signed_copy_uploaded ? "Replace Uploaded Signed Copy" : "Upload Signed Copy"}
                                 </Button>
                                 {submission.signed_copy_url && (
-                                  <Button variant="ghost" size="sm" asChild>
-                                    <a
-                                      href={getApiAssetUrl(submission.signed_copy_url) || "#"}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                    >
-                                      <FileText className="mr-1 h-4 w-4" /> Signed Copy
-                                    </a>
+                                  <Button variant="ghost" size="sm" onClick={() => void handleOpenSignedCopy(submission)}>
+                                    <FileText className="mr-1 h-4 w-4" /> Signed Copy
                                   </Button>
                                 )}
                                 <input
