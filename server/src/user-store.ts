@@ -8,8 +8,12 @@ function normalizeLoginCandidates(username: string): string[] {
   const raw = username.trim();
   const lower = raw.toLowerCase();
   const normalized = lower.replace(/\s+/g, "_");
+  const sanitized = lower
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .replace(/_+/g, "_");
 
-  return Array.from(new Set([raw, lower, normalized].filter(Boolean)));
+  return Array.from(new Set([raw, lower, normalized, sanitized].filter(Boolean)));
 }
 
 export async function resolveUserTable(): Promise<UserTableName> {
@@ -58,7 +62,14 @@ export async function findUserForLogin(username: string) {
          ELSE 2
        END
      LIMIT 1`,
-    [candidates.map((value) => value.toLowerCase()), username.trim().toLowerCase(), username.trim().toLowerCase().replace(/\s+/g, "_")]
+    [
+      candidates.map((value) => value.toLowerCase()),
+      username.trim().toLowerCase(),
+      username
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "_"),
+    ]
   );
 
   return result.rows[0] ?? null;

@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
+import AccidentChat from "@/components/AccidentChat";
 import { AP_DISTRICTS, MONTHS } from "@/lib/constants";
-import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin } from "lucide-react";
+import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin, Brain } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -40,6 +41,8 @@ const AdgpDashboard = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"list" | "map">("list");
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [chatSubmissions, setChatSubmissions] = useState<Submission[]>([]);
 
   const [filterDistrict, setFilterDistrict] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
@@ -67,6 +70,16 @@ const AdgpDashboard = () => {
     setFilterYear(new Date().getFullYear().toString());
     setFilterMonth("all");
     setFilterDate("");
+  };
+
+  const handleAnalyse = (submission: Submission) => {
+    setChatSubmissions([submission]);
+    setShowChatPanel(true);
+  };
+
+  const handleCloseChatPanel = () => {
+    setShowChatPanel(false);
+    setChatSubmissions([]);
   };
 
   const years = Array.from({ length: 5 }, (_, i) => (new Date().getFullYear() - i).toString());
@@ -180,9 +193,17 @@ const AdgpDashboard = () => {
                           Died: {submission.persons_died} | Injured: {submission.persons_injured} | PS: {submission.police_station}
                         </p>
                       </div>
-                      <div className="flex gap-1">
+                      <div className="flex flex-wrap gap-2">
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/submission/${submission.id}`)}>
                           <Eye className="w-4 h-4 mr-1" /> View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAnalyse(submission)}
+                          className="border-blue-200 bg-blue-50 font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          <Brain className="w-4 h-4 mr-1" /> Analyse
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -247,6 +268,12 @@ const AdgpDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+        <AccidentChat
+          isOpen={showChatPanel}
+          onClose={handleCloseChatPanel}
+          submissions={chatSubmissions}
+          title={chatSubmissions.length === 1 ? `Analysis - FIR ${chatSubmissions[0]?.fir_number}` : "Accident Analysis"}
+        />
       </div>
     </div>
   );

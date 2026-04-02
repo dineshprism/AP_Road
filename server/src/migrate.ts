@@ -121,6 +121,32 @@ CREATE TABLE IF NOT EXISTS submission_rag_cache (
 );
 
 CREATE INDEX IF NOT EXISTS idx_submission_rag_cache_updated_at ON submission_rag_cache(updated_at);
+
+CREATE TABLE IF NOT EXISTS cctns_hierarchy (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    district_code TEXT,
+    district_name TEXT NOT NULL,
+    sdpo_code TEXT,
+    sdpo_name TEXT,
+    circle_code TEXT,
+    circle_name TEXT,
+    police_station_code TEXT NOT NULL,
+    police_station_name TEXT NOT NULL,
+    source_file TEXT NOT NULL DEFAULT 'CCTNS-Masterdata.csv',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (police_station_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cctns_hierarchy_district_name ON cctns_hierarchy(district_name);
+CREATE INDEX IF NOT EXISTS idx_cctns_hierarchy_sdpo_name ON cctns_hierarchy(sdpo_name);
+CREATE INDEX IF NOT EXISTS idx_cctns_hierarchy_circle_name ON cctns_hierarchy(circle_name);
+CREATE INDEX IF NOT EXISTS idx_cctns_hierarchy_police_station_name ON cctns_hierarchy(police_station_name);
+
+DROP TRIGGER IF EXISTS update_cctns_hierarchy_updated_at ON cctns_hierarchy;
+CREATE TRIGGER update_cctns_hierarchy_updated_at
+  BEFORE UPDATE ON cctns_hierarchy
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 `;
 
 export async function runMigrations(options?: { closePool?: boolean }) {

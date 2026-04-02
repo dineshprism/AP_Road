@@ -1,5 +1,6 @@
 {
   "name": "road-accident-api",
+
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +10,9 @@
     "start": "node dist/index.js",
     "migrate": "tsx src/migrate.ts",
     "seed": "tsx tools/seeds/scripts/seed-users.ts",
-    "seed:demo": "tsx tools/seeds/scripts/seed-demo-submissions.ts"
+    "seed:demo": "tsx tools/seeds/scripts/seed-demo-submissions.ts",
+    "seed:prism": "tsx tools/seeds/scripts/seed-prism-demo-submissions.ts",
+    "sync:cctns": "tsx tools/sync-cctns-masterdata.ts"
   },
   "dependencies": {
     "@google/genai": "^1.46.0",
