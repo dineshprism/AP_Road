@@ -139,6 +139,21 @@ CREATE INDEX IF NOT EXISTS idx_auth_activity_log_user_id ON auth_activity_log(us
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_created_at ON auth_activity_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_event_type ON auth_activity_log(event_type);
 
+CREATE TABLE IF NOT EXISTS feedback_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    district TEXT NOT NULL,
+    full_name TEXT,
+    designation TEXT,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_messages_created_at ON feedback_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feedback_messages_district ON feedback_messages(district);
+
 CREATE TABLE IF NOT EXISTS cctns_hierarchy (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     district_code TEXT,

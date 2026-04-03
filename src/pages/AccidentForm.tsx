@@ -21,7 +21,14 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Vehicle { registration_number: string; class_type: string; }
 interface Driver { name: string; dl_number: string; licensing_authority: string; }
-interface VictimDetail { name: string; age: string; address: string; status: "died" | "injured"; }
+interface VictimDetail {
+  name: string;
+  age: string;
+  address: string;
+  gender: "male" | "female" | "other";
+  status: "died" | "injured";
+  injury_type: "" | "simple" | "grievous";
+}
 type CauseAnswers = Record<string, boolean>;
 
 function hasAnsweredAllQuestions(items: string[], values: CauseAnswers) {
@@ -52,8 +59,6 @@ const AccidentForm = () => {
   const [drivers, setDrivers] = useState<Driver[]>([{ name: "", dl_number: "", licensing_authority: "" }]);
 
   // Victims
-  const [personsDied, setPersonsDied] = useState(0);
-  const [personsInjured, setPersonsInjured] = useState(0);
   const [victimDetails, setVictimDetails] = useState<VictimDetail[]>([]);
 
   // Causative
@@ -95,13 +100,32 @@ const AccidentForm = () => {
   };
 
   const addVictimDetail = (status: VictimDetail["status"] = "injured") =>
-    setVictimDetails([...victimDetails, { name: "", age: "", address: "", status }]);
+    setVictimDetails([
+      ...victimDetails,
+      {
+        name: "",
+        age: "",
+        address: "",
+        gender: "male",
+        status,
+        injury_type: status === "injured" ? "simple" : "",
+      },
+    ]);
   const removeVictimDetail = (i: number) => setVictimDetails(victimDetails.filter((_, idx) => idx !== i));
   const updateVictimDetail = (i: number, field: keyof VictimDetail, val: string) => {
     const next = [...victimDetails];
-    next[i] = { ...next[i], [field]: val } as VictimDetail;
+    next[i] = {
+      ...next[i],
+      [field]: val,
+      ...(field === "status"
+        ? { injury_type: val === "injured" ? (next[i].injury_type || "simple") : "" }
+        : {}),
+    } as VictimDetail;
     setVictimDetails(next);
   };
+
+  const personsDied = victimDetails.filter((victim) => victim.status === "died").length;
+  const personsInjured = victimDetails.filter((victim) => victim.status === "injured").length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,7 +151,9 @@ const AccidentForm = () => {
         !victim.address.trim() ||
         victim.age === "" ||
         Number.isNaN(Number(victim.age)) ||
-        Number(victim.age) < 0
+        Number(victim.age) < 0 ||
+        !victim.gender ||
+        (victim.status === "injured" && !victim.injury_type)
     );
 
     if (hasInvalidVictim) {
@@ -275,16 +301,19 @@ const AccidentForm = () => {
           <Card>
             <CardContent className="pt-6">
               <h3 className="gov-section-title">D. Victim Details</h3>
+              <p className="mb-4 text-xs font-semibold text-secondary">
+                Please fill this as per medical report.
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label>No. of Persons Died</Label><Input type="number" min={0} value={personsDied} onChange={(e) => setPersonsDied(parseInt(e.target.value) || 0)} /></div>
-                <div><Label>No. of Persons Injured</Label><Input type="number" min={0} value={personsInjured} onChange={(e) => setPersonsInjured(parseInt(e.target.value) || 0)} /></div>
+                <div><Label>No. of Persons Died</Label><Input type="number" min={0} value={personsDied} readOnly className="bg-muted" /></div>
+                <div><Label>No. of Persons Injured</Label><Input type="number" min={0} value={personsInjured} readOnly className="bg-muted" /></div>
               </div>
               <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm font-semibold text-slate-900">Victim Person Details</p>
                     <p className="text-xs text-muted-foreground">
-                      Add one row per person. Status counts must match the totals above.
+                      Use the add buttons below. Counts will update automatically based on the rows you add or remove.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -319,11 +348,22 @@ const AccidentForm = () => {
                           <Label>Age</Label>
                           <Input type="number" min={0} value={victim.age} onChange={(e) => updateVictimDetail(i, "age", e.target.value)} />
                         </div>
-                        <div className="md:col-span-4">
+                        <div className="md:col-span-2">
+                          <Label>Gender</Label>
+                          <Select value={victim.gender} onValueChange={(value: VictimDetail["gender"]) => updateVictimDetail(i, "gender", value)}>
+                            <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">Male</SelectItem>
+                              <SelectItem value="female">Female</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="md:col-span-3">
                           <Label>Address</Label>
                           <Input value={victim.address} onChange={(e) => updateVictimDetail(i, "address", e.target.value)} />
                         </div>
-                        <div className="md:col-span-3">
+                        <div className="md:col-span-2">
                           <Label>Status</Label>
                           <Select value={victim.status} onValueChange={(value: VictimDetail["status"]) => updateVictimDetail(i, "status", value)}>
                             <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
@@ -333,6 +373,18 @@ const AccidentForm = () => {
                             </SelectContent>
                           </Select>
                         </div>
+                        {victim.status === "injured" && (
+                          <div className="md:col-span-2">
+                            <Label>Injury Type</Label>
+                            <Select value={victim.injury_type} onValueChange={(value: "simple" | "grievous") => updateVictimDetail(i, "injury_type", value)}>
+                              <SelectTrigger><SelectValue placeholder="Select injury type" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="simple">Simple</SelectItem>
+                                <SelectItem value="grievous">Grievous</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

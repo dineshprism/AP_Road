@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
 import AccidentChat from "@/components/AccidentChat";
@@ -28,6 +37,7 @@ import {
   Upload,
   FileCheck,
   ShieldCheck,
+  MessageSquareMore,
 } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
@@ -98,6 +108,10 @@ const UserDashboard = () => {
   const [firSearch, setFirSearch] = useState("");
   const [signedCopyFilter, setSignedCopyFilter] = useState<SignedCopyFilter>("all");
   const [uploadingSubmissionId, setUploadingSubmissionId] = useState<string | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackSubject, setFeedbackSubject] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
 
   const sdpoList = useMemo(() => {
     if (!district) return [];
@@ -270,6 +284,30 @@ const UserDashboard = () => {
     }
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!feedbackSubject.trim() || !feedbackMessage.trim()) {
+      toast.error("Please enter both subject and feedback message");
+      return;
+    }
+
+    setFeedbackLoading(true);
+    const { error } = await api.feedback.create({
+      subject: feedbackSubject.trim(),
+      message: feedbackMessage.trim(),
+    });
+    setFeedbackLoading(false);
+
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    toast.success("Feedback submitted successfully");
+    setFeedbackSubject("");
+    setFeedbackMessage("");
+    setFeedbackOpen(false);
+  };
+
   const instructionBanner = (
     <div className="gov-instruction-marquee" role="note" aria-label="District data entry instruction">
       <div className="gov-instruction-marquee__viewport">
@@ -284,7 +322,9 @@ const UserDashboard = () => {
         <GovHeader />
         {instructionBanner}
         <div className="container mx-auto max-w-6xl px-4 py-8">
-          <h2 className="gov-page-title mb-6 text-center">District Dashboard</h2>
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="gov-page-title mb-0 text-center sm:text-left">District Dashboard</h2>
+          </div>
 
           <Card className="mb-8 border-0 shadow-md">
             <div className="h-1.5 bg-gradient-to-r from-[#132b5e] to-[#2a4d8f]" />
@@ -401,6 +441,40 @@ const UserDashboard = () => {
             )}
           </div>
         </div>
+        <Button
+          type="button"
+          className="fixed bottom-6 right-6 z-40 rounded-full px-5 shadow-lg hover:shadow-xl"
+          onClick={() => setFeedbackOpen(true)}
+        >
+          <MessageSquareMore className="mr-2 h-4 w-4" />
+          Feedback
+        </Button>
+        <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Feedback</DialogTitle>
+              <DialogDescription>
+                Share usability issues, doubts, or suggestions. This will be visible to PRISM.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="feedback-subject">Subject</Label>
+                <Input id="feedback-subject" value={feedbackSubject} onChange={(e) => setFeedbackSubject(e.target.value)} placeholder="Eg. Submission form usability" />
+              </div>
+              <div>
+                <Label htmlFor="feedback-message">Message</Label>
+                <Textarea id="feedback-message" value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Explain the issue, question, or suggestion..." rows={6} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFeedbackOpen(false)}>Cancel</Button>
+              <Button onClick={handleSubmitFeedback} disabled={feedbackLoading}>
+                {feedbackLoading ? "Submitting..." : "Submit Feedback"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -409,7 +483,7 @@ const UserDashboard = () => {
     <div className="min-h-screen bg-background">
       <GovHeader />
       {instructionBanner}
-      <div className={`${activeTab === "map" ? "mx-auto max-w-[1700px]" : "container mx-auto"} px-4 py-6`}>
+        <div className={`${activeTab === "map" ? "mx-auto max-w-[1700px]" : "container mx-auto"} px-4 py-6`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="gov-page-title">My Submissions</h2>
           <div className="flex flex-wrap gap-2">
@@ -731,6 +805,40 @@ const UserDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+      <Button
+        type="button"
+        className="fixed bottom-6 right-6 z-40 rounded-full px-5 shadow-lg hover:shadow-xl"
+        onClick={() => setFeedbackOpen(true)}
+      >
+        <MessageSquareMore className="mr-2 h-4 w-4" />
+        Feedback
+      </Button>
+      <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send Feedback</DialogTitle>
+            <DialogDescription>
+              Share usability issues, doubts, or suggestions. This will be visible to PRISM.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="feedback-subject">Subject</Label>
+              <Input id="feedback-subject" value={feedbackSubject} onChange={(e) => setFeedbackSubject(e.target.value)} placeholder="Eg. Submission form usability" />
+            </div>
+            <div>
+              <Label htmlFor="feedback-message">Message</Label>
+              <Textarea id="feedback-message" value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Explain the issue, question, or suggestion..." rows={6} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitFeedback} disabled={feedbackLoading}>
+              {feedbackLoading ? "Submitting..." : "Submit Feedback"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

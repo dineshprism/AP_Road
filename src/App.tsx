@@ -55,7 +55,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <div className="flex min-h-screen flex-col bg-background">
-            <div className="flex-1">
+            <div className="flex flex-1 flex-col">
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />

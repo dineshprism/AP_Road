@@ -33,6 +33,17 @@ interface SubmissionEvent {
   mandal: string;
 }
 
+interface FeedbackEvent {
+  id: string;
+  district: string;
+  full_name: string | null;
+  designation: string | null;
+  subject: string;
+  message: string;
+  status: string;
+  created_at: string;
+}
+
 const PrismDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -46,12 +57,15 @@ const PrismDashboard = () => {
     submissions_last_24h: 0,
     active_submission_districts: 0,
   });
+  const [feedbackItems, setFeedbackItems] = useState<FeedbackEvent[]>([]);
 
   const fetchActivity = async () => {
     setLoading(true);
     const { data } = await api.admin.activity({ loginLimit: 150, submissionLimit: 150 });
+    const feedbackResponse = await api.feedback.list();
     setLoginEvents(data?.loginEvents || []);
     setSubmissionEvents(data?.submissionEvents || []);
+    setFeedbackItems(feedbackResponse.data || []);
     setSummary(data?.summary || {
       total_logins: 0,
       logins_last_24h: 0,
@@ -83,6 +97,14 @@ const PrismDashboard = () => {
         .some((value) => String(value || "").toLowerCase().includes(normalizedSearch))
     );
   }, [submissionEvents, normalizedSearch]);
+
+  const filteredFeedbackItems = useMemo(() => {
+    if (!normalizedSearch) return feedbackItems;
+    return feedbackItems.filter((item) =>
+      [item.district, item.full_name, item.designation, item.subject, item.message]
+        .some((value) => String(value || "").toLowerCase().includes(normalizedSearch))
+    );
+  }, [feedbackItems, normalizedSearch]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -130,7 +152,7 @@ const PrismDashboard = () => {
         </Card>
 
         <Tabs defaultValue="submissions" className="space-y-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-2xl grid-cols-3">
             <TabsTrigger value="submissions" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Submission Logs
@@ -138,6 +160,10 @@ const PrismDashboard = () => {
             <TabsTrigger value="logins" className="flex items-center gap-2">
               <LogIn className="h-4 w-4" />
               Login Logs
+            </TabsTrigger>
+            <TabsTrigger value="feedback" className="flex items-center gap-2">
+              <MessageSquareMore className="h-4 w-4" />
+              Feedback
             </TabsTrigger>
           </TabsList>
 
@@ -194,6 +220,34 @@ const PrismDashboard = () => {
                     <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock3 className="h-3.5 w-3.5" />
                       {new Date(event.created_at).toLocaleString("en-IN")}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="feedback" className="space-y-3">
+            {loading ? (
+              <p className="py-8 text-center text-muted-foreground">Loading activity...</p>
+            ) : filteredFeedbackItems.length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-muted-foreground">No feedback received yet.</CardContent></Card>
+            ) : (
+              filteredFeedbackItems.map((item) => (
+                <Card key={item.id} className="border-l-4 border-l-[#5b2ca0]">
+                  <CardContent className="py-4">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-primary">{item.subject}</span>
+                      <Badge className="bg-primary/10 text-primary border-primary/20">{item.district}</Badge>
+                      {item.designation && <Badge variant="outline">{item.designation}</Badge>}
+                    </div>
+                    <p className="text-sm">
+                      From <span className="font-semibold">{item.full_name || "Unknown User"}</span>
+                    </p>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.message}</p>
+                    <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock3 className="h-3.5 w-3.5" />
+                      {new Date(item.created_at).toLocaleString("en-IN")}
                     </p>
                   </CardContent>
                 </Card>

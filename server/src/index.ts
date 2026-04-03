@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.js";
 import submissionRoutes from "./routes/submissions.js";
 import adminRoutes from "./routes/admin.js";
+import feedbackRoutes from "./routes/feedback.js";
 import analyticsRoutes from "./routes/analytics.js";
 import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import localRagRoutes from "./routes/rag-local.js";
@@ -32,7 +33,7 @@ app.use(helmet({
       imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.ggpht.com"],
       connectSrc: ["'self'", "https://*.googleapis.com", "https://*.google.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
       fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com", "https://maps.gstatic.com"],
-      frameSrc: ["'none'"],
+      frameSrc: ["'self'"],
       objectSrc: ["'none'"],
     },
   },
@@ -75,6 +76,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/analytics", enhancedAnalyticsRoutes);
 app.use("/api/rag", localRagRoutes);

@@ -157,6 +157,19 @@ export const api = {
     },
   },
 
+  feedback: {
+    create(payload: { subject: string; message: string }) {
+      return request<{ success: boolean }>("/feedback", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
+
+    list() {
+      return request<any[]>("/feedback");
+    },
+  },
+
   analytics: {
     getAnalytics(payload: { district?: string; year?: string }) {
       const params = new URLSearchParams();

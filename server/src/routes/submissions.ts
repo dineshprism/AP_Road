@@ -102,14 +102,34 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         const name = typeof item.name === "string" ? item.name.trim() : "";
         const address = typeof item.address === "string" ? item.address.trim() : "";
         const status = typeof item.status === "string" ? item.status.trim().toLowerCase() : "";
+        const gender = typeof item.gender === "string" ? item.gender.trim().toLowerCase() : "";
+        const injuryType = typeof item.injury_type === "string" ? item.injury_type.trim().toLowerCase() : "";
         const age = Number(item.age);
 
-        if (!name || !address || !Number.isFinite(age) || age < 0 || age > 150 || !["died", "injured"].includes(status)) {
+        if (
+          !name ||
+          !address ||
+          !Number.isFinite(age) ||
+          age < 0 ||
+          age > 150 ||
+          !["died", "injured"].includes(status) ||
+          !["male", "female", "other"].includes(gender)
+        ) {
           totals.invalid = true;
           return totals;
         }
 
         if (name.length > 200 || address.length > 1000) {
+          totals.invalid = true;
+          return totals;
+        }
+
+        if (status === "injured" && !["simple", "grievous"].includes(injuryType)) {
+          totals.invalid = true;
+          return totals;
+        }
+
+        if (status === "died" && injuryType) {
           totals.invalid = true;
           return totals;
         }

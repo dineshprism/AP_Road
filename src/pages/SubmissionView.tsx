@@ -32,7 +32,14 @@ interface Submission {
   accident_time: string;
   persons_died: number;
   persons_injured: number;
-  victim_details?: Array<{ name: string; age: number; address: string; status: "died" | "injured" }>;
+  victim_details?: Array<{
+    name: string;
+    age: number;
+    address: string;
+    gender?: "male" | "female" | "other";
+    status: "died" | "injured";
+    injury_type?: "simple" | "grievous" | "";
+  }>;
   vehicles: any;
   drivers: any;
   driver_related_causes: Record<string, boolean>;
@@ -74,7 +81,9 @@ const SubmissionView = () => {
     name: string;
     age: number;
     address: string;
+    gender?: "male" | "female" | "other";
     status: "died" | "injured";
+    injury_type?: "simple" | "grievous" | "";
   }>;
   const backTarget = roles.includes("adgp")
     ? "/adgp-dashboard"
@@ -185,8 +194,12 @@ const SubmissionView = () => {
                       <p className="mb-1 text-sm font-semibold text-primary">Person {index + 1}</p>
                       <InfoRow label="Name" value={victim.name} />
                       <InfoRow label="Age" value={victim.age} />
+                      <InfoRow label="Gender" value={victim.gender ? victim.gender.charAt(0).toUpperCase() + victim.gender.slice(1) : null} />
                       <InfoRow label="Address" value={victim.address} />
                       <InfoRow label="Status" value={victim.status === "died" ? "Died" : "Injured"} />
+                      {victim.status === "injured" && (
+                        <InfoRow label="Injury Type" value={victim.injury_type ? victim.injury_type.charAt(0).toUpperCase() + victim.injury_type.slice(1) : null} />
+                      )}
                     </div>
                   ))}
                 </div>

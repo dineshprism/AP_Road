@@ -45,7 +45,14 @@ interface Submission {
   accident_time: string;
   persons_died: number;
   persons_injured: number;
-  victim_details?: { name: string; age: number; address: string; status: "died" | "injured" }[];
+  victim_details?: {
+    name: string;
+    age: number;
+    address: string;
+    gender?: "male" | "female" | "other";
+    status: "died" | "injured";
+    injury_type?: "simple" | "grievous" | "";
+  }[];
   vehicles: { registration_number: string; class_type: string }[];
   drivers: { name: string; dl_number: string; licensing_authority: string }[];
   driver_related_causes: Record<string, boolean>;
@@ -69,6 +76,10 @@ function fmtDate(value: string | null): string {
 
 function causesList(items: string[], values: Record<string, boolean>): string[] {
   return items.filter((item) => values?.[item]);
+}
+
+function causesWithAnswer(items: string[], values: Record<string, boolean>): Array<{ item: string; answer: "Yes" | "No" }> {
+  return items.map((item) => ({ item, answer: values?.[item] ? "Yes" : "No" }));
 }
 
 function docxInfoRow(label: string, value: string | number | null): TableRow {
@@ -146,23 +157,27 @@ export function exportSubmissionPDF(s: Submission) {
   };
 
   const renderCauses = (title: string, items: string[], values: Record<string, boolean>) => {
-    const selected = causesList(items, values);
-    if (selected.length === 0) return;
-    checkPage(10);
+    const rows = causesWithAnswer(items, values);
+    if (rows.length === 0) return;
+    checkPage(12);
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.text(title, margin, y);
-    y += 4;
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    selected.forEach((cause) => {
-      const line = `* ${cause}`;
-      const lines = doc.splitTextToSize(line, pageWidth - 2 * margin - 3);
-      checkPage(lines.length * 4 + 2);
-      doc.text(lines, margin + 3, y);
-      y += lines.length * 4;
-    });
     y += 2;
+    autoTable(doc, {
+      startY: y,
+      head: [["Question", "Answer"]],
+      body: rows.map((row) => [row.item, row.answer]),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 7.5, cellPadding: 2, overflow: "linebreak" },
+      columnStyles: {
+        0: { cellWidth: 140 },
+        1: { cellWidth: 22, halign: "center" },
+      },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+      theme: "grid",
+    });
+    y = (doc as any).lastAutoTable.finalY + 4;
   };
 
   doc.setFontSize(13);
@@ -225,13 +240,15 @@ export function exportSubmissionPDF(s: Submission) {
   if (victimDetails.length > 0) {
     autoTable(doc, {
       startY: y,
-      head: [["#", "Name", "Age", "Address", "Status"]],
+      head: [["#", "Name", "Age", "Gender", "Address", "Status", "Injury Type"]],
       body: victimDetails.map((victim, index) => [
         index + 1,
         victim.name || "-",
         victim.age ?? "-",
+        victim.gender ? victim.gender.charAt(0).toUpperCase() + victim.gender.slice(1) : "-",
         victim.address || "-",
         victim.status === "died" ? "Died" : "Injured",
+        victim.status === "injured" ? (victim.injury_type ? victim.injury_type.charAt(0).toUpperCase() + victim.injury_type.slice(1) : "-") : "-",
       ]),
       margin: { left: margin, right: margin },
       styles: { fontSize: 8, cellPadding: 2 },
@@ -282,22 +299,35 @@ export async function exportSubmissionDOCX(s: Submission) {
       border: { bottom: { style: BorderStyle.SINGLE, size: 2, color: "006633" } },
     });
 
-  const causesSection = (title: string, items: string[], values: Record<string, boolean>): Paragraph[] => {
-    const selected = causesList(items, values);
-    if (selected.length === 0) return [];
+  const causesSection = (title: string, items: string[], values: Record<string, boolean>): Array<Paragraph | Table> => {
+    const rows = causesWithAnswer(items, values);
+    if (rows.length === 0) return [];
     return [
       new Paragraph({
         children: [new TextRun({ text: title, bold: true, size: 19, font: "Arial" })],
         spacing: { before: 200, after: 80 },
       }),
-      ...selected.map(
-        (cause) =>
-          new Paragraph({
-            children: [new TextRun({ text: `* ${cause}`, size: 17, font: "Arial" })],
-            spacing: { after: 40 },
-            indent: { left: 300 },
-          })
-      ),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: borderStyle,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({ width: { size: 82, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Question", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+              new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Answer", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+            ],
+          }),
+          ...rows.map(
+            (row) =>
+              new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: row.item, size: 18, font: "Arial" })] })] }),
+                  new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: row.answer, size: 18, font: "Arial" })] })] }),
+                ],
+              })
+          ),
+        ],
+      }),
     ];
   };
 
@@ -435,8 +465,10 @@ export async function exportSubmissionDOCX(s: Submission) {
                         new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "#", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
                         new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Name", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
                         new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
-                        new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Address", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Gender", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 28, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Address", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
                         new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Status", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Injury Type", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
                       ],
                     }),
                     ...victimDetails.map(
@@ -446,8 +478,10 @@ export async function exportSubmissionDOCX(s: Submission) {
                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(index + 1), size: 18, font: "Arial" })] })] }),
                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.name || "-", size: 18, font: "Arial" })] })] }),
                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(victim.age ?? "-"), size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.gender ? victim.gender.charAt(0).toUpperCase() + victim.gender.slice(1) : "-", size: 18, font: "Arial" })] })] }),
                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.address || "-", size: 18, font: "Arial" })] })] }),
                             new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.status === "died" ? "Died" : "Injured", size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.status === "injured" ? (victim.injury_type ? victim.injury_type.charAt(0).toUpperCase() + victim.injury_type.slice(1) : "-") : "-", size: 18, font: "Arial" })] })] }),
                           ],
                         })
                     ),
