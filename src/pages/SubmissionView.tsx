@@ -32,6 +32,7 @@ interface Submission {
   accident_time: string;
   persons_died: number;
   persons_injured: number;
+  victim_details?: Array<{ name: string; age: number; address: string; status: "died" | "injured" }>;
   vehicles: any;
   drivers: any;
   driver_related_causes: Record<string, boolean>;
@@ -69,6 +70,12 @@ const SubmissionView = () => {
   const s = submission;
   const vehicles = (Array.isArray(s.vehicles) ? s.vehicles : []) as { registration_number: string; class_type: string }[];
   const drivers = (Array.isArray(s.drivers) ? s.drivers : []) as { name: string; dl_number: string; licensing_authority: string }[];
+  const victimDetails = (Array.isArray(s.victim_details) ? s.victim_details : []) as Array<{
+    name: string;
+    age: number;
+    address: string;
+    status: "died" | "injured";
+  }>;
   const backTarget = roles.includes("adgp")
     ? "/adgp-dashboard"
     : roles.includes("dgp") || isAdmin
@@ -171,6 +178,19 @@ const SubmissionView = () => {
               <h3 className="gov-section-title">D. Victim Details</h3>
               <InfoRow label="Persons Died" value={s.persons_died} />
               <InfoRow label="Persons Injured" value={s.persons_injured} />
+              {victimDetails.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {victimDetails.map((victim, index) => (
+                    <div key={`${victim.name}-${index}`} className="rounded-lg bg-muted/30 p-3">
+                      <p className="mb-1 text-sm font-semibold text-primary">Person {index + 1}</p>
+                      <InfoRow label="Name" value={victim.name} />
+                      <InfoRow label="Age" value={victim.age} />
+                      <InfoRow label="Address" value={victim.address} />
+                      <InfoRow label="Status" value={victim.status === "died" ? "Died" : "Injured"} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

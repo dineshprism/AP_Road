@@ -13,6 +13,7 @@ import EnhancedAnalytics from "./pages/EnhancedAnalytics";
 import AccidentForm from "./pages/AccidentForm";
 import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
+import AppFooter from "./components/AppFooter";
 
 const queryClient = new QueryClient();
 
@@ -52,67 +53,72 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <UserDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <RoleRoute allowedRoles={["admin", "dgp"]}>
-                  <AdminDashboard />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/adgp-dashboard"
-              element={
-                <RoleRoute allowedRoles={["adgp"]}>
-                  <AdgpDashboard />
-                </RoleRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <EnhancedAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/enhanced-analytics"
-              element={
-                <ProtectedRoute>
-                  <EnhancedAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/submit"
-              element={
-                <ProtectedRoute>
-                  <AccidentForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/submission/:id"
-              element={
-                <ProtectedRoute>
-                  <SubmissionView />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <div className="flex min-h-screen flex-col bg-background">
+            <div className="flex-1">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <UserDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RoleRoute allowedRoles={["admin", "dgp"]}>
+                      <AdminDashboard />
+                    </RoleRoute>
+                  }
+                />
+                <Route
+                  path="/adgp-dashboard"
+                  element={
+                    <RoleRoute allowedRoles={["adgp"]}>
+                      <AdgpDashboard />
+                    </RoleRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <EnhancedAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/enhanced-analytics"
+                  element={
+                    <ProtectedRoute>
+                      <EnhancedAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/submit"
+                  element={
+                    <ProtectedRoute>
+                      <AccidentForm />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/submission/:id"
+                  element={
+                    <ProtectedRoute>
+                      <SubmissionView />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </div>
+            <AppFooter />
+          </div>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

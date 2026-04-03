@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS accident_submissions (
     lat_long TEXT,
     persons_died INTEGER NOT NULL DEFAULT 0,
     persons_injured INTEGER NOT NULL DEFAULT 0,
+    victim_details JSONB NOT NULL DEFAULT '[]',
     vehicles JSONB NOT NULL DEFAULT '[]',
     drivers JSONB NOT NULL DEFAULT '[]',
     driver_related_causes JSONB NOT NULL DEFAULT '{}',
@@ -90,6 +91,7 @@ ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded B
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_name TEXT;
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_path TEXT;
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded_at TIMESTAMPTZ;
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS victim_details JSONB NOT NULL DEFAULT '[]';
 
 -- Trigger for updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()

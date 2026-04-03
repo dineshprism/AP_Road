@@ -49,7 +49,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     const {
       district, place_of_accident, mandal, police_station, fir_number,
       lat_long, road_type, accident_date, accident_time,
-      persons_died, persons_injured, vehicles, drivers,
+      persons_died, persons_injured, victim_details, vehicles, drivers,
       driver_related_causes, vehicle_condition_causes,
       road_engineering_culverts, road_engineering_junctions,
       road_engineering_median, road_engineering_nature, road_engineering_signages,
@@ -86,11 +86,56 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const victimDetails = Array.isArray(victim_details) ? victim_details : [];
+    if (victimDetails.length > 1000) {
+      res.status(400).json({ error: "Too many victim detail entries" });
+      return;
+    }
+
+    const victimStatusCounts = victimDetails.reduce(
+      (totals, item) => {
+        if (!item || typeof item !== "object") {
+          totals.invalid = true;
+          return totals;
+        }
+
+        const name = typeof item.name === "string" ? item.name.trim() : "";
+        const address = typeof item.address === "string" ? item.address.trim() : "";
+        const status = typeof item.status === "string" ? item.status.trim().toLowerCase() : "";
+        const age = Number(item.age);
+
+        if (!name || !address || !Number.isFinite(age) || age < 0 || age > 150 || !["died", "injured"].includes(status)) {
+          totals.invalid = true;
+          return totals;
+        }
+
+        if (name.length > 200 || address.length > 1000) {
+          totals.invalid = true;
+          return totals;
+        }
+
+        if (status === "died") totals.died += 1;
+        if (status === "injured") totals.injured += 1;
+        return totals;
+      },
+      { died: 0, injured: 0, invalid: false }
+    );
+
+    if (victimStatusCounts.invalid) {
+      res.status(400).json({ error: "Invalid victim details" });
+      return;
+    }
+
+    if (victimStatusCounts.died !== died || victimStatusCounts.injured !== injured) {
+      res.status(400).json({ error: "Victim details count must match died and injured totals" });
+      return;
+    }
+
     const result = await pool.query(
       `INSERT INTO accident_submissions (
         user_id, district, place_of_accident, mandal, police_station, fir_number,
         lat_long, road_type, accident_date, accident_time,
-        persons_died, persons_injured, vehicles, drivers,
+        persons_died, persons_injured, victim_details, vehicles, drivers,
         driver_related_causes, vehicle_condition_causes,
         road_engineering_culverts, road_engineering_junctions,
         road_engineering_median, road_engineering_nature, road_engineering_signages,
@@ -100,18 +145,18 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       ) VALUES (
         $1, $2, $3, $4, $5, $6,
         $7, $8, $9, $10,
-        $11, $12, $13, $14,
-        $15, $16,
-        $17, $18,
-        $19, $20, $21,
-        $22, $23, $24,
-        $25, $26, $27,
-        $28, $29, $30
+        $11, $12, $13, $14, $15,
+        $16, $17,
+        $18, $19,
+        $20, $21, $22,
+        $23, $24, $25,
+        $26, $27, $28,
+        $29, $30, $31
       ) RETURNING id, created_at`,
       [
         userId, district, place_of_accident, mandal, police_station, fir_number,
         lat_long || null, road_type, accident_date, accident_time,
-        persons_died || 0, persons_injured || 0,
+        persons_died || 0, persons_injured || 0, JSON.stringify(victimDetails),
         JSON.stringify(vehicles || []), JSON.stringify(drivers || []),
         JSON.stringify(driver_related_causes || {}), JSON.stringify(vehicle_condition_causes || {}),
         JSON.stringify(road_engineering_culverts || {}), JSON.stringify(road_engineering_junctions || {}),

@@ -21,6 +21,7 @@ import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 interface Vehicle { registration_number: string; class_type: string; }
 interface Driver { name: string; dl_number: string; licensing_authority: string; }
+interface VictimDetail { name: string; age: string; address: string; status: "died" | "injured"; }
 type CauseAnswers = Record<string, boolean>;
 
 function hasAnsweredAllQuestions(items: string[], values: CauseAnswers) {
@@ -53,6 +54,7 @@ const AccidentForm = () => {
   // Victims
   const [personsDied, setPersonsDied] = useState(0);
   const [personsInjured, setPersonsInjured] = useState(0);
+  const [victimDetails, setVictimDetails] = useState<VictimDetail[]>([]);
 
   // Causative
   const [driverCauses, setDriverCauses] = useState<CauseAnswers>({});
@@ -92,6 +94,15 @@ const AccidentForm = () => {
     const d = [...drivers]; d[i] = { ...d[i], [field]: val }; setDrivers(d);
   };
 
+  const addVictimDetail = (status: VictimDetail["status"] = "injured") =>
+    setVictimDetails([...victimDetails, { name: "", age: "", address: "", status }]);
+  const removeVictimDetail = (i: number) => setVictimDetails(victimDetails.filter((_, idx) => idx !== i));
+  const updateVictimDetail = (i: number, field: keyof VictimDetail, val: string) => {
+    const next = [...victimDetails];
+    next[i] = { ...next[i], [field]: val } as VictimDetail;
+    setVictimDetails(next);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -105,6 +116,27 @@ const AccidentForm = () => {
     if (!hasCompletedCausativeAnalysis) {
       setShowCausativeValidation(true);
       toast.error("Please answer Yes or No for every question in the Causative Analysis section");
+      return;
+    }
+
+    const diedEntries = victimDetails.filter((victim) => victim.status === "died").length;
+    const injuredEntries = victimDetails.filter((victim) => victim.status === "injured").length;
+    const hasInvalidVictim = victimDetails.some(
+      (victim) =>
+        !victim.name.trim() ||
+        !victim.address.trim() ||
+        victim.age === "" ||
+        Number.isNaN(Number(victim.age)) ||
+        Number(victim.age) < 0
+    );
+
+    if (hasInvalidVictim) {
+      toast.error("Please complete all victim detail rows with name, age, address, and status");
+      return;
+    }
+
+    if (diedEntries !== personsDied || injuredEntries !== personsInjured) {
+      toast.error("Victim detail entries must match the died and injured counts");
       return;
     }
 
@@ -122,6 +154,10 @@ const AccidentForm = () => {
       accident_time: accidentTime,
       persons_died: personsDied,
       persons_injured: personsInjured,
+      victim_details: victimDetails.map((victim) => ({
+        ...victim,
+        age: Number(victim.age),
+      })),
       vehicles,
       drivers,
       driver_related_causes: driverCauses,
@@ -242,6 +278,65 @@ const AccidentForm = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div><Label>No. of Persons Died</Label><Input type="number" min={0} value={personsDied} onChange={(e) => setPersonsDied(parseInt(e.target.value) || 0)} /></div>
                 <div><Label>No. of Persons Injured</Label><Input type="number" min={0} value={personsInjured} onChange={(e) => setPersonsInjured(parseInt(e.target.value) || 0)} /></div>
+              </div>
+              <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">Victim Person Details</p>
+                    <p className="text-xs text-muted-foreground">
+                      Add one row per person. Status counts must match the totals above.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => addVictimDetail("died")}>
+                      <Plus className="w-4 h-4 mr-1" /> Add Died
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => addVictimDetail("injured")}>
+                      <Plus className="w-4 h-4 mr-1" /> Add Injured
+                    </Button>
+                  </div>
+                </div>
+
+                {victimDetails.length === 0 ? (
+                  <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-6 text-sm text-muted-foreground">
+                    No victim rows added yet.
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {victimDetails.map((victim, i) => (
+                      <div key={i} className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 md:grid-cols-12">
+                        <div className="md:col-span-12 flex items-center justify-between">
+                          <span className="text-sm font-semibold text-primary">Person {i + 1}</span>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeVictimDetail(i)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                        <div className="md:col-span-3">
+                          <Label>Name</Label>
+                          <Input value={victim.name} onChange={(e) => updateVictimDetail(i, "name", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Label>Age</Label>
+                          <Input type="number" min={0} value={victim.age} onChange={(e) => updateVictimDetail(i, "age", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-4">
+                          <Label>Address</Label>
+                          <Input value={victim.address} onChange={(e) => updateVictimDetail(i, "address", e.target.value)} />
+                        </div>
+                        <div className="md:col-span-3">
+                          <Label>Status</Label>
+                          <Select value={victim.status} onValueChange={(value: VictimDetail["status"]) => updateVictimDetail(i, "status", value)}>
+                            <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="died">Died</SelectItem>
+                              <SelectItem value="injured">Injured</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

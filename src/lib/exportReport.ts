@@ -45,6 +45,7 @@ interface Submission {
   accident_time: string;
   persons_died: number;
   persons_injured: number;
+  victim_details?: { name: string; age: number; address: string; status: "died" | "injured" }[];
   vehicles: { registration_number: string; class_type: string }[];
   drivers: { name: string; dl_number: string; licensing_authority: string }[];
   driver_related_causes: Record<string, boolean>;
@@ -220,6 +221,25 @@ export function exportSubmissionPDF(s: Submission) {
   sectionTitle("D. Victim Details");
   infoRow("Persons Died", s.persons_died);
   infoRow("Persons Injured", s.persons_injured);
+  const victimDetails = Array.isArray(s.victim_details) ? s.victim_details : [];
+  if (victimDetails.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["#", "Name", "Age", "Address", "Status"]],
+      body: victimDetails.map((victim, index) => [
+        index + 1,
+        victim.name || "-",
+        victim.age ?? "-",
+        victim.address || "-",
+        victim.status === "died" ? "Died" : "Injured",
+      ]),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [0, 51, 102], textColor: 255 },
+      theme: "grid",
+    });
+    y = (doc as any).lastAutoTable.finalY + 5;
+  }
   y += 3;
 
   sectionTitle("CAUSATIVE ANALYSIS");
@@ -245,6 +265,7 @@ export function exportSubmissionPDF(s: Submission) {
 export async function exportSubmissionDOCX(s: Submission) {
   const vehicles = Array.isArray(s.vehicles) ? s.vehicles : [];
   const drivers = Array.isArray(s.drivers) ? s.drivers : [];
+  const victimDetails = Array.isArray(s.victim_details) ? s.victim_details : [];
 
   const borderStyle = {
     top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
@@ -403,6 +424,37 @@ export async function exportSubmissionDOCX(s: Submission) {
               docxInfoRow("Persons Injured", s.persons_injured),
             ],
           }),
+          ...(victimDetails.length > 0
+            ? [
+                new Table({
+                  width: { size: 100, type: WidthType.PERCENTAGE },
+                  borders: borderStyle,
+                  rows: [
+                    new TableRow({
+                      children: [
+                        new TableCell({ width: { size: 8, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "#", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 24, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Name", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 12, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Age", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 38, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Address", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                        new TableCell({ width: { size: 18, type: WidthType.PERCENTAGE }, shading: { type: ShadingType.SOLID, color: "003366" }, children: [new Paragraph({ children: [new TextRun({ text: "Status", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+                      ],
+                    }),
+                    ...victimDetails.map(
+                      (victim, index) =>
+                        new TableRow({
+                          children: [
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(index + 1), size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.name || "-", size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: String(victim.age ?? "-"), size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.address || "-", size: 18, font: "Arial" })] })] }),
+                            new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: victim.status === "died" ? "Died" : "Injured", size: 18, font: "Arial" })] })] }),
+                          ],
+                        })
+                    ),
+                  ],
+                }),
+              ]
+            : []),
 
           sectionTitle("CAUSATIVE ANALYSIS"),
           ...causesSection("A. Driver Related Causes", DRIVER_RELATED_CAUSES, s.driver_related_causes || {}),
