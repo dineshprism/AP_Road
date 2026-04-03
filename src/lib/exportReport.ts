@@ -274,6 +274,9 @@ export function exportSubmissionPDF(s: Submission) {
   renderCauses("Median", ROAD_MEDIAN_CAUSES, s.road_engineering_median || {});
   renderCauses("Nature of Area", ROAD_NATURE_CAUSES, s.road_engineering_nature || {});
   renderCauses("Signages and Road Markings", ROAD_SIGNAGES_CAUSES, s.road_engineering_signages || {});
+  checkPage(90);
+  sectionTitle("Signatures and Seal");
+  y += 85;
 
   addHeaderFooter();
   doc.save(`FIR_${s.fir_number}_${s.district}.pdf`);
@@ -502,6 +505,11 @@ export async function exportSubmissionDOCX(s: Submission) {
           ...causesSection("Median", ROAD_MEDIAN_CAUSES, s.road_engineering_median || {}),
           ...causesSection("Nature of Area", ROAD_NATURE_CAUSES, s.road_engineering_nature || {}),
           ...causesSection("Signages and Road Markings", ROAD_SIGNAGES_CAUSES, s.road_engineering_signages || {}),
+          sectionTitle("Signatures and Seal"),
+          new Paragraph({
+            children: [new TextRun({ text: "", size: 18, font: "Arial" })],
+            spacing: { after: 4200 },
+          }),
         ],
       },
     ],

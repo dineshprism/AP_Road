@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
-import { Activity, Clock3, FileText, LogIn, RefreshCcw, Search } from "lucide-react";
+import { Activity, Clock3, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
 
 interface LoginEvent {
   id: string;
