@@ -13,6 +13,7 @@ const Index = () => {
   }
 
   if (!user) return <Navigate to="/auth" replace />;
+  if (roles.includes("prism")) return <Navigate to="/dashboard" replace />;
   if (roles.includes("adgp")) return <Navigate to="/adgp-dashboard" replace />;
   if (roles.includes("dgp")) return <Navigate to="/admin" replace />;
   if (isAdmin) return <Navigate to="/admin" replace />;
