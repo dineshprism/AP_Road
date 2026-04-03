@@ -134,6 +134,27 @@ export const api = {
       const qs = params.toString();
       return request<any[]>(`/admin/submissions${qs ? `?${qs}` : ""}`);
     },
+
+    activity(filters?: {
+      loginLimit?: number;
+      submissionLimit?: number;
+    }) {
+      const params = new URLSearchParams();
+      if (filters?.loginLimit) params.set("loginLimit", String(filters.loginLimit));
+      if (filters?.submissionLimit) params.set("submissionLimit", String(filters.submissionLimit));
+      const qs = params.toString();
+      return request<{
+        summary: {
+          total_logins: number;
+          logins_last_24h: number;
+          total_submissions: number;
+          submissions_last_24h: number;
+          active_submission_districts: number;
+        };
+        loginEvents: any[];
+        submissionEvents: any[];
+      }>(`/admin/activity${qs ? `?${qs}` : ""}`);
+    },
   },
 
   analytics: {

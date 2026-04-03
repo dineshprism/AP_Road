@@ -14,6 +14,7 @@ import AccidentForm from "./pages/AccidentForm";
 import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
 import AppFooter from "./components/AppFooter";
+import PrismDashboard from "./pages/PrismDashboard";
 
 const queryClient = new QueryClient();
 
@@ -64,6 +65,14 @@ const App = () => (
                     <ProtectedRoute>
                       <UserDashboard />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/prism-dashboard"
+                  element={
+                    <RoleRoute allowedRoles={["prism"]}>
+                      <PrismDashboard />
+                    </RoleRoute>
                   }
                 />
                 <Route

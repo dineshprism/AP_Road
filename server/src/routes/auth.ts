@@ -42,6 +42,22 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
 
     const token = generateToken({ userId: user.id, email: user.email });
 
+    try {
+      await pool.query(
+        `INSERT INTO auth_activity_log (user_id, event_type, ip_address, user_agent, metadata)
+         VALUES ($1, $2, $3, $4, $5::jsonb)`,
+        [
+          user.id,
+          "login_success",
+          req.ip || null,
+          req.get("user-agent") || null,
+          JSON.stringify({ username }),
+        ]
+      );
+    } catch (activityError) {
+      console.error("Failed to record login activity:", activityError);
+    }
+
     res.json({
       token,
       user: { id: user.id, email: user.email },
@@ -69,7 +85,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
 
     const profile = profileResult.rows[0] || null;
     const roles = roleResult.rows.map((r) => r.role);
-    const isAdmin = roles.includes("admin") || roles.includes("dgp") || roles.includes("adgp");
+    const isAdmin = roles.includes("admin") || roles.includes("dgp") || roles.includes("adgp") || roles.includes("prism");
 
     res.json({
       user: { id: userId, email: req.user!.email },

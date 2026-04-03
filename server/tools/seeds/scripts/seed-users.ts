@@ -63,6 +63,9 @@ async function seedUsers() {
   try {
     await pool.query("ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'adgp'");
   } catch { /* already exists */ }
+  try {
+    await pool.query("ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'prism'");
+  } catch { /* already exists */ }
 
   const client = await pool.connect();
 
@@ -94,10 +97,20 @@ async function seedUsers() {
         "INSERT INTO user_roles (user_id, role) VALUES ($1, 'user')",
         [userId]
       );
+      if (district === "Prism") {
+        await client.query(
+          "INSERT INTO user_roles (user_id, role) VALUES ($1, 'prism')",
+          [userId]
+        );
+        await client.query(
+          "INSERT INTO user_roles (user_id, role) VALUES ($1, 'admin')",
+          [userId]
+        );
+      }
 
       await client.query(
         "INSERT INTO profiles (user_id, full_name, district, designation) VALUES ($1, $2, $3, $4)",
-        [userId, `${district} DRSC Unit`, district, "District DRSC"]
+        [userId, district === "Prism" ? "PRISM Team" : `${district} DRSC Unit`, district, district === "Prism" ? "PRISM Super Admin" : "District DRSC"]
       );
 
       console.log(district.padEnd(40) + username.padEnd(45) + password);

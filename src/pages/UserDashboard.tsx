@@ -27,6 +27,7 @@ import {
   PanelRightClose,
   Upload,
   FileCheck,
+  ShieldCheck,
 } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
@@ -86,6 +87,7 @@ const UserDashboard = () => {
   const [showChatPanel, setShowChatPanel] = useState(false);
 
   const district = profile?.district || "";
+  const isPrismUser = district === "Prism";
   const [selectedSdpo, setSelectedSdpo] = useState("");
   const [selectedPs, setSelectedPs] = useState("");
   const [dateRange, setDateRange] = useState<DateRange>("all");
@@ -380,6 +382,23 @@ const UserDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {isPrismUser && (
+              <Card className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl" onClick={() => navigate("/prism-dashboard")}>
+                <div className="h-1.5 bg-gradient-to-r from-[#5b2ca0] to-[#8c52d9]" />
+                <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 transition-colors group-hover:bg-violet-500/20">
+                    <ShieldCheck className="h-5 w-5 text-violet-700" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-base font-bold leading-snug text-primary">PRISM Logs</h3>
+                    <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                      View district login activity and submission logs across the portal.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

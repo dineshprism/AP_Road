@@ -11,12 +11,13 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Role enum
 DO $$ BEGIN
-  CREATE TYPE app_role AS ENUM ('admin', 'user', 'dgp', 'adgp');
+  CREATE TYPE app_role AS ENUM ('admin', 'user', 'dgp', 'adgp', 'prism');
 EXCEPTION
   WHEN duplicate_object THEN
     -- Add new roles if enum exists but doesn't have them
     BEGIN ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'dgp'; EXCEPTION WHEN others THEN NULL; END;
     BEGIN ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'adgp'; EXCEPTION WHEN others THEN NULL; END;
+    BEGIN ALTER TYPE app_role ADD VALUE IF NOT EXISTS 'prism'; EXCEPTION WHEN others THEN NULL; END;
 END $$;
 
 -- Users table (replaces Supabase auth.users)
@@ -124,6 +125,20 @@ CREATE TABLE IF NOT EXISTS submission_rag_cache (
 
 CREATE INDEX IF NOT EXISTS idx_submission_rag_cache_updated_at ON submission_rag_cache(updated_at);
 
+CREATE TABLE IF NOT EXISTS auth_activity_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    event_type TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_activity_log_user_id ON auth_activity_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_activity_log_created_at ON auth_activity_log(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_auth_activity_log_event_type ON auth_activity_log(event_type);
+
 CREATE TABLE IF NOT EXISTS cctns_hierarchy (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     district_code TEXT,
@@ -155,6 +170,20 @@ export async function runMigrations(options?: { closePool?: boolean }) {
   console.log("Running database migration...");
   try {
     await pool.query(migration);
+    await pool.query(`
+      INSERT INTO user_roles (user_id, role)
+      SELECT p.user_id, 'prism'::app_role
+      FROM profiles p
+      WHERE lower(p.district) = 'prism'
+      ON CONFLICT (user_id, role) DO NOTHING
+    `);
+    await pool.query(`
+      INSERT INTO user_roles (user_id, role)
+      SELECT p.user_id, 'admin'::app_role
+      FROM profiles p
+      WHERE lower(p.district) = 'prism'
+      ON CONFLICT (user_id, role) DO NOTHING
+    `);
     console.log("Migration completed successfully.");
   } catch (err) {
     console.error("Migration failed:", err);
