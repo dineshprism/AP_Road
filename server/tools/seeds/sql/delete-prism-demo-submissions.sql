@@ -1,5 +1,7 @@
--- Delete seeded PRISM demo submissions.
--- Intended target: rows with FIR numbers PRISM/2026/001 ... PRISM/2026/012.
+-- Delete seeded PRISM demo submissions and the dummy FIR 'ok'.
+-- Intended targets:
+--   1. Rows with FIR numbers PRISM/2026/001 ... PRISM/2026/012
+--   2. Any row with fir_number = 'ok'
 --
 -- Recommended usage in production:
 -- 1. Run the preview SELECT first and confirm the rows.
@@ -15,13 +17,15 @@ SELECT
     created_at
 FROM accident_submissions
 WHERE fir_number LIKE 'PRISM/%'
+   OR fir_number = 'ok'
 ORDER BY fir_number;
 
--- Delete the PRISM demo submissions in a transaction.
+-- Delete the matching demo submissions in a transaction.
 BEGIN;
 
 DELETE FROM accident_submissions
 WHERE fir_number LIKE 'PRISM/%'
+   OR fir_number = 'ok'
 RETURNING
     id,
     fir_number,
@@ -29,8 +33,9 @@ RETURNING
     place_of_accident;
 
 -- Verify cleanup before commit.
-SELECT COUNT(*) AS remaining_prism_demo_submissions
+SELECT COUNT(*) AS remaining_demo_submissions
 FROM accident_submissions
-WHERE fir_number LIKE 'PRISM/%';
+WHERE fir_number LIKE 'PRISM/%'
+   OR fir_number = 'ok';
 
 COMMIT;
