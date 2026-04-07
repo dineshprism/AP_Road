@@ -15,6 +15,7 @@ import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
 import AppFooter from "./components/AppFooter";
 import PrismDashboard from "./pages/PrismDashboard";
+import DsrReports from "./pages/DsrReports";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,14 @@ const App = () => (
                     <ProtectedRoute>
                       <SubmissionView />
                     </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dsr-reports"
+                  element={
+                    <RoleRoute allowedRoles={["admin", "dgp", "adgp", "prism"]}>
+                      <DsrReports />
+                    </RoleRoute>
                   }
                 />
                 <Route path="*" element={<NotFound />} />

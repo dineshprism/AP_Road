@@ -13,6 +13,7 @@ import analyticsRoutes from "./routes/analytics.js";
 import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import localRagRoutes from "./routes/rag-local.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
+import reportRoutes from "./routes/reports.js";
 import { runMigrations } from "./migrate.js";
 import { authMiddleware } from "./auth.js";
 
@@ -79,6 +80,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/analytics", enhancedAnalyticsRoutes);
+app.use("/api/reports", reportRoutes);
 app.use("/api/rag", localRagRoutes);
 app.use("/api/rag", ragGeminiRoutes);
 

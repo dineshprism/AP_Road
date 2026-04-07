@@ -12,7 +12,7 @@ import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
 import AccidentChat from "@/components/AccidentChat";
 import { AP_DISTRICTS, MONTHS } from "@/lib/constants";
-import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin, Brain } from "lucide-react";
+import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin, Brain, FileSpreadsheet } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -93,13 +93,23 @@ const AdgpDashboard = () => {
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <h2 className="gov-page-title mb-0">ADGP Dashboard &mdash; All Submissions</h2>
-          <Button
-            onClick={() => navigate("/analytics")}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
-          >
-            <BarChart3 className="w-4 h-4" />
-            Analytics Dashboard
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/dsr-reports")}
+              className="font-semibold shadow-sm"
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              DSR Reports
+            </Button>
+            <Button
+              onClick={() => navigate("/analytics")}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Analytics Dashboard
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

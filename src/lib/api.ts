@@ -48,6 +48,39 @@ async function request<T>(
   }
 }
 
+async function downloadFile(
+  path: string,
+  options: RequestInit = {}
+): Promise<{ blob: Blob | null; filename: string | null; error: string | null }> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { blob: null, filename: null, error: body.error || `Request failed (${res.status})` };
+    }
+
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const blob = await res.blob();
+    return { blob, filename: match?.[1] || null, error: null };
+  } catch (err: any) {
+    return { blob: null, filename: null, error: err.message || "Network error" };
+  }
+}
+
 // ---- Auth API ----
 
 export interface AuthResponse {
@@ -196,6 +229,15 @@ export const api = {
       if (filters.year) params.set("year", filters.year);
       
       return request<any>(`/analytics/export?${params.toString()}`);
+    },
+  },
+
+  reports: {
+    downloadDsrWorkbook(filters: { fromDate: string; toDate: string }) {
+      const params = new URLSearchParams();
+      params.set("fromDate", filters.fromDate);
+      params.set("toDate", filters.toDate);
+      return downloadFile(`/reports/dsr-workbook?${params.toString()}`);
     },
   },
 
