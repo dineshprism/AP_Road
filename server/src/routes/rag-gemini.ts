@@ -79,7 +79,7 @@ function formatStructuredField(value: unknown): string {
 
 async function isAdminUser(userId: string) {
   const roleResult = await pool.query(
-    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp') LIMIT 1",
+    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism') LIMIT 1",
     [userId]
   );
   return roleResult.rows.length > 0;

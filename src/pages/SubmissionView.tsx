@@ -87,6 +87,8 @@ const SubmissionView = () => {
   }>;
   const backTarget = roles.includes("adgp")
     ? "/adgp-dashboard"
+    : roles.includes("prism")
+      ? "/prism-dashboard"
     : roles.includes("dgp") || isAdmin
       ? "/admin"
       : "/dashboard";

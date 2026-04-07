@@ -230,9 +230,9 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check if user is admin/dgp/adgp
+    // Check if user is elevated enough to access any submission
     const roleResult = await pool.query(
-      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp')",
+      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism')",
       [userId]
     );
     const isAdmin = roleResult.rows.length > 0;
@@ -283,7 +283,7 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     }
 
     const roleResult = await pool.query(
-      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp')",
+      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism')",
       [userId]
     );
     const isAdmin = roleResult.rows.length > 0;

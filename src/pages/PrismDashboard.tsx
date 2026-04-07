@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
-import { Activity, Clock3, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
+import AccidentChat from "@/components/AccidentChat";
+import { Activity, Brain, Clock3, Eye, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
 
 interface LoginEvent {
   id: string;
@@ -50,6 +51,8 @@ const PrismDashboard = () => {
   const [search, setSearch] = useState("");
   const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
   const [submissionEvents, setSubmissionEvents] = useState<SubmissionEvent[]>([]);
+  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [chatSubmissions, setChatSubmissions] = useState<SubmissionEvent[]>([]);
   const [summary, setSummary] = useState({
     total_logins: 0,
     logins_last_24h: 0,
@@ -105,6 +108,16 @@ const PrismDashboard = () => {
         .some((value) => String(value || "").toLowerCase().includes(normalizedSearch))
     );
   }, [feedbackItems, normalizedSearch]);
+
+  const handleAnalyse = (submission: SubmissionEvent) => {
+    setChatSubmissions([submission]);
+    setShowChatPanel(true);
+  };
+
+  const handleCloseChatPanel = () => {
+    setShowChatPanel(false);
+    setChatSubmissions([]);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -176,21 +189,38 @@ const PrismDashboard = () => {
               filteredSubmissionEvents.map((event) => (
                 <Card key={event.id} className="border-l-4 border-l-[#138808]">
                   <CardContent className="py-4">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-primary">FIR: {event.fir_number}</span>
-                      <Badge className="bg-primary/10 text-primary border-primary/20">{event.district}</Badge>
-                      <Badge variant="outline">{event.police_station}</Badge>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-primary">FIR: {event.fir_number}</span>
+                          <Badge className="border-primary/20 bg-primary/10 text-primary">{event.district}</Badge>
+                          <Badge variant="outline">{event.police_station}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {event.place_of_accident}, {event.mandal}
+                        </p>
+                        <p className="mt-1 text-sm">
+                          Submitted by <span className="font-semibold">{event.full_name || event.username}</span> ({event.username})
+                        </p>
+                        <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock3 className="h-3.5 w-3.5" />
+                          {new Date(event.created_at).toLocaleString("en-IN")}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/submission/${event.id}`)}>
+                          <Eye className="mr-1 h-4 w-4" /> View
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAnalyse(event)}
+                          className="border-blue-200 bg-blue-50 font-semibold text-blue-700 hover:bg-blue-100"
+                        >
+                          <Brain className="mr-1 h-4 w-4" /> Analyse
+                        </Button>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {event.place_of_accident}, {event.mandal}
-                    </p>
-                    <p className="mt-1 text-sm">
-                      Submitted by <span className="font-semibold">{event.full_name || event.username}</span> ({event.username})
-                    </p>
-                    <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      {new Date(event.created_at).toLocaleString("en-IN")}
-                    </p>
                   </CardContent>
                 </Card>
               ))
@@ -255,6 +285,12 @@ const PrismDashboard = () => {
             )}
           </TabsContent>
         </Tabs>
+        <AccidentChat
+          isOpen={showChatPanel}
+          onClose={handleCloseChatPanel}
+          submissions={chatSubmissions}
+          title={chatSubmissions.length === 1 ? `Analysis - FIR ${chatSubmissions[0]?.fir_number}` : "Accident Analysis"}
+        />
       </div>
     </div>
   );
