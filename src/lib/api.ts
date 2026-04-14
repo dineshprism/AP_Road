@@ -233,10 +233,11 @@ export const api = {
   },
 
   reports: {
-    downloadDsrWorkbook(filters: { fromDate: string; toDate: string }) {
+    downloadDsrWorkbook(filters: { fromDate?: string; toDate?: string; preset?: "weekly" | "last-week" }) {
       const params = new URLSearchParams();
-      params.set("fromDate", filters.fromDate);
-      params.set("toDate", filters.toDate);
+      if (filters.preset) params.set("preset", filters.preset);
+      if (filters.fromDate) params.set("fromDate", filters.fromDate);
+      if (filters.toDate) params.set("toDate", filters.toDate);
       return downloadFile(`/reports/dsr-workbook?${params.toString()}`);
     },
   },

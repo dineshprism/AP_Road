@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { format, subDays } from "date-fns";
+import { addDays, format, startOfWeek, subWeeks } from "date-fns";
 import GovHeader from "@/components/GovHeader";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -28,6 +28,17 @@ function formatDateLabel(value: string) {
   return parsed ? format(parsed, "dd-MM-yyyy") : value;
 }
 
+function getPreviousWeekRange(reference = new Date()) {
+  const currentWeekMonday = startOfWeek(reference, { weekStartsOn: 1 });
+  const lastWeekMonday = subWeeks(currentWeekMonday, 1);
+  const lastWeekSunday = addDays(lastWeekMonday, 6);
+
+  return {
+    fromDate: toIsoDate(lastWeekMonday),
+    toDate: toIsoDate(lastWeekSunday),
+  };
+}
+
 const reportSheets = [
   {
     name: "DSR",
@@ -47,11 +58,17 @@ const reportSheets = [
   },
 ];
 
+type DsrDownloadFilters = {
+  fromDate?: string;
+  toDate?: string;
+  preset?: "weekly" | "last-week";
+};
+
 const DsrReports = () => {
   const navigate = useNavigate();
   const { roles } = useAuth();
-  const [fromDate, setFromDate] = useState(() => toIsoDate(subDays(new Date(), 6)));
-  const [toDate, setToDate] = useState(() => toIsoDate(new Date()));
+  const [fromDate, setFromDate] = useState(() => getPreviousWeekRange().fromDate);
+  const [toDate, setToDate] = useState(() => getPreviousWeekRange().toDate);
   const [fromOpen, setFromOpen] = useState(false);
   const [toOpen, setToOpen] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -62,19 +79,23 @@ const DsrReports = () => {
     return "/admin";
   }, [roles]);
 
-  const handleDownload = async () => {
-    if (!fromDate || !toDate) {
+  const downloadWorkbook = async (filters: DsrDownloadFilters) => {
+    const fallbackRange = filters.fromDate && filters.toDate
+      ? { fromDate: filters.fromDate, toDate: filters.toDate }
+      : getPreviousWeekRange();
+
+    if (!filters.preset && (!filters.fromDate || !filters.toDate)) {
       toast.error("Please select both From Date and To Date");
       return;
     }
 
-    if (fromDate > toDate) {
+    if (!filters.preset && filters.fromDate! > filters.toDate!) {
       toast.error("From Date cannot be later than To Date");
       return;
     }
 
     setDownloading(true);
-    const { blob, filename, error } = await api.reports.downloadDsrWorkbook({ fromDate, toDate });
+    const { blob, filename, error } = await api.reports.downloadDsrWorkbook(filters);
     setDownloading(false);
 
     if (error || !blob) {
@@ -85,12 +106,30 @@ const DsrReports = () => {
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
-    link.download = filename || `DSR_${formatDateLabel(fromDate)}_to_${formatDateLabel(toDate)}.xlsx`;
+    link.download = filename || `DSR_${formatDateLabel(fallbackRange.fromDate)}_to_${formatDateLabel(fallbackRange.toDate)}.xlsx`;
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     toast.success("Workbook download started");
+  };
+
+  const handleDownload = async () => {
+    await downloadWorkbook({ fromDate, toDate });
+  };
+
+  const handleWeeklyPreset = () => {
+    const weeklyRange = getPreviousWeekRange();
+    setFromDate(weeklyRange.fromDate);
+    setToDate(weeklyRange.toDate);
+    toast.success(`Weekly range set: ${formatDateLabel(weeklyRange.fromDate)} to ${formatDateLabel(weeklyRange.toDate)}`);
+  };
+
+  const handleWeeklyDownload = async () => {
+    const weeklyRange = getPreviousWeekRange();
+    setFromDate(weeklyRange.fromDate);
+    setToDate(weeklyRange.toDate);
+    await downloadWorkbook({ preset: "weekly" });
   };
 
   return (
@@ -109,14 +148,25 @@ const DsrReports = () => {
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">DSR Report Download</h1>
             <p className="max-w-3xl text-sm leading-6 text-slate-600">
-              Generate a 4-sheet Excel workbook from portal submissions for any selected date range. The export mirrors
-              the uploaded DSR sample structure with sheets for DSR, Fatal, Non Fatal, and Time Wise reporting.
+              Generate a 4-sheet Excel workbook from portal submissions for any selected date range. The export now uses
+              your uploaded DSR workbook as the template so the fonts, merged headers, detailing columns, and default
+              district rows stay aligned with the sample format.
             </p>
           </div>
-          <Button onClick={() => void handleDownload()} disabled={downloading} className="h-11 px-6">
-            <Download className="mr-2 h-4 w-4" />
-            {downloading ? "Preparing Workbook..." : "Download XLSX"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={handleWeeklyPreset} disabled={downloading} className="h-11 px-5">
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              Weekly Range
+            </Button>
+            <Button variant="outline" onClick={() => void handleWeeklyDownload()} disabled={downloading} className="h-11 px-5">
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Weekly Download
+            </Button>
+            <Button onClick={() => void handleDownload()} disabled={downloading} className="h-11 px-6">
+              <Download className="mr-2 h-4 w-4" />
+              {downloading ? "Preparing Workbook..." : "Download XLSX"}
+            </Button>
+          </div>
         </div>
 
         <Card className="border-slate-200 shadow-sm">
@@ -197,7 +247,7 @@ const DsrReports = () => {
                 {fromDate && toDate ? `${formatDateLabel(fromDate)} to ${formatDateLabel(toDate)}` : "Pick both dates"}
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                Export uses accident date filtering directly from the submission database.
+                Weekly reports should use the previous Monday to Sunday window. On Monday, the Weekly button downloads the just-completed week automatically.
               </p>
             </div>
 
