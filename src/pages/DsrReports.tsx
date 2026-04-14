@@ -148,9 +148,9 @@ const DsrReports = () => {
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">DSR Report Download</h1>
             <p className="max-w-3xl text-sm leading-6 text-slate-600">
-              Generate a 4-sheet Excel workbook from portal submissions for any selected date range. The export now uses
-              your uploaded DSR workbook as the template so the fonts, merged headers, detailing columns, and default
-              district rows stay aligned with the sample format.
+              Generate a 4-sheet Excel workbook from portal submissions created within the selected date range. The export
+              now uses your uploaded DSR workbook as the template so the fonts, merged headers, detailing columns, and
+              default district rows stay aligned with the sample format.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -247,7 +247,7 @@ const DsrReports = () => {
                 {fromDate && toDate ? `${formatDateLabel(fromDate)} to ${formatDateLabel(toDate)}` : "Pick both dates"}
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                Weekly reports should use the previous Monday to Sunday window. On Monday, the Weekly button downloads the just-completed week automatically.
+                Weekly reports use the previous Monday to Sunday submission window. On Monday, the Weekly button downloads the just-completed week automatically.
               </p>
             </div>
 

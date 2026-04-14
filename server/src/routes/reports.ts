@@ -929,8 +929,9 @@ router.get("/dsr-workbook", async (req: AuthRequest, res: Response) => {
           road_engineering_nature,
           road_engineering_signages
        FROM accident_submissions
-       WHERE accident_date >= $1 AND accident_date <= $2
-       ORDER BY district, accident_date, fir_number`,
+       WHERE (created_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date >= $1
+         AND (created_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date <= $2
+       ORDER BY district, created_at, fir_number`,
       [fromDate, toDate]
     );
 
