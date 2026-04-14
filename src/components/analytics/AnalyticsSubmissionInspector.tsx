@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Brain, CalendarClock, ExternalLink, Eye, FileText, Loader2, MapPin } from "lucide-react";
+import { Brain, CalendarClock, ExternalLink, Eye, FileText, Loader2, MapPin, X } from "lucide-react";
 import AccidentChat from "@/components/AccidentChat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -18,7 +19,7 @@ import { api, openProtectedAsset } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-export interface AnalyticsProScopeFilters {
+export interface AnalyticsInspectorScopeFilters {
   district?: string;
   year?: string;
   fromDate?: string;
@@ -35,6 +36,26 @@ export interface AnalyticsProDrilldownFilters {
   delayBand?: string;
   signedCopyStatus?: string;
   createdWeekday?: string;
+}
+
+export interface AnalyticsClassicDrilldownFilters {
+  month?: string;
+  hour?: string;
+  comparisonName?: string;
+  mandal?: string;
+  roadType?: string;
+  hotspotPlace?: string;
+  hotspotDistrict?: string;
+  driverCause?: string;
+  vehicleCause?: string;
+  roadEngineeringCategory?: string;
+  roadEngineeringCause?: string;
+  vehicleType?: string;
+  policeStation?: string;
+  weekday?: string;
+  severity?: string;
+  metric?: string;
+  signedCopyStatus?: string;
 }
 
 interface DrilldownSubmissionSummary {
@@ -112,8 +133,9 @@ interface SubmissionDetail {
 interface AnalyticsSubmissionInspectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  scopeFilters: AnalyticsProScopeFilters;
-  drilldownFilters: AnalyticsProDrilldownFilters | null;
+  scopeFilters: AnalyticsInspectorScopeFilters;
+  drilldownFilters: AnalyticsProDrilldownFilters | AnalyticsClassicDrilldownFilters | null;
+  mode?: "pro" | "classic";
 }
 
 function formatDateTime(value: string) {
@@ -166,6 +188,7 @@ const AnalyticsSubmissionInspector = ({
   onOpenChange,
   scopeFilters,
   drilldownFilters,
+  mode = "pro",
 }: AnalyticsSubmissionInspectorProps) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -184,11 +207,18 @@ const AnalyticsSubmissionInspector = ({
     setActivePane("preview");
     setAnalysisMode("selected");
 
-    api.analytics
-      .getAnalyticsProDrilldown({
-        ...scopeFilters,
-        ...drilldownFilters,
-      })
+    const request =
+      mode === "classic"
+        ? api.analytics.getEnhancedAnalyticsDrilldown({
+            ...scopeFilters,
+            ...(drilldownFilters as AnalyticsClassicDrilldownFilters),
+          })
+        : api.analytics.getAnalyticsProDrilldown({
+            ...scopeFilters,
+            ...(drilldownFilters as AnalyticsProDrilldownFilters),
+          });
+
+    request
       .then(({ data: response, error }) => {
         if (!active) return;
         if (error || !response) {
@@ -208,7 +238,7 @@ const AnalyticsSubmissionInspector = ({
     return () => {
       active = false;
     };
-  }, [open, drilldownFilters, scopeFilters]);
+  }, [mode, open, drilldownFilters, scopeFilters]);
 
   useEffect(() => {
     if (!open || !selectedId || detailCache[selectedId]) return;
@@ -299,33 +329,50 @@ const AnalyticsSubmissionInspector = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[min(96vw,1380px)] border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0">
-        <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-6 py-5 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
-            <DialogDescription className="text-sm text-slate-200">
-              Matching submissions for the selected analytics count. Inspect records, open the full submission, or run AI analysis from here.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Badge className="border-white/20 bg-white/10 text-white">
-              {loading ? "Loading..." : `${data?.count || 0} submissions`}
-            </Badge>
-            {data?.scope.scopeLabel && (
-              <Badge variant="outline" className="border-white/20 text-white">
-                {data.scope.scopeLabel}
+      <DialogContent
+        hideCloseButton
+        className="h-[min(92vh,960px)] max-h-[92vh] max-w-[min(96vw,1380px)] overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0 sm:rounded-[28px]"
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-6 py-5 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <DialogHeader className="pr-2 text-left">
+                <DialogTitle className="text-2xl font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
+                <DialogDescription className="text-sm text-slate-200">
+                  Matching submissions for the selected analytics count. Inspect records, open the full submission, or run AI analysis from here.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogClose asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Close
+                </Button>
+              </DialogClose>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Badge className="border-white/20 bg-white/10 text-white">
+                {loading ? "Loading..." : `${data?.count || 0} submissions`}
               </Badge>
-            )}
-            {data?.scope.rangeStart && data?.scope.rangeEnd && (
-              <Badge variant="outline" className="border-white/20 text-white">
-                {data.scope.rangeStart} to {data.scope.rangeEnd}
-              </Badge>
-            )}
+              {data?.scope.scopeLabel && (
+                <Badge variant="outline" className="border-white/20 text-white">
+                  {data.scope.scopeLabel}
+                </Badge>
+              )}
+              {data?.scope.rangeStart && data?.scope.rangeEnd && (
+                <Badge variant="outline" className="border-white/20 text-white">
+                  {data.scope.rangeStart} to {data.scope.rangeEnd}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
 
-        <div className="grid min-h-[78vh] gap-0 lg:grid-cols-[360px_1fr]">
-          <div className="border-r border-slate-200 bg-white/80">
+          <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[360px_1fr]">
+            <div className="flex min-h-0 flex-col border-r border-slate-200 bg-white/80">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Submission Matches</p>
@@ -347,7 +394,7 @@ const AnalyticsSubmissionInspector = ({
               )}
             </div>
 
-            <ScrollArea className="h-[calc(78vh-73px)]">
+              <ScrollArea className="flex-1">
               <div className="space-y-3 p-4">
                 {loading && (
                   <div className="flex items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-16 text-slate-500">
@@ -452,8 +499,8 @@ const AnalyticsSubmissionInspector = ({
             </ScrollArea>
           </div>
 
-          <div className="min-h-0 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fe_100%)]">
-            <Tabs value={activePane} onValueChange={(value) => setActivePane(value as "preview" | "ai")} className="flex h-full flex-col">
+            <div className="min-h-0 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fe_100%)]">
+              <Tabs value={activePane} onValueChange={(value) => setActivePane(value as "preview" | "ai")} className="flex h-full min-h-0 flex-col">
               <div className="border-b border-slate-200 px-5 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <TabsList className="grid h-auto grid-cols-2 rounded-2xl bg-slate-100 p-1">
@@ -485,8 +532,8 @@ const AnalyticsSubmissionInspector = ({
                 </div>
               </div>
 
-              <TabsContent value="preview" className="mt-0 flex-1 px-0 pb-0">
-                <ScrollArea className="h-[calc(78vh-124px)]">
+                <TabsContent value="preview" className="mt-0 min-h-0 flex-1 px-0 pb-0">
+                  <ScrollArea className="h-full">
                   <div className="space-y-5 p-5">
                     {!selectedSummary && !loading && (
                       <div className="rounded-3xl border border-dashed border-slate-300 bg-white px-4 py-20 text-center text-slate-500">
@@ -651,16 +698,19 @@ const AnalyticsSubmissionInspector = ({
                 </ScrollArea>
               </TabsContent>
 
-              <TabsContent value="ai" className="mt-0 flex-1 px-5 pb-5 pt-5">
-                <AccidentChat
-                  isOpen={open && activePane === "ai"}
-                  submissions={chatSubmissions}
-                  title={analysisMode === "all" ? "Drilldown Batch Analysis" : `Submission Analysis${selectedSummary ? ` - ${selectedSummary.firNumber}` : ""}`}
-                  variant="panel"
-                  className="h-[calc(78vh-164px)]"
-                />
-              </TabsContent>
-            </Tabs>
+                <TabsContent value="ai" className="mt-0 min-h-0 flex-1 px-5 pb-5 pt-5">
+                  <div className="h-full min-h-0">
+                    <AccidentChat
+                      isOpen={open && activePane === "ai"}
+                      submissions={chatSubmissions}
+                      title={analysisMode === "all" ? "Drilldown Batch Analysis" : `Submission Analysis${selectedSummary ? ` - ${selectedSummary.firNumber}` : ""}`}
+                      variant="panel"
+                      className="h-full min-h-[320px]"
+                    />
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import GovHeader from "@/components/GovHeader";
+import AnalyticsSubmissionInspector, { AnalyticsClassicDrilldownFilters } from "@/components/analytics/AnalyticsSubmissionInspector";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { AP_DISTRICTS } from "@/lib/constants";
@@ -190,6 +191,14 @@ const analyticsFormulaReference = [
   },
 ];
 
+function getChartPayload<T>(entry: T | { payload?: T } | undefined | null): T | null {
+  if (!entry) return null;
+  if (typeof entry === "object" && entry !== null && "payload" in entry && entry.payload) {
+    return entry.payload as T;
+  }
+  return entry as T;
+}
+
 function formatPercent(value: number, divideBy100 = false) {
   const actual = divideBy100 ? value * 100 : value;
   return `${actual.toFixed(1)}%`;
@@ -299,6 +308,8 @@ const EnhancedAnalytics = () => {
   const [showOperationalSnapshot, setShowOperationalSnapshot] = useState(false);
   const [fromDateOpen, setFromDateOpen] = useState(false);
   const [toDateOpen, setToDateOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorFilters, setInspectorFilters] = useState<AnalyticsClassicDrilldownFilters | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -383,6 +394,31 @@ const EnhancedAnalytics = () => {
         ? `From ${formatDateLabel(appliedFilters.fromDate)}`
         : `Up to ${formatDateLabel(appliedFilters.toDate)}`
     : null;
+  const inspectorScopeFilters = useMemo(
+    () => ({
+      district: isAdmin ? appliedFilters.district : profile?.district || appliedFilters.district,
+      year: appliedFilters.year,
+      fromDate: appliedFilters.fromDate || undefined,
+      toDate: appliedFilters.toDate || undefined,
+    }),
+    [appliedFilters.district, appliedFilters.fromDate, appliedFilters.toDate, appliedFilters.year, isAdmin, profile?.district]
+  );
+
+  const openClassicDrilldown = (nextFilters: AnalyticsClassicDrilldownFilters = {}) => {
+    setInspectorFilters(nextFilters);
+    setInspectorOpen(true);
+  };
+  const getInteractiveCardProps = (nextFilters: AnalyticsClassicDrilldownFilters = {}) => ({
+    role: "button" as const,
+    tabIndex: 0,
+    onClick: () => openClassicDrilldown(nextFilters),
+    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openClassicDrilldown(nextFilters);
+      }
+    },
+  });
 
   if (loading || authLoading) {
     return <div className="min-h-screen bg-slate-50"><GovHeader /><div className="container mx-auto px-4 py-10"><Card className="border-slate-200"><CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-3"><RefreshCw className="h-10 w-10 animate-spin text-primary" /><p className="text-lg font-semibold text-slate-800">Loading analytics workspace</p><p className="text-sm text-slate-500">Preparing visual summaries and comparison metrics</p></CardContent></Card></div></div>;
@@ -430,6 +466,80 @@ const EnhancedAnalytics = () => {
     shortCause: shortenCauseLabel(entry.cause),
   }));
   const goBack = () => navigate(isAdmin ? "/admin" : "/dashboard");
+  const getComparisonFilters = (comparisonName: string, metric?: string): AnalyticsClassicDrilldownFilters => ({
+    comparisonName,
+    ...(metric ? { metric } : {}),
+  });
+  const getRoadTypeFilters = (roadType: string, metric?: string): AnalyticsClassicDrilldownFilters => ({
+    roadType,
+    ...(metric ? { metric } : {}),
+  });
+  const handleTrendClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ month?: string }>(entry);
+    if (!payload?.month) return;
+    openClassicDrilldown({
+      month: payload.month,
+      ...(metric ? { metric } : {}),
+    });
+  };
+  const handleHourClick = (entry: any) => {
+    const payload = getChartPayload<{ hour?: string }>(entry);
+    if (!payload?.hour) return;
+    openClassicDrilldown({ hour: payload.hour });
+  };
+  const handleComparisonChartClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ name?: string }>(entry);
+    if (!payload?.name) return;
+    openClassicDrilldown(getComparisonFilters(payload.name, metric));
+  };
+  const handleMandalClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ name?: string }>(entry);
+    if (!payload?.name) return;
+    openClassicDrilldown({
+      mandal: payload.name,
+      ...(metric ? { metric } : {}),
+    });
+  };
+  const handleRoadTypeChartClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ roadType?: string; name?: string }>(entry);
+    const roadType = payload?.roadType || payload?.name;
+    if (!roadType) return;
+    openClassicDrilldown(getRoadTypeFilters(roadType, metric));
+  };
+  const handleHotspotClick = (place: string, districtName: string, metric?: string) => {
+    openClassicDrilldown({
+      hotspotPlace: place,
+      hotspotDistrict: districtName,
+      ...(metric ? { metric } : {}),
+    });
+  };
+  const handleCauseClick = (filters: AnalyticsClassicDrilldownFilters) => {
+    openClassicDrilldown(filters);
+  };
+  const handleVehicleMixClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ type?: string }>(entry);
+    if (!payload?.type) return;
+    openClassicDrilldown({
+      vehicleType: payload.type,
+      ...(metric ? { metric } : {}),
+    });
+  };
+  const handlePoliceStationClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ name?: string }>(entry);
+    if (!payload?.name) return;
+    openClassicDrilldown({
+      policeStation: payload.name,
+      ...(metric ? { metric } : {}),
+    });
+  };
+  const handleWeekdayClick = (entry: any, metric?: string) => {
+    const payload = getChartPayload<{ day?: string }>(entry);
+    if (!payload?.day) return;
+    openClassicDrilldown({
+      weekday: payload.day,
+      ...(metric ? { metric } : {}),
+    });
+  };
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f6f8fc_0%,#eef3fb_100%)]">
@@ -655,12 +765,90 @@ const EnhancedAnalytics = () => {
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-          <Card className="border-l-4 border-l-red-600 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Accidents</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalAccidents)}</p></div><AlertTriangle className="h-9 w-9 text-red-600/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-orange-600 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Deaths</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalDeaths)}</p></div><Target className="h-9 w-9 text-orange-600/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-amber-500 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Injuries</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalInjuries)}</p></div><Users className="h-9 w-9 text-amber-500/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-blue-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fatality Rate</p><p className="mt-2 text-3xl font-bold text-slate-900">{formatPercent(analyticsData.summary.averageFatalityRate, true)}</p></div><Gauge className="h-9 w-9 text-blue-700/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-emerald-600 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Uploaded</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyUploaded)}</p></div><FileCheck className="h-9 w-9 text-emerald-600/80" /></div></CardContent></Card>
-          <Card className="border-l-4 border-l-slate-700 shadow-sm"><CardContent className="pt-6"><div className="flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Pending</p><p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyPending)}</p></div><Clock className="h-9 w-9 text-slate-700/80" /></div></CardContent></Card>
+          <Card
+            {...getInteractiveCardProps()}
+            className="cursor-pointer border-l-4 border-l-red-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total Accidents</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalAccidents)}</p>
+                </div>
+                <AlertTriangle className="h-9 w-9 text-red-600/80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            {...getInteractiveCardProps({ metric: "deaths" })}
+            className="cursor-pointer border-l-4 border-l-orange-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Deaths</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalDeaths)}</p>
+                </div>
+                <Target className="h-9 w-9 text-orange-600/80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            {...getInteractiveCardProps({ metric: "injuries" })}
+            className="cursor-pointer border-l-4 border-l-amber-500 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Injuries</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.totalInjuries)}</p>
+                </div>
+                <Users className="h-9 w-9 text-amber-500/80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            {...getInteractiveCardProps({ metric: "deaths" })}
+            className="cursor-pointer border-l-4 border-l-blue-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fatality Rate</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{formatPercent(analyticsData.summary.averageFatalityRate, true)}</p>
+                </div>
+                <Gauge className="h-9 w-9 text-blue-700/80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            {...getInteractiveCardProps({ signedCopyStatus: "Uploaded", metric: "signedUploaded" })}
+            className="cursor-pointer border-l-4 border-l-emerald-600 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Uploaded</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyUploaded)}</p>
+                </div>
+                <FileCheck className="h-9 w-9 text-emerald-600/80" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            {...getInteractiveCardProps({ signedCopyStatus: "Pending", metric: "signedPending" })}
+            className="cursor-pointer border-l-4 border-l-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Signed Copy Pending</p>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">{compact(analyticsData.summary.signedCopyPending)}</p>
+                </div>
+                <Clock className="h-9 w-9 text-slate-700/80" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid items-start gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -762,9 +950,34 @@ const EnhancedAnalytics = () => {
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Area type="monotone" dataKey="accidents" stackId="1" stroke="#163a70" fill="#8ea7cb" name="Accidents" />
-                      <Area type="monotone" dataKey="injuries" stackId="2" stroke="#c75b12" fill="#f4c29c" name="Injuries" />
-                      <Line type="monotone" dataKey="deaths" stroke="#aa3d47" strokeWidth={3} name="Deaths" />
+                      <Area
+                        type="monotone"
+                        dataKey="accidents"
+                        stackId="1"
+                        stroke="#163a70"
+                        fill="#8ea7cb"
+                        name="Accidents"
+                        onClick={(entry) => handleTrendClick(entry)}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="injuries"
+                        stackId="2"
+                        stroke="#c75b12"
+                        fill="#f4c29c"
+                        name="Injuries"
+                        onClick={(entry) => handleTrendClick(entry, "injuries")}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="deaths"
+                        stroke="#aa3d47"
+                        strokeWidth={3}
+                        name="Deaths"
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        onClick={(entry) => handleTrendClick(entry, "deaths")}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -782,7 +995,13 @@ const EnhancedAnalytics = () => {
                       <XAxis dataKey="hour" stroke="#64748b" interval={2} />
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
-                      <Bar dataKey="accidents" fill="#163a70" radius={[4, 4, 0, 0]} name="Accidents" />
+                      <Bar
+                        dataKey="accidents"
+                        fill="#163a70"
+                        radius={[4, 4, 0, 0]}
+                        name="Accidents"
+                        onClick={(entry) => handleHourClick(entry)}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -807,8 +1026,20 @@ const EnhancedAnalytics = () => {
                       <YAxis dataKey="name" type="category" width={120} stroke="#64748b" />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="accidents" fill="#163a70" name="Accidents" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="deaths" fill="#c75b12" name="Deaths" radius={[0, 4, 4, 0]} />
+                      <Bar
+                        dataKey="accidents"
+                        fill="#163a70"
+                        name="Accidents"
+                        radius={[0, 4, 4, 0]}
+                        onClick={(entry) => handleComparisonChartClick(entry)}
+                      />
+                      <Bar
+                        dataKey="deaths"
+                        fill="#c75b12"
+                        name="Deaths"
+                        radius={[0, 4, 4, 0]}
+                        onClick={(entry) => handleComparisonChartClick(entry, "deaths")}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -822,7 +1053,19 @@ const EnhancedAnalytics = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={360}>
                     <PieChart>
-                      <Pie data={analyticsData.severityBreakdown} dataKey="count" nameKey="name" innerRadius={65} outerRadius={105} paddingAngle={3}>
+                      <Pie
+                        data={analyticsData.severityBreakdown}
+                        dataKey="count"
+                        nameKey="name"
+                        innerRadius={65}
+                        outerRadius={105}
+                        paddingAngle={3}
+                        onClick={(entry) => {
+                          const payload = getChartPayload<{ name?: string }>(entry);
+                          if (!payload?.name) return;
+                          openClassicDrilldown({ severity: payload.name });
+                        }}
+                      >
                         {analyticsData.severityBreakdown.map((entry, index) => (
                           <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
@@ -851,8 +1094,8 @@ const EnhancedAnalytics = () => {
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="accidents" fill="#163a70" name="Accidents" />
-                      <Bar dataKey="injuries" fill="#d39d11" name="Injuries" />
+                      <Bar dataKey="accidents" fill="#163a70" name="Accidents" onClick={(entry) => handleMandalClick(entry)} />
+                      <Bar dataKey="injuries" fill="#d39d11" name="Injuries" onClick={(entry) => handleMandalClick(entry, "injuries")} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -912,11 +1155,23 @@ const EnhancedAnalytics = () => {
                             <div className="grid flex-1 gap-3 sm:grid-cols-3">
                               <div className="rounded-md bg-slate-50 px-3 py-2">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Accidents</p>
-                                <p className="mt-1 text-lg font-bold text-[#163a70]">{compact(item.accidents)}</p>
+                                <button
+                                  type="button"
+                                  className="mt-1 text-lg font-bold text-[#163a70] transition hover:underline"
+                                  onClick={() => openClassicDrilldown(getRoadTypeFilters(item.roadType))}
+                                >
+                                  {compact(item.accidents)}
+                                </button>
                               </div>
                               <div className="rounded-md bg-red-50 px-3 py-2">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600">Deaths</p>
-                                <p className="mt-1 text-lg font-bold text-red-700">{compact(item.deaths)}</p>
+                                <button
+                                  type="button"
+                                  className="mt-1 text-lg font-bold text-red-700 transition hover:underline"
+                                  onClick={() => openClassicDrilldown(getRoadTypeFilters(item.roadType, "deaths"))}
+                                >
+                                  {compact(item.deaths)}
+                                </button>
                               </div>
                               <div className="rounded-md bg-amber-50 px-3 py-2">
                                 <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Severity</p>
@@ -936,7 +1191,21 @@ const EnhancedAnalytics = () => {
                           <div>
                             <p className="font-semibold text-slate-900">{item.roadType}</p>
                             <p className="mt-1 text-sm text-slate-600">
-                              {compact(item.accidents)} accidents, {compact(item.casualties)} total casualties
+                              <button
+                                type="button"
+                                className="font-semibold text-[#163a70] transition hover:underline"
+                                onClick={() => openClassicDrilldown(getRoadTypeFilters(item.roadType))}
+                              >
+                                {compact(item.accidents)} accidents
+                              </button>
+                              {", "}
+                              <button
+                                type="button"
+                                className="font-semibold text-[#163a70] transition hover:underline"
+                                onClick={() => openClassicDrilldown(getRoadTypeFilters(item.roadType, "casualties"))}
+                              >
+                                {compact(item.casualties)} total casualties
+                              </button>
                             </p>
                           </div>
                           <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-4">
@@ -972,9 +1241,33 @@ const EnhancedAnalytics = () => {
                               ]}
                             />
                             <Legend />
-                            <Bar yAxisId="left" dataKey="accidentShare" fill="#163a70" name="Accident Share %" radius={[4, 4, 0, 0]} />
-                            <Bar yAxisId="left" dataKey="fatalityRate" fill="#c75b12" name="Fatality Rate %" radius={[4, 4, 0, 0]} />
-                            <Line yAxisId="right" type="monotone" dataKey="severityIndex" stroke="#aa3d47" strokeWidth={3} name="Severity Index" />
+                            <Bar
+                              yAxisId="left"
+                              dataKey="accidentShare"
+                              fill="#163a70"
+                              name="Accident Share %"
+                              radius={[4, 4, 0, 0]}
+                              onClick={(entry) => handleRoadTypeChartClick(entry)}
+                            />
+                            <Bar
+                              yAxisId="left"
+                              dataKey="fatalityRate"
+                              fill="#c75b12"
+                              name="Fatality Rate %"
+                              radius={[4, 4, 0, 0]}
+                              onClick={(entry) => handleRoadTypeChartClick(entry, "deaths")}
+                            />
+                            <Line
+                              yAxisId="right"
+                              type="monotone"
+                              dataKey="severityIndex"
+                              stroke="#aa3d47"
+                              strokeWidth={3}
+                              name="Severity Index"
+                              dot={{ r: 3 }}
+                              activeDot={{ r: 5 }}
+                              onClick={(entry) => handleRoadTypeChartClick(entry)}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       </CardContent>
@@ -995,6 +1288,7 @@ const EnhancedAnalytics = () => {
                               outerRadius={105}
                               innerRadius={55}
                               paddingAngle={3}
+                              onClick={(entry) => handleRoadTypeChartClick(entry)}
                             >
                               {roadTypeShareChartData.map((entry, index) => (
                                 <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
@@ -1027,9 +1321,33 @@ const EnhancedAnalytics = () => {
                           <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
                           <Tooltip />
                           <Legend />
-                          <Bar yAxisId="left" dataKey="accidents" fill="#163a70" name="Accidents" radius={[4, 4, 0, 0]} />
-                          <Bar yAxisId="left" dataKey="deaths" fill="#aa3d47" name="Deaths" radius={[4, 4, 0, 0]} />
-                          <Line yAxisId="right" type="monotone" dataKey="casualtiesPerAccident" stroke="#2a7c4a" strokeWidth={3} name="Casualties Per Accident" />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="accidents"
+                            fill="#163a70"
+                            name="Accidents"
+                            radius={[4, 4, 0, 0]}
+                            onClick={(entry) => handleRoadTypeChartClick(entry)}
+                          />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="deaths"
+                            fill="#aa3d47"
+                            name="Deaths"
+                            radius={[4, 4, 0, 0]}
+                            onClick={(entry) => handleRoadTypeChartClick(entry, "deaths")}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="casualtiesPerAccident"
+                            stroke="#2a7c4a"
+                            strokeWidth={3}
+                            name="Casualties Per Accident"
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                            onClick={(entry) => handleRoadTypeChartClick(entry)}
+                          />
                         </BarChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -1055,10 +1373,46 @@ const EnhancedAnalytics = () => {
                         <p className="mt-1 text-sm text-slate-600">{hotspot.district}</p>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-4">
-                        <div><span className="font-semibold">{hotspot.accidents}</span> accidents</div>
-                        <div><span className="font-semibold">{hotspot.deaths}</span> deaths</div>
-                        <div><span className="font-semibold">{hotspot.injured}</span> injured</div>
-                        <div><span className="font-semibold">{hotspot.riskScore}</span> risk score</div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => handleHotspotClick(hotspot.place, hotspot.district)}
+                          >
+                            {hotspot.accidents}
+                          </button>{" "}
+                          accidents
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => handleHotspotClick(hotspot.place, hotspot.district, "deaths")}
+                          >
+                            {hotspot.deaths}
+                          </button>{" "}
+                          deaths
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => handleHotspotClick(hotspot.place, hotspot.district, "injuries")}
+                          >
+                            {hotspot.injured}
+                          </button>{" "}
+                          injured
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => handleHotspotClick(hotspot.place, hotspot.district)}
+                          >
+                            {hotspot.riskScore}
+                          </button>{" "}
+                          risk score
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1088,9 +1442,13 @@ const EnhancedAnalytics = () => {
                             </p>
                             <p className="mt-1 text-xs leading-5 text-slate-500">{entry.cause}</p>
                           </div>
-                          <Badge variant="outline" className="shrink-0">
+                          <button
+                            type="button"
+                            className="shrink-0 rounded-full border border-slate-300 px-3 py-1 text-sm font-semibold text-[#163a70] transition hover:border-[#163a70] hover:bg-[#f4f7fb]"
+                            onClick={() => handleCauseClick({ driverCause: entry.cause })}
+                          >
                             {entry.count}
-                          </Badge>
+                          </button>
                         </div>
                         <div className="mt-3 h-2 rounded-full bg-slate-100">
                           <div
@@ -1125,7 +1483,17 @@ const EnhancedAnalytics = () => {
                 <CardContent>
                   <ResponsiveContainer width="100%" height={360}>
                     <PieChart>
-                      <Pie data={vehicleCauseChartData} dataKey="count" nameKey="shortCause" outerRadius={110}>
+                      <Pie
+                        data={vehicleCauseChartData}
+                        dataKey="count"
+                        nameKey="shortCause"
+                        outerRadius={110}
+                        onClick={(entry) => {
+                          const payload = getChartPayload<{ cause?: string }>(entry);
+                          if (!payload?.cause) return;
+                          handleCauseClick({ vehicleCause: payload.cause });
+                        }}
+                      >
                         {vehicleCauseChartData.map((entry, index) => (
                           <Cell key={entry.cause} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                         ))}
@@ -1156,7 +1524,18 @@ const EnhancedAnalytics = () => {
                           <div key={cause.name}>
                             <div className="mb-1 flex items-center justify-between text-sm">
                               <span className="text-slate-700">{cause.name}</span>
-                              <span className="font-medium text-slate-900">{cause.count}</span>
+                              <button
+                                type="button"
+                                className="font-medium text-[#163a70] transition hover:underline"
+                                onClick={() =>
+                                  handleCauseClick({
+                                    roadEngineeringCategory: group.category,
+                                    roadEngineeringCause: cause.name,
+                                  })
+                                }
+                              >
+                                {cause.count}
+                              </button>
                             </div>
                             <div className="h-2 rounded-full bg-slate-100">
                               <div className="h-2 rounded-full bg-primary" style={{ width: `${Math.min(cause.percentage, 100)}%` }} />
@@ -1182,8 +1561,8 @@ const EnhancedAnalytics = () => {
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="count" fill="#163a70" name="Vehicles" />
-                      <Bar dataKey="deaths" fill="#aa3d47" name="Deaths" />
+                      <Bar dataKey="count" fill="#163a70" name="Vehicles" onClick={(entry) => handleVehicleMixClick(entry)} />
+                      <Bar dataKey="deaths" fill="#aa3d47" name="Deaths" onClick={(entry) => handleVehicleMixClick(entry, "deaths")} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -1206,8 +1585,8 @@ const EnhancedAnalytics = () => {
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="accidents" fill="#163a70" name="Accidents" />
-                      <Bar dataKey="deaths" fill="#c75b12" name="Deaths" />
+                      <Bar dataKey="accidents" fill="#163a70" name="Accidents" onClick={(entry) => handlePoliceStationClick(entry)} />
+                      <Bar dataKey="deaths" fill="#c75b12" name="Deaths" onClick={(entry) => handlePoliceStationClick(entry, "deaths")} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -1229,9 +1608,36 @@ const EnhancedAnalytics = () => {
                       <YAxis stroke="#64748b" allowDecimals={false} />
                       <Tooltip />
                       <Legend />
-                      <Line type="monotone" dataKey="accidents" stroke="#163a70" strokeWidth={3} name="Accidents" />
-                      <Line type="monotone" dataKey="deaths" stroke="#aa3d47" strokeWidth={2} name="Deaths" />
-                      <Line type="monotone" dataKey="injuries" stroke="#d39d11" strokeWidth={2} name="Injuries" />
+                      <Line
+                        type="monotone"
+                        dataKey="accidents"
+                        stroke="#163a70"
+                        strokeWidth={3}
+                        name="Accidents"
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        onClick={(entry) => handleWeekdayClick(entry)}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="deaths"
+                        stroke="#aa3d47"
+                        strokeWidth={2}
+                        name="Deaths"
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        onClick={(entry) => handleWeekdayClick(entry, "deaths")}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="injuries"
+                        stroke="#d39d11"
+                        strokeWidth={2}
+                        name="Injuries"
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        onClick={(entry) => handleWeekdayClick(entry, "injuries")}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -1255,9 +1661,36 @@ const EnhancedAnalytics = () => {
                         <Badge className={severityColors[item.severity] || "bg-slate-50 text-slate-700 border-slate-200"}>{item.severity}</Badge>
                       </div>
                       <div className="grid gap-2 text-sm text-slate-700 sm:grid-cols-4">
-                        <div><span className="font-semibold">{item.accidents}</span> accidents</div>
-                        <div><span className="font-semibold">{item.deaths}</span> deaths</div>
-                        <div><span className="font-semibold">{item.injuries}</span> injuries</div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => openClassicDrilldown(getComparisonFilters(item.name))}
+                          >
+                            {item.accidents}
+                          </button>{" "}
+                          accidents
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => openClassicDrilldown(getComparisonFilters(item.name, "deaths"))}
+                          >
+                            {item.deaths}
+                          </button>{" "}
+                          deaths
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            className="font-semibold text-[#163a70] transition hover:underline"
+                            onClick={() => openClassicDrilldown(getComparisonFilters(item.name, "injuries"))}
+                          >
+                            {item.injuries}
+                          </button>{" "}
+                          injuries
+                        </div>
                         <div><span className="font-semibold">{formatPercent(item.fatalityRate)}</span> fatality rate</div>
                       </div>
                     </div>
@@ -1277,6 +1710,19 @@ const EnhancedAnalytics = () => {
             Back to Dashboard
           </Button>
         </div>
+
+        <AnalyticsSubmissionInspector
+          open={inspectorOpen}
+          onOpenChange={(nextOpen) => {
+            setInspectorOpen(nextOpen);
+            if (!nextOpen) {
+              setInspectorFilters(null);
+            }
+          }}
+          scopeFilters={inspectorScopeFilters}
+          drilldownFilters={inspectorFilters}
+          mode="classic"
+        />
       </div>
     </div>
   );

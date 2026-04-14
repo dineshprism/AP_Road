@@ -37,6 +37,7 @@ interface AnalyticsRow {
   road_engineering_nature: unknown;
   road_engineering_signages: unknown;
   signed_copy_uploaded: boolean;
+  created_at: string;
 }
 
 interface RoadTypeAggregate {
@@ -53,9 +54,40 @@ interface ScopeResult {
   yearNum: number;
   comparisonLabel: string;
   viewLevel: "state" | "district";
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+interface DrilldownSubmissionSummary {
+  id: string;
+  firNumber: string;
+  district: string;
+  placeOfAccident: string;
+  mandal: string;
+  policeStation: string;
+  roadType: string;
+  accidentDate: string;
+  accidentTime: string;
+  personsDied: number;
+  personsInjured: number;
+  createdAt: string;
+  createdDate: string;
+  createdMonth: string;
+  createdMonthLabel: string;
+  createdWeekday: string;
+  lagHours: number;
+  timelinessStatus: "Timely" | "Delayed";
+  delayBand: "Within 24 Hours" | "1-3 Days" | "4-7 Days" | "More Than 7 Days";
+  signedCopyStatus: "Uploaded" | "Pending";
 }
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const REPORT_TIME_ZONE = "Asia/Kolkata";
+const INDIA_OFFSET_MINUTES = 330;
+
+function safeString(value: unknown) {
+  return String(value || "").trim();
+}
 
 function toArray(value: unknown): any[] {
   if (Array.isArray(value)) return value;
@@ -120,6 +152,200 @@ function increment<T extends string | number>(map: Map<T, number>, key: T, value
   map.set(key, (map.get(key) || 0) + value);
 }
 
+function parseAccidentInstant(accidentDate: string, accidentTime: string | null) {
+  const dateMatch = safeString(accidentDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!dateMatch) return null;
+
+  const [, yearText, monthText, dayText] = dateMatch;
+  const timeMatch = safeString(accidentTime).match(/^(\d{1,2})(?::|\.)(\d{1,2})/);
+  const hour = timeMatch ? Number(timeMatch[1]) : 0;
+  const minute = timeMatch ? Number(timeMatch[2]) : 0;
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  const utcMillis =
+    Date.UTC(Number(yearText), Number(monthText) - 1, Number(dayText), hour, minute) -
+    INDIA_OFFSET_MINUTES * 60 * 1000;
+
+  return new Date(utcMillis);
+}
+
+function getLagHours(row: AnalyticsRow) {
+  const createdAt = new Date(row.created_at);
+  const accidentAt = parseAccidentInstant(row.accident_date, row.accident_time);
+  if (Number.isNaN(createdAt.getTime()) || !accidentAt) {
+    return 0;
+  }
+
+  return Math.max(0, (createdAt.getTime() - accidentAt.getTime()) / (1000 * 60 * 60));
+}
+
+function getTimeZoneDateParts(value: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: REPORT_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+
+  const lookup = (type: "year" | "month" | "day") =>
+    safeString(parts.find((part) => part.type === type)?.value);
+
+  return {
+    year: lookup("year"),
+    month: lookup("month"),
+    day: lookup("day"),
+  };
+}
+
+function getLocalDateKey(value: Date) {
+  const parts = getTimeZoneDateParts(value);
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function getLocalMonthKey(value: Date) {
+  const parts = getTimeZoneDateParts(value);
+  return `${parts.year}-${parts.month}`;
+}
+
+function getLocalMonthLabel(value: Date) {
+  return value.toLocaleDateString("en-IN", {
+    month: "short",
+    year: "numeric",
+    timeZone: REPORT_TIME_ZONE,
+  });
+}
+
+function getLocalWeekday(value: Date) {
+  return value.toLocaleDateString("en-IN", {
+    weekday: "short",
+    timeZone: REPORT_TIME_ZONE,
+  });
+}
+
+function getTimelinessStatus(lagHours: number): "Timely" | "Delayed" {
+  return lagHours <= 24 ? "Timely" : "Delayed";
+}
+
+function getDelayBand(lagHours: number): DrilldownSubmissionSummary["delayBand"] {
+  if (lagHours <= 24) return "Within 24 Hours";
+  if (lagHours <= 72) return "1-3 Days";
+  if (lagHours <= 168) return "4-7 Days";
+  return "More Than 7 Days";
+}
+
+function toDrilldownSubmissionSummary(row: AnalyticsRow): DrilldownSubmissionSummary {
+  const createdAt = new Date(row.created_at);
+  const lagHours = getLagHours(row);
+
+  return {
+    id: row.id,
+    firNumber: row.fir_number,
+    district: row.district,
+    placeOfAccident: row.place_of_accident,
+    mandal: row.mandal,
+    policeStation: row.police_station,
+    roadType: row.road_type,
+    accidentDate: row.accident_date,
+    accidentTime: row.accident_time || "",
+    personsDied: Number(row.persons_died || 0),
+    personsInjured: Number(row.persons_injured || 0),
+    createdAt: createdAt.toISOString(),
+    createdDate: getLocalDateKey(createdAt),
+    createdMonth: getLocalMonthKey(createdAt),
+    createdMonthLabel: getLocalMonthLabel(createdAt),
+    createdWeekday: getLocalWeekday(createdAt),
+    lagHours: Number(lagHours.toFixed(1)),
+    timelinessStatus: getTimelinessStatus(lagHours),
+    delayBand: getDelayBand(lagHours),
+    signedCopyStatus: row.signed_copy_uploaded ? "Uploaded" : "Pending",
+  };
+}
+
+function matchesMetric(metric: string, row: AnalyticsRow) {
+  const deaths = Number(row.persons_died || 0);
+  const injuries = Number(row.persons_injured || 0);
+
+  switch (metric) {
+    case "deaths":
+    case "fatal":
+      return deaths > 0;
+    case "injuries":
+      return injuries > 0;
+    case "casualties":
+      return deaths > 0 || injuries > 0;
+    case "damageOnly":
+      return deaths === 0 && injuries === 0;
+    case "signedUploaded":
+      return row.signed_copy_uploaded;
+    case "signedPending":
+      return !row.signed_copy_uploaded;
+    default:
+      return true;
+  }
+}
+
+function buildClassicDrilldownTitle(
+  selection: Record<string, string>,
+  scopeViewLevel: "state" | "district"
+) {
+  const metricLabel = selection.severity
+    ? `${selection.severity} submissions`
+    : selection.metric === "deaths"
+      ? "Death-linked submissions"
+      : selection.metric === "injuries"
+        ? "Injury-linked submissions"
+        : selection.metric === "casualties"
+          ? "Casualty-linked submissions"
+        : selection.metric === "signedUploaded"
+          ? "Signed copy uploaded submissions"
+          : selection.metric === "signedPending"
+            ? "Signed copy pending submissions"
+            : "Accident submissions";
+
+  const contextLabel =
+    selection.hotspotPlace
+      ? `${selection.hotspotPlace}${selection.hotspotDistrict ? `, ${selection.hotspotDistrict}` : ""}`
+      : selection.driverCause
+        ? `driver cause: ${selection.driverCause}`
+        : selection.vehicleCause
+          ? `vehicle cause: ${selection.vehicleCause}`
+          : selection.roadEngineeringCause
+            ? `${selection.roadEngineeringCategory ? `${selection.roadEngineeringCategory} - ` : ""}${selection.roadEngineeringCause}`
+            : selection.vehicleType
+              ? `vehicle type: ${selection.vehicleType}`
+              : selection.policeStation
+                ? `police station: ${selection.policeStation}`
+                : selection.mandal
+                  ? `mandal: ${selection.mandal}`
+                  : selection.roadType
+                    ? `road type: ${selection.roadType}`
+                    : selection.comparisonName
+                      ? scopeViewLevel === "state"
+                        ? `district: ${selection.comparisonName}`
+                        : `police station: ${selection.comparisonName}`
+                      : selection.month
+                        ? `month: ${selection.month}`
+                        : selection.hour
+                          ? `hour: ${selection.hour}`
+                          : selection.weekday
+                            ? `weekday: ${selection.weekday}`
+                            : selection.signedCopyStatus
+                              ? `signed copy: ${selection.signedCopyStatus}`
+                              : "";
+
+  return contextLabel ? `${metricLabel} for ${contextLabel}` : metricLabel;
+}
+
 async function getAccessContext(req: AuthRequest, res: Response) {
   const userId = req.user!.userId;
   const [rolesResult, profileResult] = await Promise.all([
@@ -154,6 +380,8 @@ function buildScopedWhere(
   let whereClause = "1=1";
   let effectiveDistrict: string | null = null;
   const isValidDate = (value?: string) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
+  const rangeStart = isValidDate(fromDate) ? fromDate! : `${yearNum}-01-01`;
+  const rangeEnd = isValidDate(toDate) ? toDate! : isValidDate(fromDate) ? "Latest" : `${yearNum}-12-31`;
 
   if (isValidDate(fromDate)) {
     params.push(fromDate!);
@@ -189,6 +417,8 @@ function buildScopedWhere(
     yearNum,
     comparisonLabel: access?.isAdmin && !effectiveDistrict ? "District" : "Police Station",
     viewLevel: access?.isAdmin && !effectiveDistrict ? "state" : "district",
+    rangeStart,
+    rangeEnd,
   };
 }
 
@@ -198,6 +428,41 @@ function formatLabel(value: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+async function fetchAnalyticsRows(scope: ScopeResult) {
+  const result = await pool.query<AnalyticsRow>(
+    `SELECT
+        id,
+        district,
+        place_of_accident,
+        mandal,
+        police_station,
+        fir_number,
+        road_type,
+        accident_date::text,
+        accident_time,
+        lat_long,
+        persons_died,
+        persons_injured,
+        vehicles,
+        drivers,
+        driver_related_causes,
+        vehicle_condition_causes,
+        road_engineering_culverts,
+        road_engineering_junctions,
+        road_engineering_median,
+        road_engineering_nature,
+        road_engineering_signages,
+        signed_copy_uploaded,
+        created_at
+     FROM accident_submissions
+     WHERE ${scope.whereClause}
+     ORDER BY accident_date DESC, created_at DESC`,
+    scope.params
+  );
+
+  return result.rows;
 }
 
 async function generateGeminiInsights(summaryInput: {
@@ -348,20 +613,7 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
       res.status(400).json({ error: "From date cannot be later than To date" });
       return;
     }
-    const result = await pool.query<AnalyticsRow>(
-      `SELECT
-        id, district, place_of_accident, mandal, police_station, fir_number,
-        road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
-        vehicles, drivers, driver_related_causes, vehicle_condition_causes,
-        road_engineering_culverts, road_engineering_junctions, road_engineering_median,
-        road_engineering_nature, road_engineering_signages, signed_copy_uploaded
-       FROM accident_submissions
-       WHERE ${scope.whereClause}
-       ORDER BY accident_date DESC`,
-      scope.params
-    );
-
-    const rows = result.rows;
+    const rows = await fetchAnalyticsRows(scope);
 
     if (rows.length === 0) {
       res.json({
@@ -856,6 +1108,173 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error("Enhanced analytics error:", err);
     res.status(500).json({ error: `Failed to generate enhanced analytics: ${err.message}` });
+  }
+});
+
+router.get("/enhanced-drilldown", async (req: AuthRequest, res: Response) => {
+  try {
+    const access = await getAccessContext(req, res);
+    if (!access) return;
+
+    const { district, year, fromDate, toDate } = req.query;
+    if (
+      typeof fromDate === "string" &&
+      typeof toDate === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(fromDate) &&
+      /^\d{4}-\d{2}-\d{2}$/.test(toDate) &&
+      fromDate > toDate
+    ) {
+      res.status(400).json({ error: "From date cannot be later than To date" });
+      return;
+    }
+
+    const scope = buildScopedWhere(
+      year as string,
+      district as string,
+      fromDate as string,
+      toDate as string,
+      access
+    );
+    const rows = await fetchAnalyticsRows(scope);
+
+    const selection = {
+      month: safeString(req.query.month),
+      hour: safeString(req.query.hour),
+      comparisonName: safeString(req.query.comparisonName),
+      mandal: safeString(req.query.mandal),
+      roadType: safeString(req.query.roadType),
+      hotspotPlace: safeString(req.query.hotspotPlace),
+      hotspotDistrict: safeString(req.query.hotspotDistrict),
+      driverCause: safeString(req.query.driverCause),
+      vehicleCause: safeString(req.query.vehicleCause),
+      roadEngineeringCategory: safeString(req.query.roadEngineeringCategory),
+      roadEngineeringCause: safeString(req.query.roadEngineeringCause),
+      vehicleType: safeString(req.query.vehicleType),
+      policeStation: safeString(req.query.policeStation),
+      weekday: safeString(req.query.weekday),
+      severity: safeString(req.query.severity),
+      metric: safeString(req.query.metric),
+      signedCopyStatus: safeString(req.query.signedCopyStatus),
+    };
+
+    const filteredRows = rows
+      .filter((row) => {
+        const accidentDate = new Date(row.accident_date);
+        const accidentMonth = MONTH_LABELS[accidentDate.getMonth()] || "";
+        const weekday = accidentDate.toLocaleDateString("en-IN", { weekday: "short" });
+        const summary = toDrilldownSubmissionSummary(row);
+
+        if (selection.month && accidentMonth !== selection.month) return false;
+
+        if (selection.hour) {
+          const selectedHour = parseInt(selection.hour.split(":")[0] || "", 10);
+          if (parseHour(row.accident_time) !== selectedHour) return false;
+        }
+
+        if (selection.comparisonName) {
+          const comparisonName = scope.viewLevel === "state" ? row.district : row.police_station;
+          if (comparisonName !== selection.comparisonName) return false;
+        }
+
+        if (selection.mandal && row.mandal !== selection.mandal) return false;
+        if (selection.roadType && safeString(row.road_type) !== selection.roadType) return false;
+        if (selection.hotspotPlace && row.place_of_accident !== selection.hotspotPlace) return false;
+        if (selection.hotspotDistrict && row.district !== selection.hotspotDistrict) return false;
+        if (selection.policeStation && row.police_station !== selection.policeStation) return false;
+        if (selection.weekday && weekday !== selection.weekday) return false;
+
+        if (selection.signedCopyStatus) {
+          const signedCopyStatus = row.signed_copy_uploaded ? "Uploaded" : "Pending";
+          if (signedCopyStatus !== selection.signedCopyStatus) return false;
+        }
+
+        if (selection.severity) {
+          const deaths = Number(row.persons_died || 0);
+          const injuries = Number(row.persons_injured || 0);
+
+          if (selection.severity === "Fatal" && deaths <= 0) return false;
+          if (selection.severity === "Injury" && (deaths > 0 || injuries <= 0)) return false;
+          if (selection.severity === "Damage Only" && (deaths > 0 || injuries > 0)) return false;
+        }
+
+        if (selection.metric && !matchesMetric(selection.metric, row)) return false;
+
+        if (
+          selection.driverCause &&
+          !truthyKeys(row.driver_related_causes).some((cause) => formatLabel(cause) === selection.driverCause)
+        ) {
+          return false;
+        }
+
+        if (
+          selection.vehicleCause &&
+          !truthyKeys(row.vehicle_condition_causes).some((cause) => formatLabel(cause) === selection.vehicleCause)
+        ) {
+          return false;
+        }
+
+        if (selection.roadEngineeringCause) {
+          const roadEngineeringMaps = [
+            {
+              category: "Culverts and Curves",
+              values: truthyKeys(row.road_engineering_culverts),
+            },
+            {
+              category: "Junctions",
+              values: truthyKeys(row.road_engineering_junctions),
+            },
+            {
+              category: "Median",
+              values: truthyKeys(row.road_engineering_median),
+            },
+            {
+              category: "Nature of Area",
+              values: truthyKeys(row.road_engineering_nature),
+            },
+            {
+              category: "Signages and Road Markings",
+              values: truthyKeys(row.road_engineering_signages),
+            },
+          ];
+
+          const matchingCategory = selection.roadEngineeringCategory
+            ? roadEngineeringMaps.filter((item) => item.category === selection.roadEngineeringCategory)
+            : roadEngineeringMaps;
+
+          const hasMatch = matchingCategory.some((item) =>
+            item.values.some((cause) => formatLabel(cause) === selection.roadEngineeringCause)
+          );
+
+          if (!hasMatch) return false;
+        }
+
+        if (selection.vehicleType) {
+          const hasVehicleType = toArray(row.vehicles).some(
+            (vehicle) => safeString(vehicle?.class_type) === selection.vehicleType
+          );
+          if (!hasVehicleType) return false;
+        }
+
+        return summary.id.length > 0;
+      })
+      .map(toDrilldownSubmissionSummary);
+
+    res.json({
+      title: buildClassicDrilldownTitle(selection, scope.viewLevel),
+      scope: {
+        viewLevel: scope.viewLevel,
+        district: scope.effectiveDistrict,
+        scopeLabel: scope.effectiveDistrict || "Andhra Pradesh",
+        rangeStart: scope.rangeStart,
+        rangeEnd: scope.rangeEnd,
+      },
+      selection,
+      count: filteredRows.length,
+      submissions: filteredRows,
+    });
+  } catch (err: any) {
+    console.error("Enhanced analytics drilldown error:", err);
+    res.status(500).json({ error: `Failed to load drilldown submissions: ${err.message}` });
   }
 });
 

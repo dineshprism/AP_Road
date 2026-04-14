@@ -222,6 +222,55 @@ export const api = {
       return request<any>(`/analytics/enhanced?${params.toString()}`);
     },
 
+    getEnhancedAnalyticsDrilldown(payload: {
+      district?: string;
+      year?: string;
+      fromDate?: string;
+      toDate?: string;
+      month?: string;
+      hour?: string;
+      comparisonName?: string;
+      mandal?: string;
+      roadType?: string;
+      hotspotPlace?: string;
+      hotspotDistrict?: string;
+      driverCause?: string;
+      vehicleCause?: string;
+      roadEngineeringCategory?: string;
+      roadEngineeringCause?: string;
+      vehicleType?: string;
+      policeStation?: string;
+      weekday?: string;
+      severity?: string;
+      metric?: string;
+      signedCopyStatus?: string;
+    }) {
+      const params = new URLSearchParams();
+      if (payload.district && payload.district !== "all") params.set("district", payload.district);
+      if (payload.year) params.set("year", payload.year);
+      if (payload.fromDate) params.set("fromDate", payload.fromDate);
+      if (payload.toDate) params.set("toDate", payload.toDate);
+      if (payload.month) params.set("month", payload.month);
+      if (payload.hour) params.set("hour", payload.hour);
+      if (payload.comparisonName) params.set("comparisonName", payload.comparisonName);
+      if (payload.mandal) params.set("mandal", payload.mandal);
+      if (payload.roadType) params.set("roadType", payload.roadType);
+      if (payload.hotspotPlace) params.set("hotspotPlace", payload.hotspotPlace);
+      if (payload.hotspotDistrict) params.set("hotspotDistrict", payload.hotspotDistrict);
+      if (payload.driverCause) params.set("driverCause", payload.driverCause);
+      if (payload.vehicleCause) params.set("vehicleCause", payload.vehicleCause);
+      if (payload.roadEngineeringCategory) params.set("roadEngineeringCategory", payload.roadEngineeringCategory);
+      if (payload.roadEngineeringCause) params.set("roadEngineeringCause", payload.roadEngineeringCause);
+      if (payload.vehicleType) params.set("vehicleType", payload.vehicleType);
+      if (payload.policeStation) params.set("policeStation", payload.policeStation);
+      if (payload.weekday) params.set("weekday", payload.weekday);
+      if (payload.severity) params.set("severity", payload.severity);
+      if (payload.metric) params.set("metric", payload.metric);
+      if (payload.signedCopyStatus) params.set("signedCopyStatus", payload.signedCopyStatus);
+
+      return request<any>(`/analytics/enhanced-drilldown?${params.toString()}`);
+    },
+
     getAnalyticsPro(payload: { district?: string; year?: string; fromDate?: string; toDate?: string }) {
       const params = new URLSearchParams();
       if (payload.district && payload.district !== "all") params.set("district", payload.district);
