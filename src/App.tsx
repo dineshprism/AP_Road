@@ -10,6 +10,7 @@ import UserDashboard from "./pages/UserDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdgpDashboard from "./pages/AdgpDashboard";
 import EnhancedAnalytics from "./pages/EnhancedAnalytics";
+import AnalyticsPro from "./pages/AnalyticsPro";
 import AccidentForm from "./pages/AccidentForm";
 import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
@@ -105,6 +106,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <EnhancedAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics/pro"
+                  element={
+                    <ProtectedRoute>
+                      <AnalyticsPro />
                     </ProtectedRoute>
                   }
                 />

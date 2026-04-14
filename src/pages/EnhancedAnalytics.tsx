@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AlertTriangle, BarChart3, Brain, Calculator, Calendar as CalendarIcon, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, ShieldCheck, Target, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Brain, Calculator, Calendar as CalendarIcon, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, Target, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
@@ -400,7 +400,6 @@ const EnhancedAnalytics = () => {
   const chartPoliceStations = (analyticsData.policeStationAnalysis || []).slice(0, 10);
   const chartMandals = analyticsData.mandalAnalysis.slice(0, 8);
   const chartHotspots = analyticsData.hotspotsLocations.slice(0, 8);
-  const chartCoverage = analyticsData.fieldCompleteness || [];
   const topRoadTypeByVolume = analyticsData.roadTypeInsights.highestVolume;
   const topRoadTypeBySeverity = analyticsData.roadTypeInsights.highestSeverityIndex;
   const topRoadTypeByFatalityRate = analyticsData.roadTypeInsights.highestFatalityRate;
@@ -479,6 +478,14 @@ const EnhancedAnalytics = () => {
                 </div>
               </DialogContent>
             </Dialog>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/analytics/pro")}
+              className="border-[#c75b12]/20 bg-[#fff7ef] text-[#a54910] shadow-sm hover:bg-[#fee8d6] hover:text-[#8c420f]"
+            >
+              <Brain className="mr-2 h-4 w-4" />
+              Analytics Pro
+            </Button>
           </div>
           <p className="hidden text-xs font-medium text-slate-500 sm:block">
             Quick access while reviewing analytics
@@ -1185,47 +1192,6 @@ const EnhancedAnalytics = () => {
           </TabsContent>
 
           <TabsContent value="quality" className="space-y-5">
-            <div className="grid gap-5 xl:grid-cols-2">
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <ShieldCheck className="h-5 w-5 text-emerald-700" />
-                    Documentation & Submission Compliance
-                  </CardTitle>
-                  <CardDescription>Signed copies, GPS availability, and supporting record completeness</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={analyticsData.signedCopyAnalysis}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="name" stroke="#64748b" />
-                      <YAxis stroke="#64748b" allowDecimals={false} />
-                      <Tooltip />
-                      <Bar dataKey="count" fill="#2a7c4a" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-lg">Field Completeness Coverage</CardTitle>
-                  <CardDescription>Availability of major investigation inputs across the submission pool</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={chartCoverage} layout="vertical" margin={{ left: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis type="number" stroke="#64748b" domain={[0, 100]} />
-                      <YAxis dataKey="field" type="category" width={150} stroke="#64748b" />
-                      <Tooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
-                      <Bar dataKey="coverage" fill="#163a70" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </div>
-
             <div className="grid gap-5 xl:grid-cols-2">
               <Card className="shadow-sm">
                 <CardHeader>

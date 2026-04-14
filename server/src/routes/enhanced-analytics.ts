@@ -128,7 +128,7 @@ async function getAccessContext(req: AuthRequest, res: Response) {
   ]);
 
   const roles = rolesResult.rows.map((row) => row.role as string);
-  const isAdmin = roles.some((role) => ["admin", "dgp", "adgp"].includes(role));
+  const isAdmin = roles.some((role) => ["admin", "dgp", "adgp", "prism"].includes(role));
   const profileDistrict = profileResult.rows[0]?.district as string | undefined;
 
   if (!isAdmin && !profileDistrict) {

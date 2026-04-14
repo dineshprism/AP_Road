@@ -222,6 +222,49 @@ export const api = {
       return request<any>(`/analytics/enhanced?${params.toString()}`);
     },
 
+    getAnalyticsPro(payload: { district?: string; year?: string; fromDate?: string; toDate?: string }) {
+      const params = new URLSearchParams();
+      if (payload.district && payload.district !== "all") params.set("district", payload.district);
+      if (payload.year) params.set("year", payload.year);
+      if (payload.fromDate) params.set("fromDate", payload.fromDate);
+      if (payload.toDate) params.set("toDate", payload.toDate);
+
+      return request<any>(`/analytics/pro?${params.toString()}`);
+    },
+
+    getAnalyticsProDrilldown(payload: {
+      district?: string;
+      year?: string;
+      fromDate?: string;
+      toDate?: string;
+      submissionDistrict?: string;
+      policeStation?: string;
+      roadType?: string;
+      createdDate?: string;
+      createdMonth?: string;
+      timelinessStatus?: string;
+      delayBand?: string;
+      signedCopyStatus?: string;
+      createdWeekday?: string;
+    }) {
+      const params = new URLSearchParams();
+      if (payload.district && payload.district !== "all") params.set("district", payload.district);
+      if (payload.year) params.set("year", payload.year);
+      if (payload.fromDate) params.set("fromDate", payload.fromDate);
+      if (payload.toDate) params.set("toDate", payload.toDate);
+      if (payload.submissionDistrict) params.set("submissionDistrict", payload.submissionDistrict);
+      if (payload.policeStation) params.set("policeStation", payload.policeStation);
+      if (payload.roadType) params.set("roadType", payload.roadType);
+      if (payload.createdDate) params.set("createdDate", payload.createdDate);
+      if (payload.createdMonth) params.set("createdMonth", payload.createdMonth);
+      if (payload.timelinessStatus) params.set("timelinessStatus", payload.timelinessStatus);
+      if (payload.delayBand) params.set("delayBand", payload.delayBand);
+      if (payload.signedCopyStatus) params.set("signedCopyStatus", payload.signedCopyStatus);
+      if (payload.createdWeekday) params.set("createdWeekday", payload.createdWeekday);
+
+      return request<any>(`/analytics/pro-drilldown?${params.toString()}`);
+    },
+
     export(format: string, filters: { district?: string; year?: string }) {
       const params = new URLSearchParams();
       params.set("format", format);
