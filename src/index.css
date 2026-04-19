@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -41,6 +41,7 @@
     --gov-green: 140 85% 27%;
     --gov-light: 220 20% 96%;
     --gov-dark: 230 25% 10%;
+    --analytics-display-font: 'Sora', 'Noto Sans', sans-serif;
     --sidebar-background: 224 76% 17%;
     --sidebar-foreground: 0 0% 95%;
     --sidebar-primary: 28 92% 47%;
@@ -159,6 +160,109 @@
     white-space: nowrap;
     will-change: transform;
   }
+
+  .analytics-display-font {
+    font-family: var(--analytics-display-font);
+    letter-spacing: -0.03em;
+  }
+
+  .analytics-vfx-stage {
+    isolation: isolate;
+    position: relative;
+  }
+
+  .analytics-grid-floor {
+    background-image:
+      linear-gradient(to right, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+    background-size: 36px 36px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 88%);
+  }
+
+  .analytics-liquid-panel {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+  }
+
+  .analytics-liquid-panel::before {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.08));
+    content: "";
+    inset: 0;
+    opacity: 0.75;
+    pointer-events: none;
+    position: absolute;
+  }
+
+  .analytics-liquid-panel > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .analytics-sheen {
+    overflow: hidden;
+  }
+
+  .analytics-sheen::after {
+    animation: analytics-sheen 12s linear infinite;
+    background: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.08) 38%, rgba(255, 255, 255, 0.28) 50%, rgba(255, 255, 255, 0.06) 62%, transparent 100%);
+    content: "";
+    height: 180%;
+    left: -30%;
+    pointer-events: none;
+    position: absolute;
+    top: -40%;
+    transform: rotate(14deg);
+    width: 42%;
+  }
+
+  .analytics-elevate {
+    transition:
+      transform 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      box-shadow 280ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 280ms ease;
+  }
+
+  .analytics-elevate:hover {
+    border-color: rgba(99, 132, 255, 0.22);
+    box-shadow: 0 30px 80px -40px rgba(15, 23, 42, 0.46);
+    transform: translateY(-3px);
+  }
+
+  .analytics-orb {
+    border-radius: 9999px;
+    filter: blur(16px);
+    position: absolute;
+    will-change: transform;
+  }
+
+  .analytics-orb--blue {
+    animation: analytics-float 18s ease-in-out infinite;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.28) 0%, rgba(59, 130, 246, 0) 72%);
+  }
+
+  .analytics-orb--gold {
+    animation: analytics-float 20s ease-in-out infinite reverse;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.24) 0%, rgba(245, 158, 11, 0) 74%);
+  }
+
+  .analytics-orb--teal {
+    animation: analytics-float 22s ease-in-out infinite;
+    background: radial-gradient(circle, rgba(20, 184, 166, 0.2) 0%, rgba(20, 184, 166, 0) 72%);
+  }
+
+  .analytics-chip {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.58));
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    border-radius: 9999px;
+    box-shadow: 0 18px 40px -34px rgba(15, 23, 42, 0.32);
+    color: #0f172a;
+  }
+
+  .analytics-stage-divider {
+    background: linear-gradient(90deg, rgba(22, 58, 112, 0), rgba(22, 58, 112, 0.18), rgba(245, 158, 11, 0.18), rgba(22, 58, 112, 0));
+    height: 1px;
+  }
 }
 
 @keyframes gov-marquee-scroll {
@@ -167,5 +271,38 @@
   }
   100% {
     transform: translateX(-100%);
+  }
+}
+
+@keyframes analytics-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(0, -18px, 0) scale(1.05);
+  }
+}
+
+@keyframes analytics-sheen {
+  0% {
+    transform: translateX(-180%) rotate(14deg);
+  }
+  100% {
+    transform: translateX(360%) rotate(14deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gov-instruction-marquee__viewport span,
+  .analytics-orb--blue,
+  .analytics-orb--gold,
+  .analytics-orb--teal,
+  .analytics-sheen::after {
+    animation: none !important;
+  }
+
+  .analytics-elevate {
+    transition: none;
   }
 }

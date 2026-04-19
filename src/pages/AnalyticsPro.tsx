@@ -1,4 +1,4 @@
-import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
+﻿import { type ComponentType, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import {
@@ -19,6 +19,7 @@ import {
   YAxis,
 } from "recharts";
 import GovHeader from "@/components/GovHeader";
+import AccidentChat from "@/components/AccidentChat";
 import AnalyticsSubmissionInspector, {
   AnalyticsClassicDrilldownFilters,
   AnalyticsProDrilldownFilters,
@@ -174,6 +175,58 @@ interface EnhancedAnalyticsData {
     predictiveAnalysis: string;
     riskFactors: string[];
   };
+}
+
+interface DrilldownSubmissionSummary {
+  id: string;
+  firNumber: string;
+  district: string;
+  placeOfAccident: string;
+  mandal: string;
+  policeStation: string;
+  roadType: string;
+  accidentDate: string;
+  accidentTime: string;
+  personsDied: number;
+  personsInjured: number;
+  createdAt: string;
+  createdDate: string;
+  createdMonth: string;
+  createdMonthLabel: string;
+  createdWeekday: string;
+  lagHours: number;
+  timelinessStatus: "Timely" | "Delayed";
+  delayBand: string;
+  signedCopyStatus: "Uploaded" | "Pending";
+}
+
+interface DrilldownResponse {
+  title: string;
+  scope: {
+    viewLevel: "state" | "district";
+    district: string | null;
+    scopeLabel: string;
+    rangeStart: string;
+    rangeEnd: string;
+  };
+  count: number;
+  submissions: DrilldownSubmissionSummary[];
+}
+
+type ChatScopeKey = "hotspot" | "fatal" | "delayed" | "road" | "time" | "watchlist";
+
+interface ChatStudioScope {
+  key: ChatScopeKey;
+  label: string;
+  description: string;
+  helper: string;
+  badge: string;
+  count: number;
+  mode: "classic" | "pro";
+  filters: AnalyticsClassicDrilldownFilters | AnalyticsProDrilldownFilters;
+  sortBy: "createdAt" | "lagHours" | "deaths";
+  maxSubmissions: number;
+  emptyMessage: string;
 }
 
 type InspectorRequest =
@@ -363,7 +416,7 @@ function MetricCard({
   onClick?: () => void;
 }) {
   return (
-    <Card className="overflow-hidden border-slate-200 shadow-sm">
+    <Card className="analytics-liquid-panel analytics-elevate analytics-sheen overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_72px_-46px_rgba(15,23,42,0.44)] backdrop-blur">
       <div className={cn("h-1.5", accent)} />
       <CardContent className="pt-5">
         <div className="flex items-start justify-between gap-4">
@@ -371,21 +424,44 @@ function MetricCard({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{title}</p>
             {onClick ? (
               <Button variant="ghost" className="mt-2 h-auto px-0 py-0 text-left hover:bg-transparent" onClick={onClick}>
-                <span className="text-3xl font-bold tracking-tight text-slate-900">{value}</span>
+                <span className="analytics-display-font text-3xl font-bold tracking-tight text-slate-900">{value}</span>
                 <ArrowUpRight className="ml-2 h-4 w-4 text-slate-400" />
               </Button>
             ) : (
-              <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
+              <p className="analytics-display-font mt-2 text-3xl font-bold tracking-tight text-slate-900">{value}</p>
             )}
             <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
           </div>
-          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(226,232,240,0.95)_100%)] text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <Icon className="h-5 w-5" />
           </span>
         </div>
       </CardContent>
     </Card>
   );
+}
+
+function sortChatSubmissions(submissions: DrilldownSubmissionSummary[], sortBy: ChatStudioScope["sortBy"]) {
+  const sorted = [...submissions];
+
+  sorted.sort((a, b) => {
+    if (sortBy === "lagHours") {
+      return b.lagHours - a.lagHours || b.createdAt.localeCompare(a.createdAt);
+    }
+
+    if (sortBy === "deaths") {
+      return (
+        b.personsDied - a.personsDied ||
+        b.personsInjured - a.personsInjured ||
+        b.lagHours - a.lagHours ||
+        b.createdAt.localeCompare(a.createdAt)
+      );
+    }
+
+    return b.createdAt.localeCompare(a.createdAt);
+  });
+
+  return sorted;
 }
 
 const AnalyticsPro = () => {
@@ -402,6 +478,10 @@ const AnalyticsPro = () => {
   const [enhancedData, setEnhancedData] = useState<EnhancedAnalyticsData | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorRequest, setInspectorRequest] = useState<InspectorRequest>(null);
+  const [chatScope, setChatScope] = useState<ChatScopeKey>("hotspot");
+  const [chatData, setChatData] = useState<DrilldownResponse | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -525,6 +605,296 @@ const AnalyticsPro = () => {
     vehicleCauseCoverage.coverage,
     roadCoverage.coverage,
   ]);
+  const topPerformer = rankingRows[0] || null;
+  const watchlistPerformer = rankingRows[rankingRows.length - 1] || null;
+  const topHotspot = enhancedData?.hotspotsLocations[0] || null;
+  const topComparison = enhancedData?.comparisonData[0] || null;
+  const topRoadBySeverity = enhancedData?.roadTypeInsights.highestSeverityIndex || null;
+  const topVehicleType = enhancedData?.vehicleAnalysis[0] || null;
+  const topCauseCategory = causeCategoryMix[0] || null;
+  const peakTimeBucket = [...timeBucketAnalysis].sort((a, b) => b.accidents - a.accidents)[0] || null;
+  const riskSummary = enhancedData?.summary || {
+    totalAccidents: 0,
+    totalDeaths: 0,
+    totalInjuries: 0,
+    averageDeathsPerAccident: 0,
+    averageFatalityRate: 0,
+    totalVehicles: 0,
+    totalDrivers: 0,
+    averageVehiclesPerAccident: 0,
+    peakAccidentHour: "",
+    peakAccidentMonth: "",
+    mostDangerousRoadType: "",
+    signedCopyUploaded: 0,
+    signedCopyPending: 0,
+  };
+  const timeSummary = timelinessData?.summary || {
+    totalSubmissions: 0,
+    timelySubmissions: 0,
+    delayedSubmissions: 0,
+    timelyRate: 0,
+    averageLagHours: 0,
+    signedCopyUploaded: 0,
+    signedCopyPending: 0,
+    districtsCovered: 0,
+    activeStations: 0,
+  };
+  const topFiveHotspotShare =
+    riskSummary.totalAccidents > 0
+      ? ((enhancedData?.hotspotsLocations.slice(0, 5).reduce((sum, item) => sum + item.accidents, 0) || 0) / riskSummary.totalAccidents) * 100
+      : 0;
+  const nightSummary = dayNightSplit.find((item) => item.label === "Night") || { label: "Night", accidents: 0, deaths: 0, injuries: 0 };
+  const nightShare = riskSummary.totalAccidents ? (nightSummary.accidents / riskSummary.totalAccidents) * 100 : 0;
+  const delayPressure = timeSummary.totalSubmissions ? (timeSummary.delayedSubmissions / timeSummary.totalSubmissions) * 100 : 0;
+  const casualtyDensity = riskSummary.totalAccidents
+    ? (riskSummary.totalDeaths + riskSummary.totalInjuries) / riskSummary.totalAccidents
+    : 0;
+  const documentationGap = Math.max(0, 100 - documentationCoverage);
+  const fatalCasesCount = enhancedData?.severityBreakdown.find((item) => item.name === "Fatal")?.count || 0;
+  const severeDelayCount = timelinessData?.delayBands.find((item) => item.band === "More Than 7 Days")?.count || 0;
+  const rankingTitle = timelinessData?.scope.viewLevel === "state"
+    ? "District Submission Timeliness"
+    : "Police Station Submission Timeliness";
+  const rankingDescription = timelinessData?.scope.viewLevel === "state"
+    ? "Districts are ranked by on-time submission rate, then by volume and average lag."
+    : "Police stations are ranked within the current district scope using on-time rate and delay profile.";
+  const leadershipSignals = useMemo(
+    () => [
+      {
+        label: "Hotspot Concentration",
+        value: formatPercent(topFiveHotspotShare),
+        description: `Top 5 hotspots account for ${compact(enhancedData?.hotspotsLocations.slice(0, 5).reduce((sum, item) => sum + item.accidents, 0) || 0)} crashes in scope.`,
+      },
+      {
+        label: "Night Burden",
+        value: formatPercent(nightShare),
+        description: `${compact(nightSummary.accidents)} crashes and ${compact(nightSummary.deaths)} deaths occurred in the night window.`,
+      },
+      {
+        label: "Response Friction",
+        value: formatPercent(delayPressure),
+        description: `${compact(timeSummary.delayedSubmissions)} submissions missed the 24-hour response line.`,
+      },
+      {
+        label: "Casualty Density",
+        value: `${casualtyDensity.toFixed(2)}`,
+        description: "Deaths and injuries combined per accident, useful for severity prioritisation.",
+      },
+      {
+        label: "Documentation Gap",
+        value: formatPercent(documentationGap),
+        description: "Average missing share across geo, vehicle, driver, cause, and engineering fields.",
+      },
+      {
+        label: "High-Risk Road",
+        value: topRoadBySeverity?.roadType || "Not available",
+        description: topRoadBySeverity
+          ? `${topRoadBySeverity.severityIndex.toFixed(2)} severity index with ${compact(topRoadBySeverity.accidents)} crashes.`
+          : "No road severity pattern available.",
+      },
+    ],
+    [
+      casualtyDensity,
+      delayPressure,
+      documentationGap,
+      enhancedData?.hotspotsLocations,
+      nightShare,
+      nightSummary.accidents,
+      nightSummary.deaths,
+      timeSummary.delayedSubmissions,
+      topFiveHotspotShare,
+      topRoadBySeverity,
+    ]
+  );
+  const roadResponseMatrix = useMemo(() => {
+    const roadTimelinessMap = new Map((timelinessData?.roadTimeliness || []).map((item) => [item.name, item]));
+
+    return (enhancedData?.roadTypeAnalysis || [])
+      .map((item) => {
+        const ops = roadTimelinessMap.get(item.roadType);
+        return {
+          roadType: item.roadType,
+          accidents: item.accidents,
+          severityIndex: item.severityIndex,
+          timelyRate: ops?.timelyRate || 0,
+          averageLagHours: ops?.averageLagHours || 0,
+          signedCopyPending: ops?.signedCopyPending || 0,
+        };
+      })
+      .filter((item) => item.accidents > 0)
+      .sort((a, b) => b.severityIndex - a.severityIndex || b.accidents - a.accidents)
+      .slice(0, 6);
+  }, [enhancedData?.roadTypeAnalysis, timelinessData?.roadTimeliness]);
+  const chatScopes = useMemo<ChatStudioScope[]>(
+    () => [
+      {
+        key: "hotspot",
+        label: "Hotspot Cluster",
+        description: topHotspot ? `${topHotspot.place}, ${topHotspot.district}` : "Highest concentration location in current scope",
+        helper: "Use this when DIG needs a location-specific narrative on repeat crash pressure, local causes, and immediate interventions.",
+        badge: topHotspot ? `${compact(topHotspot.accidents)} crashes` : "Awaiting hotspot data",
+        count: topHotspot?.accidents || 0,
+        mode: "classic",
+        filters: topHotspot ? { hotspotPlace: topHotspot.place, hotspotDistrict: topHotspot.district } : {},
+        sortBy: "deaths",
+        maxSubmissions: 10,
+        emptyMessage: "No hotspot-linked submissions are available for the current selection.",
+      },
+      {
+        key: "fatal",
+        label: "Fatal Cases",
+        description: "Deaths-linked submissions across the active command window",
+        helper: "Best for casualty-heavy review notes, cause synthesis, and leadership talking points on fatal crash reduction.",
+        badge: `${compact(fatalCasesCount)} fatal submissions`,
+        count: fatalCasesCount,
+        mode: "classic",
+        filters: { metric: "deaths" },
+        sortBy: "deaths",
+        maxSubmissions: 10,
+        emptyMessage: "No fatal submissions are available for the current selection.",
+      },
+      {
+        key: "delayed",
+        label: "Critical Delays",
+        description: "Submissions delayed by more than seven days",
+        helper: "Use this to investigate operational friction, documentation lag, and supervisory bottlenecks.",
+        badge: `${compact(severeDelayCount)} severe delays`,
+        count: severeDelayCount,
+        mode: "pro",
+        filters: { delayBand: "More Than 7 Days" },
+        sortBy: "lagHours",
+        maxSubmissions: 8,
+        emptyMessage: "No severe-delay submissions are available for the current selection.",
+      },
+      {
+        key: "road",
+        label: "High Severity Road",
+        description: topRoadBySeverity?.roadType || "Road type with the highest severity index",
+        helper: "Useful for a systemic road-safety discussion that ties severity, engineering, and enforcement response together.",
+        badge: topRoadBySeverity ? `${topRoadBySeverity.severityIndex.toFixed(2)} severity index` : "Awaiting road severity",
+        count: topRoadBySeverity?.accidents || 0,
+        mode: "classic",
+        filters: topRoadBySeverity ? { roadType: topRoadBySeverity.roadType } : {},
+        sortBy: "deaths",
+        maxSubmissions: 10,
+        emptyMessage: "No high-severity road submissions are available for the current selection.",
+      },
+      {
+        key: "time",
+        label: "Peak Risk Window",
+        description: peakTimeBucket?.label || "Highest-pressure time bucket in the current scope",
+        helper: "Use this for staffing, patrol placement, and time-window intervention reviews.",
+        badge: peakTimeBucket ? `${compact(peakTimeBucket.accidents)} crashes` : "Awaiting time-pattern data",
+        count: peakTimeBucket?.accidents || 0,
+        mode: "classic",
+        filters: peakTimeBucket ? { timeBucket: peakTimeBucket.label } : {},
+        sortBy: "deaths",
+        maxSubmissions: 10,
+        emptyMessage: "No peak-window submissions are available for the current selection.",
+      },
+      {
+        key: "watchlist",
+        label: "Watchlist Unit",
+        description: watchlistPerformer?.name || "Lowest-performing operational unit in the active scope",
+        helper: "Focus this when DIG needs a direct conversation on why the weakest unit is slipping on timeliness or documentation quality.",
+        badge: watchlistPerformer ? `${formatPercent(watchlistPerformer.timelyRate)} timely rate` : "Awaiting unit watchlist",
+        count: watchlistPerformer?.totalSubmissions || 0,
+        mode: "pro",
+        filters: timelinessData?.scope.viewLevel === "state"
+          ? { submissionDistrict: watchlistPerformer?.name || undefined }
+          : { policeStation: watchlistPerformer?.name || undefined },
+        sortBy: "lagHours",
+        maxSubmissions: 8,
+        emptyMessage: "No watchlist-unit submissions are available for the current selection.",
+      },
+    ],
+    [
+      fatalCasesCount,
+      peakTimeBucket,
+      severeDelayCount,
+      timelinessData?.scope.viewLevel,
+      topHotspot,
+      topRoadBySeverity,
+      watchlistPerformer,
+    ]
+  );
+  const selectedChatScope = chatScopes.find((scope) => scope.key === chatScope) || chatScopes[0];
+
+  useEffect(() => {
+    if (!user || !timelinessData || !enhancedData || !selectedChatScope) return;
+
+    let active = true;
+    setChatLoading(true);
+    setChatError(null);
+
+    if (selectedChatScope.count === 0) {
+      setChatData({
+        title: selectedChatScope.label,
+        scope: {
+          viewLevel: timelinessData.scope.viewLevel,
+          district: timelinessData.scope.district,
+          scopeLabel: timelinessData.scope.scopeLabel,
+          rangeStart: timelinessData.scope.rangeStart,
+          rangeEnd: timelinessData.scope.rangeEnd,
+        },
+        count: 0,
+        submissions: [],
+      });
+      setChatLoading(false);
+      return;
+    }
+
+    const request =
+      selectedChatScope.mode === "classic"
+        ? api.analytics.getEnhancedAnalyticsDrilldown({
+            ...scopeFilters,
+            ...(selectedChatScope.filters as AnalyticsClassicDrilldownFilters),
+          })
+        : api.analytics.getAnalyticsProDrilldown({
+            ...scopeFilters,
+            ...(selectedChatScope.filters as AnalyticsProDrilldownFilters),
+          });
+
+    request
+      .then(({ data, error }) => {
+        if (!active) return;
+        if (error || !data) {
+          setChatData(null);
+          setChatError(error || "Failed to load AI studio context");
+          return;
+        }
+
+        const orderedSubmissions = sortChatSubmissions(data.submissions, selectedChatScope.sortBy);
+        setChatData({
+          ...data,
+          submissions: orderedSubmissions.slice(0, selectedChatScope.maxSubmissions),
+        });
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        console.error("Failed to load AI studio scope:", error);
+        setChatData(null);
+        setChatError("Failed to load AI studio context");
+      })
+      .finally(() => {
+        if (active) setChatLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [enhancedData, scopeFilters, selectedChatScope, timelinessData, user]);
+  const chatSubmissions = useMemo(
+    () =>
+      (chatData?.submissions || []).map((submission) => ({
+        id: submission.id,
+        fir_number: submission.firNumber,
+        district: submission.district,
+        place_of_accident: submission.placeOfAccident,
+        mandal: submission.mandal,
+      })),
+    [chatData?.submissions]
+  );
 
   if (loading || authLoading) {
     return (
@@ -563,57 +933,45 @@ const AnalyticsPro = () => {
     );
   }
 
-  const riskSummary = enhancedData.summary;
-  const timeSummary = timelinessData.summary;
-  const rankingTitle = timelinessData.scope.viewLevel === "state"
-    ? "District Submission Timeliness"
-    : "Police Station Submission Timeliness";
-  const rankingDescription = timelinessData.scope.viewLevel === "state"
-    ? "Districts are ranked by on-time submission rate, then by volume and average lag."
-    : "Police stations are ranked within the current district scope using on-time rate and delay profile.";
-  const topPerformer = rankingRows[0];
-  const watchlistPerformer = rankingRows[rankingRows.length - 1];
-  const topHotspot = enhancedData.hotspotsLocations[0];
-  const topComparison = enhancedData.comparisonData[0];
-  const topRoadBySeverity = enhancedData.roadTypeInsights.highestSeverityIndex;
-  const topVehicleType = enhancedData.vehicleAnalysis[0];
-  const topCauseCategory = causeCategoryMix[0];
-  const peakTimeBucket = [...timeBucketAnalysis].sort((a, b) => b.accidents - a.accidents)[0];
-  const topFiveHotspotShare =
-    riskSummary.totalAccidents > 0
-      ? (enhancedData.hotspotsLocations.slice(0, 5).reduce((sum, item) => sum + item.accidents, 0) / riskSummary.totalAccidents) * 100
-      : 0;
-
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#eef6ff_0%,transparent_36%),radial-gradient(circle_at_top_right,#fff5e8_0%,transparent_24%),linear-gradient(180deg,#f8fbff_0%,#eef4fb_52%,#f7fbff_100%)]">
+    <div className="analytics-vfx-stage min-h-screen bg-[radial-gradient(circle_at_top_left,#eef6ff_0%,transparent_34%),radial-gradient(circle_at_top_right,#fff4e6_0%,transparent_24%),linear-gradient(180deg,#f7fbff_0%,#eef4fb_52%,#f6fbff_100%)]">
       <GovHeader />
 
-      <div className="sticky top-[86px] z-40 border-b border-slate-200 bg-white/85 shadow-sm backdrop-blur">
+      <div className="pointer-events-none absolute inset-x-0 top-[86px] -z-10 h-[760px] overflow-hidden">
+        <div className="analytics-orb analytics-orb--blue left-[-8%] top-8 h-80 w-80" />
+        <div className="analytics-orb analytics-orb--gold right-[4%] top-16 h-72 w-72" />
+        <div className="analytics-orb analytics-orb--teal left-[32%] top-[280px] h-64 w-64" />
+      </div>
+
+      <div className="sticky top-[86px] z-40 border-b border-white/70 bg-white/68 shadow-[0_18px_48px_-34px_rgba(15,23,42,0.38)] backdrop-blur-xl">
         <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => navigate(goBack)} className="bg-white shadow-sm">
+            <Button variant="outline" onClick={() => navigate(goBack)} className="border-white/75 bg-white/82 shadow-sm backdrop-blur">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Button>
-            <Button variant="outline" onClick={() => navigate("/analytics")} className="bg-white shadow-sm">
+            <Button variant="outline" onClick={() => navigate("/analytics")} className="border-white/75 bg-white/82 shadow-sm backdrop-blur">
               <BarChart3 className="mr-2 h-4 w-4" />
               Classic Analytics
             </Button>
-            <Button className="bg-[#163a70] text-white hover:bg-[#214b85]">
+            <Button className="bg-[linear-gradient(135deg,#163a70_0%,#2b5c8f_100%)] text-white shadow-[0_18px_36px_-24px_rgba(22,58,112,0.82)] hover:opacity-95">
               <Sparkles className="mr-2 h-4 w-4" />
               Analytics Pro
             </Button>
           </div>
 
-          <p className="text-xs font-medium text-slate-500">
-            Operational counts and most charts can open matching submissions.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
+            <Badge variant="outline" className="analytics-chip border-white/80 bg-white/70 px-3 py-1 text-slate-700">
+              {timelinessData.scope.scopeLabel}
+            </Badge>
+            <span>Operational counts and charts can open matching submissions.</span>
+          </div>
         </div>
       </div>
 
-      <div className="container mx-auto space-y-6 px-4 py-6">
-        <Card className="overflow-hidden border-slate-200 shadow-[0_24px_64px_-38px_rgba(15,23,42,0.45)]">
-          <div className="bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-6 py-6 text-white">
+      <div className="container mx-auto space-y-7 px-4 py-6">
+        <Card className="analytics-liquid-panel analytics-sheen overflow-hidden border border-white/60 bg-white/20 shadow-[0_34px_95px_-52px_rgba(15,23,42,0.56)] backdrop-blur-xl">
+          <div className="bg-[linear-gradient(135deg,rgba(10,33,71,0.98)_0%,rgba(22,58,112,0.96)_48%,rgba(31,138,112,0.9)_100%)] px-6 py-6 text-white">
             <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr]">
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -623,35 +981,35 @@ const AnalyticsPro = () => {
                 </div>
 
                 <div>
-                  <h1 className="text-3xl font-bold tracking-tight">Analytics Pro Command Center</h1>
-                  <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-200">
-                    A unified control room for ADGP, DGP, and PRISM leadership that blends crash outcomes, hotspot risk, causation signals, data quality, and submission discipline in one cleaner workspace.
+                  <h1 className="analytics-display-font text-4xl font-bold tracking-tight xl:text-[3.6rem]">Analytics Pro Command Center</h1>
+                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-200">
+                    A premium command view for ADGP, DGP, PRISM, and DIG review that connects crash outcomes, hotspot pressure, systemic road risk, operational delays, data quality, and AI-assisted briefing in one polished workspace.
                   </p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Top Hotspot</p>
                     <p className="mt-2 text-base font-semibold text-white">{topHotspot ? `${topHotspot.place}, ${topHotspot.district}` : "Not available"}</p>
                     <p className="mt-1 text-sm text-slate-200">
                       {topHotspot ? `${compact(topHotspot.accidents)} crashes and ${topHotspot.riskScore} risk score` : "No hotspot record available"}
                     </p>
                   </div>
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Highest Severity Road</p>
                     <p className="mt-2 text-base font-semibold text-white">{topRoadBySeverity?.roadType || "Not available"}</p>
                     <p className="mt-1 text-sm text-slate-200">
                       {topRoadBySeverity ? `${topRoadBySeverity.severityIndex.toFixed(2)} severity index` : "No road-type pattern available"}
                     </p>
                   </div>
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Peak Risk Window</p>
                     <p className="mt-2 text-base font-semibold text-white">{peakTimeBucket?.label || "Not available"}</p>
                     <p className="mt-1 text-sm text-slate-200">
                       {peakTimeBucket ? `${compact(peakTimeBucket.accidents)} crashes in this DSR bucket` : "No time pattern available"}
                     </p>
                   </div>
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Dominant Cause Group</p>
                     <p className="mt-2 text-base font-semibold text-white">{topCauseCategory?.category || "Not available"}</p>
                     <p className="mt-1 text-sm text-slate-200">
@@ -661,7 +1019,7 @@ const AnalyticsPro = () => {
                 </div>
               </div>
 
-              <div className="rounded-[32px] border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <div className="analytics-liquid-panel rounded-[32px] border border-white/15 bg-white/10 p-5 backdrop-blur">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-semibold text-white">Filter Window</p>
@@ -786,12 +1144,12 @@ const AnalyticsPro = () => {
                 </div>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Scope View</p>
                     <p className="mt-2 text-lg font-semibold text-white">{timelinessData.scope.viewLevel === "state" ? "State Command" : "District Command"}</p>
                     <p className="mt-1 text-sm text-slate-200">Comparison layer: {enhancedData.scope.comparisonLabel}</p>
                   </div>
-                  <div className="rounded-[24px] border border-white/15 bg-white/10 px-4 py-4">
+                  <div className="analytics-liquid-panel rounded-[24px] border border-white/15 bg-white/10 px-4 py-4">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200">Top 5 Hotspot Share</p>
                     <p className="mt-2 text-lg font-semibold text-white">{formatPercent(topFiveHotspotShare)}</p>
                     <p className="mt-1 text-sm text-slate-200">Share of total crashes carried by the current top 5 hotspots.</p>
@@ -852,35 +1210,204 @@ const AnalyticsPro = () => {
           />
         </div>
 
+        <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
+          <Card className="analytics-liquid-panel analytics-elevate analytics-sheen overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_80px_-44px_rgba(15,23,42,0.46)] backdrop-blur">
+            <CardHeader className="pb-3">
+              <CardTitle className="analytics-display-font text-xl">Leadership Signal Deck</CardTitle>
+              <CardDescription>Six high-signal readings that compress crash intensity, operational friction, and data readiness into one review strip.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {leadershipSignals.map((signal) => (
+                <div key={signal.label} className="analytics-elevate rounded-[24px] border border-white/80 bg-white/82 p-4 shadow-[0_20px_55px_-40px_rgba(15,23,42,0.32)]">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{signal.label}</p>
+                  <p className="analytics-display-font mt-3 text-2xl font-semibold text-slate-900">{signal.value}</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">{signal.description}</p>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="analytics-liquid-panel analytics-elevate analytics-sheen overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_80px_-44px_rgba(15,23,42,0.46)] backdrop-blur">
+            <CardHeader className="pb-3">
+              <CardTitle className="analytics-display-font text-xl">Risk-to-Response Matrix</CardTitle>
+              <CardDescription>Joins road severity with submission timeliness so leadership can see where network risk and operational drag intersect.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {roadResponseMatrix.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-slate-300 bg-slate-50/80 px-4 py-5 text-sm text-slate-500">
+                  No joined road-risk and response data is available for the current selection.
+                </div>
+              ) : (
+                roadResponseMatrix.map((item) => (
+                  <div key={item.roadType} className="analytics-elevate rounded-[24px] border border-white/80 bg-white/84 p-4 shadow-[0_20px_55px_-40px_rgba(15,23,42,0.32)]">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-base font-semibold text-slate-900">{item.roadType}</p>
+                        <p className="mt-1 text-sm text-slate-600">{compact(item.accidents)} crashes with average lag {formatLagHours(item.averageLagHours)}</p>
+                      </div>
+                      <Badge variant="outline" className="border-slate-300 bg-white text-slate-700">
+                        Severity {item.severityIndex.toFixed(2)}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-[18px] bg-slate-50 px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Timely Rate</p>
+                        <p className="mt-2 text-lg font-semibold text-slate-900">{formatPercent(item.timelyRate)}</p>
+                      </div>
+                      <div className="rounded-[18px] bg-slate-50 px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Pending Signed</p>
+                        <p className="mt-2 text-lg font-semibold text-slate-900">{compact(item.signedCopyPending)}</p>
+                      </div>
+                      <div className="rounded-[18px] bg-slate-50 px-3 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Action Cue</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900">
+                          {item.timelyRate < 70 ? "Escalate supervision" : item.severityIndex > 1 ? "Prioritise corridor fixes" : "Maintain watch"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="analytics-liquid-panel analytics-elevate analytics-sheen overflow-hidden border border-white/75 bg-white/78 shadow-[0_30px_84px_-44px_rgba(15,23,42,0.46)] backdrop-blur">
+          <div className="h-1.5 bg-[linear-gradient(90deg,#163a70_0%,#2b5c8f_38%,#1f8a70_100%)]" />
+          <CardHeader className="pb-4">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="analytics-chip border-white/80 bg-white/70 px-3 py-1 text-slate-700">AI Briefing Studio</Badge>
+                  <Badge variant="outline" className="border-slate-300 bg-white/80 text-slate-700">
+                    {chatLoading ? "Refreshing context" : `${compact(chatData?.count || 0)} matched submissions`}
+                  </Badge>
+                </div>
+                <CardTitle className="analytics-display-font mt-4 text-2xl text-slate-900">Conversation Studio</CardTitle>
+                <CardDescription className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                  Switch AI context instantly between hotspot clusters, fatal cases, delayed submissions, high-severity roads, peak risk windows, and the watchlist unit. The conversation panel then auto-builds a briefing from those submissions.
+                </CardDescription>
+              </div>
+              <div className="rounded-[22px] border border-white/80 bg-white/82 px-4 py-3 shadow-[0_18px_42px_-34px_rgba(15,23,42,0.26)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Active Context</p>
+                <p className="mt-2 text-sm font-semibold text-slate-900">{selectedChatScope?.label || "AI Studio"}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{selectedChatScope?.badge}</p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {chatScopes.map((scope) => {
+                const isActive = selectedChatScope?.key === scope.key;
+                return (
+                  <button
+                    key={scope.key}
+                    type="button"
+                    onClick={() => setChatScope(scope.key)}
+                    className={cn(
+                      "analytics-elevate rounded-[24px] border px-4 py-4 text-left shadow-[0_20px_55px_-40px_rgba(15,23,42,0.3)] transition-all",
+                      isActive
+                        ? "border-[#163a70]/30 bg-[linear-gradient(135deg,rgba(22,58,112,0.09)_0%,rgba(31,138,112,0.08)_100%)]"
+                        : "border-white/80 bg-white/82"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{scope.label}</p>
+                        <p className="mt-2 text-sm font-semibold text-slate-900">{scope.description}</p>
+                      </div>
+                      <Badge variant="outline" className={cn("border-slate-300 bg-white text-slate-700", isActive && "border-[#163a70]/30 text-[#163a70]")}>
+                        {compact(scope.count)}
+                      </Badge>
+                    </div>
+                    <p className="mt-3 text-xs leading-5 text-slate-600">{scope.helper}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-[28px] border border-white/80 bg-white/84 p-5 shadow-[0_24px_70px_-44px_rgba(15,23,42,0.3)]">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Briefing Prompt</p>
+                  <p className="mt-2 text-lg font-semibold text-slate-900">{selectedChatScope?.label || "AI Studio"}</p>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{selectedChatScope?.helper}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {chatData?.scope.scopeLabel && (
+                    <Badge variant="outline" className="border-slate-300 bg-white text-slate-700">{chatData.scope.scopeLabel}</Badge>
+                  )}
+                  {selectedChatScope?.badge && (
+                    <Badge variant="outline" className="border-slate-300 bg-white text-slate-700">{selectedChatScope.badge}</Badge>
+                  )}
+                </div>
+              </div>
+              {chatData?.submissions.length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {chatData.submissions.slice(0, 4).map((submission) => (
+                    <Badge key={submission.id} variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
+                      {submission.firNumber} - {submission.placeOfAccident}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-slate-500">
+                  {chatError || selectedChatScope?.emptyMessage || "No AI context is available for this selection."}
+                </p>
+              )}
+            </div>
+
+            {chatError && (
+              <div className="rounded-[22px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {chatError}
+              </div>
+            )}
+
+            {chatLoading && (
+              <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Preparing AI context for the selected briefing mode...
+              </div>
+            )}
+
+            <AccidentChat
+              isOpen={!chatLoading}
+              variant="panel"
+              title={selectedChatScope ? `${selectedChatScope.label} AI Briefing` : "AI Briefing"}
+              submissions={chatLoading ? [] : chatSubmissions}
+              className="min-h-[780px] border-white/70 bg-white/65"
+            />
+          </CardContent>
+        </Card>
+
         <div className="grid gap-4 xl:grid-cols-4">
-          <Card className="border-slate-200 shadow-sm xl:col-span-1">
+          <Card className="analytics-liquid-panel analytics-elevate overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_80px_-44px_rgba(15,23,42,0.46)] backdrop-blur xl:col-span-1">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Executive Pulse</CardTitle>
               <CardDescription>Immediate command indicators from the current selection.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+              <div className="rounded-[24px] border border-white/80 bg-white p-4 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.3)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Most Exposed Road Type</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{enhancedData.roadTypeInsights.highestVolume?.roadType || "Not available"}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   {enhancedData.roadTypeInsights.highestVolume ? `${formatPercent(enhancedData.roadTypeInsights.highestVolume.accidentShare)} of crashes in scope` : "No road share available"}
                 </p>
               </div>
-              <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+              <div className="rounded-[24px] border border-white/80 bg-white p-4 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.3)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Most Active Comparison Unit</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{topComparison?.name || "Not available"}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   {topComparison ? `${compact(topComparison.accidents)} crashes and ${formatPercent(topComparison.fatalityRate)}` : "No comparison record"}
                 </p>
               </div>
-              <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+              <div className="rounded-[24px] border border-white/80 bg-white p-4 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.3)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Most Involved Vehicle Type</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{topVehicleType?.type || "Not available"}</p>
                 <p className="mt-1 text-sm text-slate-600">
                   {topVehicleType ? `${compact(topVehicleType.count)} records with ${compact(topVehicleType.deaths)} deaths` : "No vehicle mix available"}
                 </p>
               </div>
-              <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+              <div className="rounded-[24px] border border-white/80 bg-white p-4 shadow-[0_20px_55px_-42px_rgba(15,23,42,0.3)]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Documentation Coverage</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{formatPercent(documentationCoverage)}</p>
                 <p className="mt-1 text-sm text-slate-600">Average of geo-tagging, vehicle, driver, cause, and engineering coverage.</p>
@@ -888,7 +1415,7 @@ const AnalyticsPro = () => {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200 shadow-sm xl:col-span-3">
+          <Card className="analytics-liquid-panel analytics-elevate overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_80px_-44px_rgba(15,23,42,0.46)] backdrop-blur xl:col-span-3">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Analytics Pro Workspace</CardTitle>
               <CardDescription>Switch between network risk, operations, cause intelligence, and data quality views.</CardDescription>
@@ -896,17 +1423,17 @@ const AnalyticsPro = () => {
             <CardContent className="px-0 pb-0">
               <Tabs defaultValue="overview" className="w-full">
                 <div className="px-6 pb-2">
-                  <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 md:grid-cols-4">
-                    <TabsTrigger value="overview" className="rounded-xl py-2.5">Network Risk</TabsTrigger>
-                    <TabsTrigger value="operations" className="rounded-xl py-2.5">Operations</TabsTrigger>
-                    <TabsTrigger value="causes" className="rounded-xl py-2.5">Causes</TabsTrigger>
-                    <TabsTrigger value="quality" className="rounded-xl py-2.5">Quality</TabsTrigger>
+                  <TabsList className="grid h-auto w-full grid-cols-2 rounded-[20px] border border-white/75 bg-[linear-gradient(180deg,rgba(248,250,252,0.96)_0%,rgba(241,245,249,0.88)_100%)] p-1 md:grid-cols-4">
+                    <TabsTrigger value="overview" className="rounded-[16px] py-2.5">Network Risk</TabsTrigger>
+                    <TabsTrigger value="operations" className="rounded-[16px] py-2.5">Operations</TabsTrigger>
+                    <TabsTrigger value="causes" className="rounded-[16px] py-2.5">Causes</TabsTrigger>
+                    <TabsTrigger value="quality" className="rounded-[16px] py-2.5">Quality</TabsTrigger>
                   </TabsList>
                 </div>
 
                 <TabsContent value="overview" className="mt-0 space-y-5 px-6 pb-6">
                   <div className="grid gap-5 xl:grid-cols-[1.25fr_0.75fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Accident Trend and Casualty Load</CardTitle>
                         <CardDescription>Monthly crash volume with deaths and injuries for the selected scope.</CardDescription>
@@ -963,7 +1490,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Severity and Day/Night Split</CardTitle>
                         <CardDescription>Crash consequence mix with operating-time split.</CardDescription>
@@ -1011,7 +1538,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">DSR Time Buckets</CardTitle>
                         <CardDescription>Eight operational time windows aligned to road-safety review practice.</CardDescription>
@@ -1051,7 +1578,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Road-Type Severity Ladder</CardTitle>
                         <CardDescription>Where exposure is highest and where each crash is most severe.</CardDescription>
@@ -1113,7 +1640,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Top Hotspots</CardTitle>
                         <CardDescription>High-risk places ranked by combined volume and casualty severity.</CardDescription>
@@ -1154,7 +1681,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">{enhancedData.scope.comparisonLabel} Risk Ranking</CardTitle>
                         <CardDescription>Priority units based on crash volume and casualty burden in the current scope.</CardDescription>
@@ -1202,7 +1729,7 @@ const AnalyticsPro = () => {
 
                 <TabsContent value="operations" className="mt-0 space-y-5 px-6 pb-6">
                   <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">{rankingTitle}</CardTitle>
                         <CardDescription>{rankingDescription}</CardDescription>
@@ -1265,7 +1792,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Submission Cadence</CardTitle>
                         <CardDescription>Monthly creation trend split into timely and delayed submissions.</CardDescription>
@@ -1305,7 +1832,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Delay Bands</CardTitle>
                         <CardDescription>Where the current submission backlog is sitting across delay windows.</CardDescription>
@@ -1332,7 +1859,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Road-Type Submission Timeliness</CardTitle>
                         <CardDescription>Road categories where reporting discipline is strongest or slipping.</CardDescription>
@@ -1374,7 +1901,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Weekday Submission Rhythm</CardTitle>
                         <CardDescription>Operational flow of timely and delayed submissions across the week.</CardDescription>
@@ -1414,7 +1941,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Late Submission Watchlist</CardTitle>
                         <CardDescription>Most delayed records ready for immediate review.</CardDescription>
@@ -1455,7 +1982,7 @@ const AnalyticsPro = () => {
 
                 <TabsContent value="causes" className="mt-0 space-y-5 px-6 pb-6">
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Driver-Related Causes</CardTitle>
                         <CardDescription>Most frequent driver-side contributors across the selected submissions.</CardDescription>
@@ -1496,7 +2023,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Vehicle Condition Issues</CardTitle>
                         <CardDescription>Mechanical or fitness factors captured by field officers.</CardDescription>
@@ -1525,7 +2052,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Engineering and Road Environment Factors</CardTitle>
                         <CardDescription>Category-wise road and junction deficiencies referenced in submissions.</CardDescription>
@@ -1567,7 +2094,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Vehicle Mix in Crashes</CardTitle>
                         <CardDescription>Vehicle categories most frequently involved in reported cases.</CardDescription>
@@ -1609,7 +2136,7 @@ const AnalyticsPro = () => {
 
                 <TabsContent value="quality" className="mt-0 space-y-5 px-6 pb-6">
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Field Completeness Coverage</CardTitle>
                         <CardDescription>How consistently officers are capturing the critical submission details.</CardDescription>
@@ -1643,7 +2170,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Police Station Load and Weekly Crash Rhythm</CardTitle>
                         <CardDescription>Operational stress signals by station and by weekday.</CardDescription>
@@ -1718,7 +2245,7 @@ const AnalyticsPro = () => {
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">AI Analytical Brief</CardTitle>
                         <CardDescription>Supplementary executive summary generated from the current accident pattern.</CardDescription>
@@ -1749,7 +2276,7 @@ const AnalyticsPro = () => {
                       </CardContent>
                     </Card>
 
-                    <Card className="border-slate-200 shadow-sm">
+                    <Card className="analytics-elevate border-white/75 bg-white/86 shadow-[0_26px_72px_-46px_rgba(15,23,42,0.38)]">
                       <CardHeader>
                         <CardTitle className="text-lg">Submission Readiness Snapshot</CardTitle>
                         <CardDescription>Documentation and command-quality indicators for the current scope.</CardDescription>
@@ -1820,3 +2347,4 @@ const AnalyticsPro = () => {
 };
 
 export default AnalyticsPro;
+
