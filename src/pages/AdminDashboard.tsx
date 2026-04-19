@@ -104,11 +104,11 @@ const AdminDashboard = () => {
               DSR Reports
             </Button>
             <Button 
-              onClick={() => navigate("/analytics")} 
+              onClick={() => navigate("/analytics/pro")} 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold shadow-md flex items-center gap-2"
             >
               <BarChart3 className="w-4 h-4" />
-              Analytics Dashboard
+              Analytics Pro
             </Button>
           </div>
         </div>

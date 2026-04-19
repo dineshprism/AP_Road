@@ -144,6 +144,19 @@ function parseHour(timeText: string | null): number | null {
   return Number.isNaN(hour) || hour < 0 || hour > 23 ? null : hour;
 }
 
+function getTimeBucketLabel(timeText: string | null) {
+  const hour = parseHour(timeText);
+  if (hour == null) return null;
+  if (hour >= 6 && hour < 9) return "06.00 to 09.00 (Day)";
+  if (hour >= 9 && hour < 12) return "09.00 to 12.00 (Day)";
+  if (hour >= 12 && hour < 15) return "12.00 to 15.00 (Day)";
+  if (hour >= 15 && hour < 18) return "15.00 to 18.00 (Day)";
+  if (hour >= 18 && hour < 21) return "18.00 to 21.00 (Night)";
+  if (hour >= 21 && hour < 24) return "21.00 to 24.00 (Night)";
+  if (hour >= 0 && hour < 3) return "00.00 to 03.00 (Night)";
+  return "03.00 to 06.00 (Night)";
+}
+
 function safePercentage(numerator: number, denominator: number): number {
   return denominator > 0 ? (numerator / denominator) * 100 : 0;
 }
@@ -335,6 +348,8 @@ function buildClassicDrilldownTitle(
                         : `police station: ${selection.comparisonName}`
                       : selection.month
                         ? `month: ${selection.month}`
+                        : selection.timeBucket
+                          ? `time bucket: ${selection.timeBucket}`
                         : selection.hour
                           ? `hour: ${selection.hour}`
                           : selection.weekday
@@ -1140,6 +1155,7 @@ router.get("/enhanced-drilldown", async (req: AuthRequest, res: Response) => {
     const selection = {
       month: safeString(req.query.month),
       hour: safeString(req.query.hour),
+      timeBucket: safeString(req.query.timeBucket),
       comparisonName: safeString(req.query.comparisonName),
       mandal: safeString(req.query.mandal),
       roadType: safeString(req.query.roadType),
@@ -1165,6 +1181,7 @@ router.get("/enhanced-drilldown", async (req: AuthRequest, res: Response) => {
         const summary = toDrilldownSubmissionSummary(row);
 
         if (selection.month && accidentMonth !== selection.month) return false;
+        if (selection.timeBucket && getTimeBucketLabel(row.accident_time) !== selection.timeBucket) return false;
 
         if (selection.hour) {
           const selectedHour = parseInt(selection.hour.split(":")[0] || "", 10);

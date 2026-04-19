@@ -229,6 +229,7 @@ export const api = {
       toDate?: string;
       month?: string;
       hour?: string;
+      timeBucket?: string;
       comparisonName?: string;
       mandal?: string;
       roadType?: string;
@@ -252,6 +253,7 @@ export const api = {
       if (payload.toDate) params.set("toDate", payload.toDate);
       if (payload.month) params.set("month", payload.month);
       if (payload.hour) params.set("hour", payload.hour);
+      if (payload.timeBucket) params.set("timeBucket", payload.timeBucket);
       if (payload.comparisonName) params.set("comparisonName", payload.comparisonName);
       if (payload.mandal) params.set("mandal", payload.mandal);
       if (payload.roadType) params.set("roadType", payload.roadType);

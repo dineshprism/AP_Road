@@ -134,8 +134,8 @@ const PrismDashboard = () => {
             <Button variant="outline" onClick={() => navigate("/dsr-reports")}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> DSR Reports
             </Button>
-            <Button variant="outline" onClick={() => navigate("/analytics")}>
-              <Activity className="mr-2 h-4 w-4" /> Analytics
+            <Button variant="outline" onClick={() => navigate("/analytics/pro")}>
+              <Activity className="mr-2 h-4 w-4" /> Analytics Pro
             </Button>
             <Button onClick={() => void fetchActivity()}>
               <RefreshCcw className="mr-2 h-4 w-4" /> Refresh Logs

@@ -41,6 +41,7 @@ export interface AnalyticsProDrilldownFilters {
 export interface AnalyticsClassicDrilldownFilters {
   month?: string;
   hour?: string;
+  timeBucket?: string;
   comparisonName?: string;
   mandal?: string;
   roadType?: string;
@@ -125,9 +126,19 @@ interface SubmissionDetail {
   road_engineering_median?: Record<string, boolean>;
   road_engineering_nature?: Record<string, boolean>;
   road_engineering_signages?: Record<string, boolean>;
+  prepared_by_name?: string | null;
+  prepared_by_designation?: string | null;
+  prepared_by_date?: string | null;
+  verified_by_name?: string | null;
+  verified_by_designation?: string | null;
+  verified_by_date?: string | null;
+  approved_by_name?: string | null;
+  approved_by_designation?: string | null;
+  approved_by_date?: string | null;
   signed_copy_uploaded?: boolean;
   signed_copy_name?: string | null;
   signed_copy_url?: string | null;
+  signed_copy_uploaded_at?: string | null;
 }
 
 interface AnalyticsSubmissionInspectorProps {
@@ -179,6 +190,53 @@ function InfoItem({ label, value }: { label: string; value: string | number | nu
     <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
       <p className="mt-2 text-sm font-medium text-slate-900">{value || "Not available"}</p>
+    </div>
+  );
+}
+
+function WorkflowStageCard({
+  stage,
+  name,
+  designation,
+  date,
+}: {
+  stage: string;
+  name?: string | null;
+  designation?: string | null;
+  date?: string | null;
+}) {
+  const isComplete = Boolean(name || designation || date);
+
+  return (
+    <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-900">{stage}</p>
+        <Badge
+          variant="outline"
+          className={cn(
+            isComplete
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+              : "border-amber-200 bg-amber-50 text-amber-700"
+          )}
+        >
+          {isComplete ? "Captured" : "Pending"}
+        </Badge>
+      </div>
+
+      <div className="mt-4 space-y-2 text-sm">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Officer</p>
+          <p className="mt-1 font-medium text-slate-900">{name || "Not available"}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Designation</p>
+          <p className="mt-1 text-slate-700">{designation || "Not available"}</p>
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Date</p>
+          <p className="mt-1 text-slate-700">{date ? formatDate(date) : "Not available"}</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -299,8 +357,9 @@ const AnalyticsSubmissionInspector = ({
 
     try {
       await openProtectedAsset(selectedDetail.signed_copy_url);
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to open signed copy");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to open signed copy";
+      toast.error(message);
     }
   };
 
@@ -601,7 +660,57 @@ const AnalyticsSubmissionInspector = ({
                           <InfoItem label="Accident Time" value={selectedDetail.accident_time} />
                           <InfoItem label="GPS Coordinates" value={selectedDetail.lat_long} />
                           <InfoItem label="Signed Copy" value={selectedDetail.signed_copy_uploaded ? "Uploaded" : "Pending"} />
+                          <InfoItem label="Signed Copy File" value={selectedDetail.signed_copy_name} />
+                          <InfoItem label="Signed Copy Uploaded At" value={selectedDetail.signed_copy_uploaded_at ? formatDateTime(selectedDetail.signed_copy_uploaded_at) : null} />
                           <InfoItem label="Submission Created" value={selectedDetail.created_at ? formatDateTime(selectedDetail.created_at) : selectedSummary?.createdAt ? formatDateTime(selectedSummary.createdAt) : null} />
+                        </div>
+
+                        <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] p-5 shadow-sm">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">Submission Workflow Chain</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                Review the preparation, verification, and approval details captured for this submission.
+                              </p>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                selectedDetail.prepared_by_name &&
+                                selectedDetail.verified_by_name &&
+                                selectedDetail.approved_by_name
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "border-amber-200 bg-amber-50 text-amber-700"
+                              )}
+                            >
+                              {selectedDetail.prepared_by_name &&
+                              selectedDetail.verified_by_name &&
+                              selectedDetail.approved_by_name
+                                ? "Workflow complete"
+                                : "Workflow pending"}
+                            </Badge>
+                          </div>
+
+                          <div className="mt-4 grid gap-4 xl:grid-cols-3">
+                            <WorkflowStageCard
+                              stage="Prepared By"
+                              name={selectedDetail.prepared_by_name}
+                              designation={selectedDetail.prepared_by_designation}
+                              date={selectedDetail.prepared_by_date}
+                            />
+                            <WorkflowStageCard
+                              stage="Verified By"
+                              name={selectedDetail.verified_by_name}
+                              designation={selectedDetail.verified_by_designation}
+                              date={selectedDetail.verified_by_date}
+                            />
+                            <WorkflowStageCard
+                              stage="Approved By"
+                              name={selectedDetail.approved_by_name}
+                              designation={selectedDetail.approved_by_designation}
+                              date={selectedDetail.approved_by_date}
+                            />
+                          </div>
                         </div>
 
                         {(selectedDetail.vehicles?.length || selectedDetail.drivers?.length || selectedDetail.victim_details?.length) && (
@@ -646,7 +755,7 @@ const AnalyticsSubmissionInspector = ({
                                   <div key={`${victim.name}-${index}`} className="rounded-2xl bg-slate-50 p-3">
                                     <p className="text-sm font-medium text-slate-900">{victim.name}</p>
                                     <p className="mt-1 text-xs text-slate-500">
-                                      {victim.status === "died" ? "Died" : `${formatLabel(victim.injury_type || "injured")} injury`} • {victim.age} yrs
+                                      {victim.status === "died" ? "Died" : `${formatLabel(victim.injury_type || "injured")} injury`} | {victim.age} yrs
                                     </p>
                                   </div>
                                 ))}
