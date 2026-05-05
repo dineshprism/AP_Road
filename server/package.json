@@ -11,7 +11,9 @@
     "seed": "tsx tools/seeds/scripts/seed-users.ts",
     "seed:demo": "tsx tools/seeds/scripts/seed-demo-submissions.ts",
     "seed:prism": "tsx tools/seeds/scripts/seed-prism-demo-submissions.ts",
-    "sync:cctns": "tsx tools/sync-cctns-masterdata.ts"
+    "sync:cctns": "tsx tools/sync-cctns-masterdata.ts",
+    "data:export:gcp": "tsx tools/data-migration/export-gcp-data.ts",
+    "data:import:aws": "tsx tools/data-migration/import-aws-data.ts"
   },
   "dependencies": {
     "@google/genai": "^1.46.0",

@@ -17,6 +17,12 @@ dist-ssr
 .env.docker
 server/.env
 
+# Live database migration exports
+migration-export/
+server/migration-export/
+*.migration.json
+road-accident-data.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
