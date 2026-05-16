@@ -37,6 +37,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com", "https://maps.gstatic.com"],
       frameSrc: ["'self'"],
       objectSrc: ["'none'"],
+      upgradeInsecureRequests: null,
     },
   },
 }));
