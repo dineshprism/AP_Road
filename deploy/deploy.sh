@@ -42,8 +42,10 @@ if [ ! -f "$ENV_FILE" ]; then
     exit 1
 fi
 
-# Symlink .env into the app directory
+# Symlink production env into the app directory.
+# docker compose reads .env for variable substitution and .env.docker as env_file.
 ln -sf "$ENV_FILE" "$APP_DIR/app/.env"
+ln -sf "$ENV_FILE" "$APP_DIR/app/.env.docker"
 
 # --- Build and start ---
 echo "=== Building and starting containers ==="
