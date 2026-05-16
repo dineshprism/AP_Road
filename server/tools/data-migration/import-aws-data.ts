@@ -51,6 +51,27 @@ async function getPrimaryKeyColumns(client: import("pg").PoolClient, tableName: 
   return result.rows.map((row) => row.column_name);
 }
 
+async function getJsonColumns(client: import("pg").PoolClient, tableName: string) {
+  const result = await client.query<{ column_name: string }>(
+    `SELECT column_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND table_name = $1
+       AND data_type IN ('json', 'jsonb')`,
+    [tableName]
+  );
+
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+function prepareImportValue(value: unknown, isJsonColumn: boolean) {
+  if (!isJsonColumn || value === null || value === undefined) {
+    return value ?? null;
+  }
+
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
 async function insertRows(
   client: import("pg").PoolClient,
   tableName: string,
@@ -67,6 +88,7 @@ async function insertRows(
   }
 
   const primaryKeyColumns = await getPrimaryKeyColumns(client, tableName);
+  const jsonColumns = await getJsonColumns(client, tableName);
   const updatableColumns = columns.filter((column) => !primaryKeyColumns.includes(column));
   const quotedColumns = columns.map(quoteIdentifier).join(", ");
   const placeholders = columns.map((_, index) => `$${index + 1}`).join(", ");
@@ -84,7 +106,7 @@ async function insertRows(
   for (const row of rows) {
     await client.query(
       sql,
-      columns.map((column) => row[column] ?? null)
+      columns.map((column) => prepareImportValue(row[column], jsonColumns.has(column)))
     );
   }
 
