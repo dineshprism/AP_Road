@@ -433,34 +433,60 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
         throw err;
       }
 
-      const localFallback = await analyzeWithLocalRag({
-        submissions,
-        question:
-          question ||
-          "Analyze this accident briefly and provide the main causes, key risks, and best preventive actions.",
-        history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
-      });
+      const fallbackQuestion =
+        question ||
+        "Analyze this accident briefly and provide the main causes, key risks, and best preventive actions.";
 
-      res.json({
-        response: localFallback.response,
-        model: localFallback.model,
-        mode: "local-rag-fallback",
-        submission: {
-          id: submission.id,
-          fir_number: submission.fir_number,
-          location: `${submission.place_of_accident}, ${submission.mandal}`,
-          district: submission.district
-        },
-        performance: {
-          response_time: 0,
+      try {
+        const localFallback = await analyzeWithLocalRag({
+          submissions,
+          question: fallbackQuestion,
+          history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
+        });
+
+        res.json({
+          response: localFallback.response,
           model: localFallback.model,
-          tokens: 0,
-          api: "Local fallback",
-          optimization: "ollama-rag"
-        },
-        retrieval: localFallback.retrieval,
-        contextSubmissions: localFallback.contextSubmissions,
-      });
+          mode: "local-rag-fallback",
+          submission: {
+            id: submission.id,
+            fir_number: submission.fir_number,
+            location: `${submission.place_of_accident}, ${submission.mandal}`,
+            district: submission.district
+          },
+          performance: {
+            response_time: 0,
+            model: localFallback.model,
+            tokens: 0,
+            api: "Local fallback",
+            optimization: "ollama-rag"
+          },
+          retrieval: localFallback.retrieval,
+          contextSubmissions: localFallback.contextSubmissions,
+        });
+      } catch (fallbackErr) {
+        console.error("Local RAG fallback failed:", fallbackErr);
+        res.json({
+          response: generateSingleFallbackAnalysis(submission, fallbackQuestion),
+          model: "record-based-fallback",
+          mode: "record-fallback",
+          submission: {
+            id: submission.id,
+            fir_number: submission.fir_number,
+            location: `${submission.place_of_accident}, ${submission.mandal}`,
+            district: submission.district
+          },
+          performance: {
+            response_time: 0,
+            model: "record-based-fallback",
+            tokens: 0,
+            api: "Record-based fallback",
+            optimization: "no-external-ai"
+          },
+          retrieval: null,
+          contextSubmissions: [],
+        });
+      }
       return;
     }
 
@@ -521,35 +547,62 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
         throw err;
       }
 
-      const localFallback = await analyzeWithLocalRag({
-        submissions,
-        question: userQuestion,
-        history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
-      });
+      try {
+        const localFallback = await analyzeWithLocalRag({
+          submissions,
+          question: userQuestion,
+          history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
+        });
 
-      res.json({
-        response: localFallback.response,
-        model: localFallback.model,
-        mode: "local-rag-fallback",
-        submissionsAnalyzed: submissions.length,
-        submissions: submissions.map(sub => ({
-          id: sub.id,
-          fir_number: sub.fir_number,
-          location: `${sub.place_of_accident}, ${sub.mandal}`,
-          district: sub.district,
-          date: sub.accident_date
-        })),
-        performance: {
-          response_time: 0,
+        res.json({
+          response: localFallback.response,
           model: localFallback.model,
-          tokens: 0,
-          api: "Local fallback",
-          optimization: "ollama-rag",
-          batch_size: submissions.length
-        },
-        retrieval: localFallback.retrieval,
-        contextSubmissions: localFallback.contextSubmissions,
-      });
+          mode: "local-rag-fallback",
+          submissionsAnalyzed: submissions.length,
+          submissions: submissions.map(sub => ({
+            id: sub.id,
+            fir_number: sub.fir_number,
+            location: `${sub.place_of_accident}, ${sub.mandal}`,
+            district: sub.district,
+            date: sub.accident_date
+          })),
+          performance: {
+            response_time: 0,
+            model: localFallback.model,
+            tokens: 0,
+            api: "Local fallback",
+            optimization: "ollama-rag",
+            batch_size: submissions.length
+          },
+          retrieval: localFallback.retrieval,
+          contextSubmissions: localFallback.contextSubmissions,
+        });
+      } catch (fallbackErr) {
+        console.error("Local RAG batch fallback failed:", fallbackErr);
+        res.json({
+          response: generateBatchFallbackAnalysis(submissions, userQuestion),
+          model: "record-based-fallback",
+          mode: "record-fallback",
+          submissionsAnalyzed: submissions.length,
+          submissions: submissions.map(sub => ({
+            id: sub.id,
+            fir_number: sub.fir_number,
+            location: `${sub.place_of_accident}, ${sub.mandal}`,
+            district: sub.district,
+            date: sub.accident_date
+          })),
+          performance: {
+            response_time: 0,
+            model: "record-based-fallback",
+            tokens: 0,
+            api: "Record-based fallback",
+            optimization: "no-external-ai",
+            batch_size: submissions.length
+          },
+          retrieval: null,
+          contextSubmissions: [],
+        });
+      }
       return;
     }
 
