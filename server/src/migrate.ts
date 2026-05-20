@@ -1,5 +1,7 @@
 import pool from "./db.js";
 import { fileURLToPath } from "url";
+import fs from "fs";
+import path from "path";
 
 export const migration = `
 -- =============================================
@@ -181,6 +183,117 @@ CREATE TRIGGER update_cctns_hierarchy_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 `;
 
+function sanitizeFilePart(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+function getDistrictShortcut(district: string) {
+  const normalized = district.trim();
+  const knownShortcuts: Record<string, string> = {
+    "YSR Kadapa": "YSRK",
+    "Sri Potti Sriramulu Nellore": "SPSN",
+    "Alluri Sitharama Raju": "ASR",
+    "Dr. B.R. Ambedkar Konaseema": "BRAK",
+    "NTR": "NTR",
+  };
+
+  if (knownShortcuts[normalized]) {
+    return knownShortcuts[normalized];
+  }
+
+  const words = normalized
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length <= 1) {
+    return sanitizeFilePart(words[0] || "DIST").slice(0, 5).toUpperCase() || "DIST";
+  }
+
+  return words.map((word) => word[0]).join("").slice(0, 5).toUpperCase();
+}
+
+function getSignedCopyFileName(district: string, firNumber: string, currentPath: string | null, rowId: string) {
+  const districtShortcut = getDistrictShortcut(district);
+  const firPart = sanitizeFilePart(firNumber) || "FIR";
+  const currentExt = currentPath ? path.extname(currentPath).toLowerCase() : "";
+  const allowedExt = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
+  const extension = allowedExt.has(currentExt) ? currentExt : ".pdf";
+  const baseName = `${districtShortcut}_${firPart}${extension}`;
+  const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
+  const targetPath = path.join(uploadsDir, baseName);
+
+  if (!fs.existsSync(targetPath) || currentPath?.endsWith(baseName)) {
+    return baseName;
+  }
+
+  return `${districtShortcut}_${firPart}_${rowId.slice(0, 8)}${extension}`;
+}
+
+async function renameExistingSignedCopies() {
+  const uploadsRoot = path.resolve(process.cwd(), "uploads");
+  const signedCopiesDir = path.join(uploadsRoot, "signed-copies");
+
+  if (!fs.existsSync(signedCopiesDir)) {
+    fs.mkdirSync(signedCopiesDir, { recursive: true });
+  }
+
+  const result = await pool.query<{
+    id: string;
+    district: string;
+    fir_number: string;
+    signed_copy_name: string | null;
+    signed_copy_path: string | null;
+  }>(`
+    SELECT id, district, fir_number, signed_copy_name, signed_copy_path
+    FROM accident_submissions
+    WHERE signed_copy_uploaded = TRUE
+      AND signed_copy_path IS NOT NULL
+  `);
+
+  let renamedCount = 0;
+
+  for (const row of result.rows) {
+    if (!row.signed_copy_path) continue;
+
+    const nextFileName = getSignedCopyFileName(row.district, row.fir_number, row.signed_copy_path, row.id);
+    const nextRelativePath = path.posix.join("signed-copies", nextFileName);
+
+    if (row.signed_copy_name === nextFileName && row.signed_copy_path === nextRelativePath) {
+      continue;
+    }
+
+    const currentAbsolutePath = path.resolve(uploadsRoot, row.signed_copy_path);
+    const nextAbsolutePath = path.join(signedCopiesDir, nextFileName);
+
+    if (fs.existsSync(currentAbsolutePath) && currentAbsolutePath !== nextAbsolutePath) {
+      if (fs.existsSync(nextAbsolutePath)) {
+        fs.unlinkSync(nextAbsolutePath);
+      }
+      fs.renameSync(currentAbsolutePath, nextAbsolutePath);
+    }
+
+    await pool.query(
+      `
+        UPDATE accident_submissions
+        SET signed_copy_name = $1,
+            signed_copy_path = $2
+        WHERE id = $3
+      `,
+      [nextFileName, nextRelativePath, row.id]
+    );
+    renamedCount += 1;
+  }
+
+  if (renamedCount > 0) {
+    console.log(`Renamed ${renamedCount} existing signed copy file reference(s).`);
+  }
+}
+
 export async function runMigrations(options?: { closePool?: boolean }) {
   console.log("Running database migration...");
   try {
@@ -199,6 +312,7 @@ export async function runMigrations(options?: { closePool?: boolean }) {
       WHERE lower(p.district) = 'prism'
       ON CONFLICT (user_id, role) DO NOTHING
     `);
+    await renameExistingSignedCopies();
     console.log("Migration completed successfully.");
   } catch (err) {
     console.error("Migration failed:", err);
