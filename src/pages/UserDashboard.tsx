@@ -245,6 +245,7 @@ const UserDashboard = () => {
   const handleCloseChatPanel = () => {
     setShowChatPanel(false);
     setChatSubmissions([]);
+    setSelectedSubmissions([]);
   };
 
   const handleSignedCopyUpload = async (submissionId: string, file: File | null) => {
