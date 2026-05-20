@@ -390,13 +390,13 @@ const AnalyticsSubmissionInspector = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="h-[min(92vh,960px)] max-h-[92vh] max-w-[min(96vw,1380px)] overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0 sm:rounded-[28px]"
+        className="h-[96vh] max-h-[96vh] max-w-[98vw] overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0 sm:rounded-[24px]"
       >
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-6 py-5 text-white">
+          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-5 py-4 text-white">
             <div className="flex items-start justify-between gap-4">
               <DialogHeader className="pr-2 text-left">
-                <DialogTitle className="text-2xl font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
+                <DialogTitle className="text-xl font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
                 <DialogDescription className="text-sm text-slate-200">
                   Matching submissions for the selected analytics count. Inspect records, open the full submission, or run AI analysis from here.
                 </DialogDescription>
@@ -413,7 +413,7 @@ const AnalyticsSubmissionInspector = ({
                 </Button>
               </DialogClose>
             </div>
-            <div className="mt-4 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <Badge className="border-white/20 bg-white/10 text-white">
                 {loading ? "Loading..." : `${data?.count || 0} submissions`}
               </Badge>
@@ -430,9 +430,12 @@ const AnalyticsSubmissionInspector = ({
             </div>
           </div>
 
-          <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[360px_1fr]">
+          <div className={cn(
+            "grid min-h-0 flex-1 gap-0",
+            activePane === "ai" ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[340px_minmax(0,1fr)]"
+          )}>
             <div className="flex min-h-0 flex-col border-r border-slate-200 bg-white/80">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
               <div>
                 <p className="text-sm font-semibold text-slate-900">Submission Matches</p>
                 <p className="text-xs text-slate-500">Choose a case to preview or analyze</p>
@@ -454,7 +457,7 @@ const AnalyticsSubmissionInspector = ({
             </div>
 
               <ScrollArea className="flex-1">
-              <div className="space-y-3 p-4">
+              <div className="space-y-2 p-3">
                 {loading && (
                   <div className="flex items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-16 text-slate-500">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -475,7 +478,7 @@ const AnalyticsSubmissionInspector = ({
                     <div
                       key={submission.id}
                       className={cn(
-                        "cursor-pointer rounded-3xl border p-4 shadow-sm transition-all",
+                        "cursor-pointer rounded-2xl border p-3 shadow-sm transition-all",
                         isActive
                           ? "border-[#163a70] bg-[linear-gradient(180deg,#f7fbff_0%,#edf4ff_100%)] shadow-[0_16px_36px_-24px_rgba(22,58,112,0.7)]"
                           : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -501,7 +504,7 @@ const AnalyticsSubmissionInspector = ({
                         </Badge>
                       </div>
 
-                      <div className="mt-3 space-y-2 text-sm text-slate-600">
+                      <div className="mt-2 space-y-2 text-sm text-slate-600">
                         <div className="flex items-start gap-2">
                           <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
                           <span>{submission.placeOfAccident}, {submission.policeStation}</span>
@@ -512,7 +515,7 @@ const AnalyticsSubmissionInspector = ({
                         </div>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-2xl bg-slate-50 px-3 py-2">
                           <p className="font-semibold uppercase tracking-wide text-slate-500">Lag</p>
                           <p className="mt-1 text-sm font-bold text-slate-900">{submission.lagHours.toFixed(1)} hrs</p>
@@ -525,7 +528,7 @@ const AnalyticsSubmissionInspector = ({
                         </div>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         <Button
                           size="sm"
                           variant={isActive ? "default" : "outline"}
@@ -560,7 +563,7 @@ const AnalyticsSubmissionInspector = ({
 
             <div className="min-h-0 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fe_100%)]">
               <Tabs value={activePane} onValueChange={(value) => setActivePane(value as "preview" | "ai")} className="flex h-full min-h-0 flex-col">
-              <div className="border-b border-slate-200 px-5 py-3">
+              <div className="border-b border-slate-200 px-4 py-2">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <TabsList className="grid h-auto grid-cols-2 rounded-2xl bg-slate-100 p-1">
                     <TabsTrigger value="preview" className="rounded-xl px-4 py-2">Preview</TabsTrigger>
@@ -807,14 +810,14 @@ const AnalyticsSubmissionInspector = ({
                 </ScrollArea>
               </TabsContent>
 
-                <TabsContent value="ai" className="mt-0 min-h-0 flex-1 px-5 pb-5 pt-5">
+                <TabsContent value="ai" className="mt-0 min-h-0 flex-1 p-2">
                   <div className="h-full min-h-0">
                     <AccidentChat
                       isOpen={open && activePane === "ai"}
                       submissions={chatSubmissions}
                       title={analysisMode === "all" ? "Drilldown Batch Analysis" : `Submission Analysis${selectedSummary ? ` - ${selectedSummary.firNumber}` : ""}`}
                       variant="panel"
-                      className="h-full min-h-[320px]"
+                      className="h-full min-h-0 rounded-xl shadow-none"
                     />
                   </div>
                 </TabsContent>
