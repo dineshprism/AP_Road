@@ -75,6 +75,11 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+app.get("/api/maps/config", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ apiKey: process.env.GOOGLE_MAPS_API_KEY || "" });
+});
+
 // API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/submissions", submissionRoutes);
