@@ -271,9 +271,12 @@ If the user asks for a narrow follow-up, answer only that follow-up.
 If data is missing, say so briefly instead of guessing.
 
 Output rules:
-- Keep the answer under 180 words.
-- Use at most 4 short sections.
-- Focus on causes, risk signals, immediate actions, and prevention only when relevant to the user's question.
+- Return clean markdown only. Do not wrap the answer in code fences.
+- Keep the answer under 220 words.
+- Use 3 to 5 short sections with markdown headings like "## Executive Summary".
+- Use bullets for findings and action points.
+- Use a compact markdown table only when comparing causes, risk signals, or actions improves clarity.
+- Include a final "## Action Points" section unless the user's question is a narrow follow-up.
 - Avoid repeating raw accident facts unless needed.
 
 ACCIDENT RECORD
@@ -331,9 +334,12 @@ Prefer pattern detection, prioritization, and actions.
 If the latest user request is narrow, answer only that theme.
 
 Output rules:
-- Keep the answer under 220 words.
-- Use at most 5 short bullets or short sections.
-- Highlight repeated causes, shared infrastructure risks, and the top prevention priorities.
+- Return clean markdown only. Do not wrap the answer in code fences.
+- Keep the answer under 260 words.
+- Use 3 to 5 short sections with markdown headings like "## Pattern Summary".
+- Use bullets for findings and action points.
+- Use a compact markdown table for repeated causes, priority locations, or action ownership when useful.
+- Include a final "## Action Points" section unless the user's question is a narrow follow-up.
 - Do not restate every accident individually.
 
 ACCIDENT SET
@@ -378,14 +384,18 @@ function generateSingleFallbackAnalysis(submission: any, question?: string) {
       : `${submission.persons_injured} injuries were reported with no deaths in the current record.`;
 
   return [
-    `Fallback analysis: Gemini is temporarily unavailable, so this summary is generated directly from the submission data for FIR ${submission.fir_number}.`,
-    `Question focus: ${question || "Initial accident analysis"}.`,
-    `Likely primary factors: ${driverCauses !== "N/A" ? driverCauses : "Driver-side factors were not clearly recorded, so investigator verification is required."}`,
-    `Vehicle condition indicators: ${vehicleIssues !== "N/A" ? vehicleIssues : "No specific vehicle defects were captured in the submitted record."}`,
-    `Road and site context: ${submission.road_type} road at ${submission.place_of_accident}, ${submission.mandal}, ${submission.district}.${roadIssues.length ? ` Reported infrastructure indicators: ${roadIssues.join("; ")}.` : " No explicit infrastructure defect was recorded in the form."}`,
-    `Severity reading: ${casualtySummary}`,
-    `Immediate investigation priorities: record witness statements, inspect both vehicles, verify CCTV availability, and document junction sight distance, markings, and impact points.`,
-    `Immediate prevention focus: targeted speed enforcement, junction warning signage, visibility improvements, and conflict-point review near the bus stop or turning area.`,
+    `## Executive Summary`,
+    `Gemini is temporarily unavailable, so this analysis is generated from the submitted record for FIR ${submission.fir_number}. ${casualtySummary}`,
+    `## Key Factors`,
+    `| Area | Reading |`,
+    `| --- | --- |`,
+    `| Driver | ${driverCauses !== "N/A" ? driverCauses : "Driver-side factors were not clearly recorded; investigator verification is required."} |`,
+    `| Vehicle | ${vehicleIssues !== "N/A" ? vehicleIssues : "No specific vehicle defects were captured in the submitted record."} |`,
+    `| Road/site | ${submission.road_type} road at ${submission.place_of_accident}, ${submission.mandal}, ${submission.district}${roadIssues.length ? `; ${roadIssues.join("; ")}` : "; no explicit infrastructure defect was recorded."} |`,
+    `## Action Points`,
+    `- Record witness statements, inspect vehicles, verify CCTV availability, and document impact points.`,
+    `- Review junction sight distance, markings, warning signage, and visibility at the crash location.`,
+    `- Use targeted speed enforcement and conflict-point review for immediate prevention.`,
   ].join("\n\n");
 }
 
@@ -396,13 +406,18 @@ function generateBatchFallbackAnalysis(submissions: any[], question?: string) {
   const districts = [...new Set(submissions.map((item) => item.district).filter(Boolean))];
 
   return [
-    `Fallback batch analysis: Gemini is temporarily unavailable, so this summary is based directly on ${submissions.length} selected submission records.`,
-    `Question focus: ${question || "Batch accident analysis"}.`,
-    `Coverage: ${submissions.length} records across ${districts.join(", ") || "the selected district set"} with road categories ${roadTypes.join(", ") || "not specified"}.`,
-    `Casualty picture: ${totalDeaths} deaths and ${totalInjuries} injuries across the selected submissions.`,
-    `Common review points: compare repeated driver-related causes, junction or signage defects, and recurring police station locations to identify operational patterns.`,
-    `Immediate action: prioritize the highest-casualty locations for enforcement review, engineering inspection, and corridor-level monitoring.`,
-    `Investigation recommendation: shortlist repeated FIR locations, validate road defects on site, and compare time-of-day recurrence before finalizing interventions.`,
+    `## Pattern Summary`,
+    `Gemini is temporarily unavailable, so this summary is generated from ${submissions.length} selected submission records.`,
+    `## Coverage`,
+    `| Metric | Value |`,
+    `| --- | --- |`,
+    `| Districts | ${districts.join(", ") || "Selected district set"} |`,
+    `| Road categories | ${roadTypes.join(", ") || "Not specified"} |`,
+    `| Casualties | ${totalDeaths} deaths and ${totalInjuries} injuries |`,
+    `## Review Priorities`,
+    `- Compare repeated driver-related causes, junction or signage defects, and recurring police station locations.`,
+    `- Prioritize highest-casualty locations for enforcement review, engineering inspection, and corridor monitoring.`,
+    `- Shortlist repeated FIR locations and compare time-of-day recurrence before finalizing interventions.`,
   ].join("\n\n");
 }
 

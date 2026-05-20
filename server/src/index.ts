@@ -75,7 +75,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.get("/api/maps/config", (_req, res) => {
+app.get("/api/maps/config", authMiddleware, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
   res.json({ apiKey: process.env.GOOGLE_MAPS_API_KEY || "" });
 });
