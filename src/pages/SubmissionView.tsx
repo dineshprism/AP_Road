@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { api, openProtectedAsset } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,8 @@ interface Submission {
 const SubmissionView = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationState = (location.state as { backTarget?: string; dashboardTab?: "menu" | "list" | "map" } | null) || {};
   const { roles, isAdmin } = useAuth();
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,6 +94,13 @@ const SubmissionView = () => {
     : roles.includes("dgp") || isAdmin
       ? "/admin"
       : "/dashboard";
+  const resolvedBackTarget = navigationState.backTarget || backTarget;
+  const handleBack = () => {
+    navigate(
+      resolvedBackTarget,
+      navigationState.dashboardTab ? { state: { activeTab: navigationState.dashboardTab } } : undefined
+    );
+  };
 
   const InfoRow = ({ label, value }: { label: string; value: string | number | null }) => (
     <div className="flex justify-between py-2 border-b border-border/50">
@@ -113,7 +122,7 @@ const SubmissionView = () => {
       <GovHeader />
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" onClick={() => navigate(backTarget)} className="text-primary">
+          <Button variant="ghost" onClick={handleBack} className="text-primary">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back
           </Button>
           <DropdownMenu>

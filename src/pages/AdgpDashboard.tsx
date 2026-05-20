@@ -12,7 +12,7 @@ import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
 import AccidentChat from "@/components/AccidentChat";
 import { AP_DISTRICTS, MONTHS } from "@/lib/constants";
-import { Eye, Filter, RotateCcw, Download, FileText, FileDown, BarChart3, Map, MapPin, Brain, FileSpreadsheet } from "lucide-react";
+import { Eye, Filter, RotateCcw, Download, FileText, FileDown, Map, MapPin, Brain, FileSpreadsheet } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -101,13 +101,6 @@ const AdgpDashboard = () => {
             >
               <FileSpreadsheet className="w-4 h-4 mr-2" />
               DSR Reports
-            </Button>
-            <Button
-              onClick={() => navigate("/analytics/pro")}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4" />
-              Analytics Pro
             </Button>
           </div>
         </div>

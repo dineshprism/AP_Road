@@ -588,14 +588,6 @@ const EnhancedAnalytics = () => {
                 </div>
               </DialogContent>
             </Dialog>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/analytics/pro")}
-              className="border-[#c75b12]/20 bg-[#fff7ef] text-[#a54910] shadow-sm hover:bg-[#fee8d6] hover:text-[#8c420f]"
-            >
-              <Brain className="mr-2 h-4 w-4" />
-              Analytics Pro
-            </Button>
           </div>
           <p className="hidden text-xs font-medium text-slate-500 sm:block">
             Quick access while reviewing analytics

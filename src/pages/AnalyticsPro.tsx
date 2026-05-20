@@ -904,7 +904,7 @@ const AnalyticsPro = () => {
           <Card className="border-slate-200">
             <CardContent className="flex min-h-[280px] flex-col items-center justify-center gap-4">
               <RefreshCw className="h-9 w-9 animate-spin text-primary" />
-              <p className="text-lg font-semibold text-slate-900">Loading Analytics Pro</p>
+              <p className="text-lg font-semibold text-slate-900">Loading Analytics</p>
               <p className="text-sm text-slate-500">Preparing command analytics, hotspot intelligence, and submission drilldowns.</p>
             </CardContent>
           </Card>
@@ -921,7 +921,7 @@ const AnalyticsPro = () => {
           <Card className="border-red-200 bg-red-50">
             <CardContent className="py-12 text-center">
               <TriangleAlert className="mx-auto mb-4 h-12 w-12 text-red-500" />
-              <p className="text-lg font-semibold text-red-700">Analytics Pro could not be loaded</p>
+              <p className="text-lg font-semibold text-red-700">Analytics could not be loaded</p>
               <div className="mt-5 flex justify-center gap-3">
                 <Button variant="outline" onClick={() => navigate("/analytics")}>Classic Analytics</Button>
                 <Button onClick={() => void fetchAnalyticsBundle()}>Retry</Button>
@@ -956,7 +956,7 @@ const AnalyticsPro = () => {
             </Button>
             <Button className="bg-[linear-gradient(135deg,#163a70_0%,#2b5c8f_100%)] text-white shadow-[0_18px_36px_-24px_rgba(22,58,112,0.82)] hover:opacity-95">
               <Sparkles className="mr-2 h-4 w-4" />
-              Analytics Pro
+              Analytics
             </Button>
           </div>
 
@@ -981,7 +981,7 @@ const AnalyticsPro = () => {
                 </div>
 
                 <div>
-                  <h1 className="analytics-display-font text-4xl font-bold tracking-tight xl:text-[3.6rem]">Analytics Pro Command Center</h1>
+                  <h1 className="analytics-display-font text-4xl font-bold tracking-tight xl:text-[3.6rem]">Analytics Command Center</h1>
                   <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-200">
                     A premium command view for ADGP, DGP, PRISM, and DIG review that connects crash outcomes, hotspot pressure, systemic road risk, operational delays, data quality, and AI-assisted briefing in one polished workspace.
                   </p>
@@ -1417,7 +1417,7 @@ const AnalyticsPro = () => {
 
           <Card className="analytics-liquid-panel analytics-elevate overflow-hidden border border-white/75 bg-white/78 shadow-[0_28px_80px_-44px_rgba(15,23,42,0.46)] backdrop-blur xl:col-span-3">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Analytics Pro Workspace</CardTitle>
+              <CardTitle className="text-lg">Analytics Workspace</CardTitle>
               <CardDescription>Switch between network risk, operations, cause intelligence, and data quality views.</CardDescription>
             </CardHeader>
             <CardContent className="px-0 pb-0">

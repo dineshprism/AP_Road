@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { api, openProtectedAsset } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -89,9 +89,11 @@ function getDateFrom(range: DateRange): Date | null {
 const UserDashboard = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const dashboardState = (location.state as { activeTab?: "menu" | "list" | "map" } | null) || {};
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"menu" | "list" | "map">("menu");
+  const [activeTab, setActiveTab] = useState<"menu" | "list" | "map">(dashboardState.activeTab || "menu");
   const [selectedSubmissions, setSelectedSubmissions] = useState<string[]>([]);
   const [chatSubmissions, setChatSubmissions] = useState<Submission[]>([]);
   const [showChatPanel, setShowChatPanel] = useState(false);
@@ -680,7 +682,11 @@ const UserDashboard = () => {
                                 </div>
                               </div>
                               <div className="flex flex-wrap justify-end gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => navigate(`/submission/${submission.id}`)}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/submission/${submission.id}`, { state: { backTarget: "/dashboard", dashboardTab: "list" } })}
+                                >
                                   <Eye className="mr-1 h-4 w-4" /> View
                                 </Button>
                                 <Button variant="ghost" size="sm" onClick={() => handleAnalyse(submission)} className="text-blue-600">

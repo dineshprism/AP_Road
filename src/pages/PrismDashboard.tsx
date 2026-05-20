@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
 import AccidentChat from "@/components/AccidentChat";
-import { Activity, Brain, Clock3, Eye, FileSpreadsheet, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
+import { Brain, Clock3, Eye, FileSpreadsheet, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
 
 interface LoginEvent {
   id: string;
@@ -133,9 +133,6 @@ const PrismDashboard = () => {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate("/dsr-reports")}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> DSR Reports
-            </Button>
-            <Button variant="outline" onClick={() => navigate("/analytics/pro")}>
-              <Activity className="mr-2 h-4 w-4" /> Analytics Pro
             </Button>
             <Button onClick={() => void fetchActivity()}>
               <RefreshCcw className="mr-2 h-4 w-4" /> Refresh Logs

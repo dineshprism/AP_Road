@@ -21,7 +21,6 @@ server/.env
 migration-export/
 server/migration-export/
 *.migration.json
-road-accident-data.json
 
 # Editor directories and files
 .vscode/*
