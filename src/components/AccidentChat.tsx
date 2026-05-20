@@ -425,8 +425,8 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
 
             <div className="border-t border-slate-200 bg-white px-3 py-3 sm:px-4">
               <div className="mx-auto w-full max-w-4xl">
-                <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                  <div className="flex flex-col gap-3">
+                <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
+                  <div className="flex items-end gap-2">
                     <Textarea
                       ref={inputRef}
                       value={inputValue}
@@ -434,24 +434,22 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
                       onKeyDown={handleKeyDown}
                       placeholder="Ask for causes, road risks, preventive actions, or officer-ready talking points..."
                       disabled={isLoading}
-                      rows={3}
-                      className="min-h-[76px] resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      rows={1}
+                      className="max-h-32 min-h-10 resize-none border-0 bg-transparent px-1 py-2 text-sm leading-6 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-xs leading-5 text-slate-500">
-                        Press <span className="font-semibold text-slate-700">Enter</span> to send and <span className="font-semibold text-slate-700">Shift + Enter</span> for a new line.
-                      </p>
-                      <Button
-                        onClick={() => handleSendMessage(inputValue)}
-                        disabled={!inputValue.trim() || isLoading}
-                        className="h-10 rounded-full bg-[#102a5c] px-5 text-white hover:bg-[#163a70]"
-                      >
-                        <Send className="mr-2 h-4 w-4" />
-                        Send
-                      </Button>
-                    </div>
+                    <Button
+                      onClick={() => handleSendMessage(inputValue)}
+                      disabled={!inputValue.trim() || isLoading}
+                      className="h-10 shrink-0 rounded-full bg-[#102a5c] px-4 text-white hover:bg-[#163a70]"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      Send
+                    </Button>
                   </div>
                 </div>
+                <p className="mt-2 px-1 text-xs leading-5 text-slate-500">
+                  Enter to send. Shift + Enter for a new line.
+                </p>
               </div>
             </div>
           </>
