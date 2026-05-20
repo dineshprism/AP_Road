@@ -273,7 +273,33 @@ const GoogleMapWithKey = ({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[24px]" style={{ height }}>
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              {districtLocked ? "District Control View" : "State Command View"}
+            </p>
+            <h3 className="mt-1 text-lg font-bold text-slate-900">
+              {districtLocked ? `${userDistrict} District Map` : "Andhra Pradesh Accident Map"}
+            </h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+              {districtLocked
+                ? "The map stays focused on your district boundary only, with every recorded spot and hotspot intensity visible in one place."
+                : "State leadership can review the entire Andhra Pradesh map, compare district intensity, and inspect accident spots."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">{markerPoints.length} mapped incidents</span>
+            <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">{markerPoints.reduce((sum, point) => sum + point.persons_died, 0)} fatalities</span>
+            <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
+              {mapTypeId === "satellite" ? "Satellite view" : mapTypeId === "terrain" ? "Topo view" : "Street view"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-[24px]" style={{ height }}>
       <GoogleMap
         mapContainerStyle={{ width: "100%", height: "100%", borderRadius: "24px" }}
         center={AP_CENTER}
@@ -378,27 +404,6 @@ const GoogleMapWithKey = ({
         )}
       </GoogleMap>
 
-      <div className="absolute left-3 top-3 z-[1000] max-w-[320px] rounded-2xl border border-slate-200/90 bg-white/92 p-3 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.42)] backdrop-blur md:left-4 md:top-4 md:p-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          {districtLocked ? "District Control View" : "State Command View"}
-        </p>
-        <h3 className="mt-1 text-base font-bold text-slate-900 md:text-lg">
-          {districtLocked ? `${userDistrict} District Map` : "Andhra Pradesh Accident Map"}
-        </h3>
-        <p className="mt-1 text-xs leading-5 text-slate-600 md:text-sm md:leading-6">
-          {districtLocked
-            ? "The map stays focused on your district boundary only, with every recorded spot and hotspot intensity visible in one place."
-            : "State leadership can review the entire Andhra Pradesh map, compare district intensity, and inspect accident spots."}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-700">{markerPoints.length} mapped incidents</span>
-          <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">{markerPoints.reduce((sum, point) => sum + point.persons_died, 0)} fatalities</span>
-          <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
-            {mapTypeId === "satellite" ? "Satellite view" : mapTypeId === "terrain" ? "Topo view" : "Street view"}
-          </span>
-        </div>
-      </div>
-
       <div className="absolute bottom-3 right-3 z-[1000] flex w-[176px] flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/92 p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.42)] backdrop-blur md:bottom-auto md:right-4 md:top-4 md:w-[220px]">
         <div className="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1">
           <button className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${mapTypeId === "roadmap" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:bg-white/80"}`} onClick={() => setMapTypeId("roadmap")}>Street</button>
@@ -417,6 +422,7 @@ const GoogleMapWithKey = ({
         {districtLocked && (
           <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">District boundary is always visible in district mode</div>
         )}
+      </div>
       </div>
     </div>
   );

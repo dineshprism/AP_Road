@@ -473,8 +473,8 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
-      <div className="h-[85vh] w-full max-w-6xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 backdrop-blur-sm sm:p-4">
+      <div className="h-[90dvh] w-[94vw] md:h-[85vh] md:w-[85vw]">
         {shell}
       </div>
     </div>

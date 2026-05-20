@@ -33,7 +33,6 @@ import {
   MapPin,
   Brain,
   BarChart3,
-  PanelRightClose,
   Upload,
   FileCheck,
   ShieldCheck,
@@ -230,7 +229,6 @@ const UserDashboard = () => {
     if (submission) {
       setChatSubmissions([submission]);
       setShowChatPanel(true);
-      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
@@ -242,7 +240,6 @@ const UserDashboard = () => {
 
     setChatSubmissions(selected);
     setShowChatPanel(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCloseChatPanel = () => {
@@ -507,7 +504,7 @@ const UserDashboard = () => {
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
-            <div className={`grid gap-6 ${showChatPanel && chatSubmissions.length > 0 ? "md:grid-cols-[minmax(0,1.04fr)_minmax(360px,0.96fr)]" : "grid-cols-1"}`}>
+            <div className="grid grid-cols-1 gap-6">
               <div className="space-y-4">
                 <Card className="border-0 shadow-sm">
                   <CardContent className="py-4">
@@ -625,12 +622,6 @@ const UserDashboard = () => {
                             </Label>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {showChatPanel && chatSubmissions.length > 0 && (
-                              <Button variant="outline" onClick={() => setShowChatPanel((prev) => !prev)} className="border-slate-200">
-                                <PanelRightClose className="mr-2 h-4 w-4" />
-                                {showChatPanel ? "Hide Chat" : "Show Chat"}
-                              </Button>
-                            )}
                             {selectedSubmissions.length > 0 && (
                               <Button onClick={() => handleAnalyse()} className="bg-blue-600 hover:bg-blue-700">
                                 <Brain className="mr-2 h-4 w-4" />
@@ -753,24 +744,6 @@ const UserDashboard = () => {
                 )}
               </div>
 
-              {showChatPanel && chatSubmissions.length > 0 && (
-                <div className="hidden min-h-0 md:block">
-                <div className="h-full lg:sticky lg:top-6">
-                  <AccidentChat
-                    isOpen={showChatPanel}
-                    onClose={handleCloseChatPanel}
-                    submissions={chatSubmissions}
-                    variant="panel"
-                    title={chatSubmissions.length === 1
-                      ? `Conversation - FIR ${chatSubmissions[0]?.fir_number}`
-                      : chatSubmissions.length > 1
-                        ? `Conversation - ${chatSubmissions.length} submissions`
-                        : "Accident Analysis Chat"}
-                    className="h-[calc(100vh-11rem)]"
-                  />
-                </div>
-                </div>
-              )}
             </div>
           </TabsContent>
 
@@ -845,6 +818,16 @@ const UserDashboard = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <AccidentChat
+        isOpen={showChatPanel}
+        onClose={handleCloseChatPanel}
+        submissions={chatSubmissions}
+        title={chatSubmissions.length === 1
+          ? `Analysis - FIR ${chatSubmissions[0]?.fir_number}`
+          : chatSubmissions.length > 1
+            ? `Batch Analysis - ${chatSubmissions.length} submissions`
+            : "Accident Analysis"}
+      />
     </div>
   );
 };
