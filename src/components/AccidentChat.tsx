@@ -67,9 +67,9 @@ const renderTable = (lines: string[], blockIndex: number, isUserMessage: boolean
   if (header.length === 0 || body.length === 0) return null;
 
   return (
-    <div key={`block-${blockIndex}`} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    <div key={`block-${blockIndex}`} className="overflow-hidden rounded-xl border border-blue-100 bg-white shadow-sm">
       <table className="w-full border-collapse text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+        <thead className="bg-blue-50 text-xs uppercase text-blue-800">
           <tr>
             {header.map((cell, index) => (
               <th key={`head-${blockIndex}-${index}`} className="border-b border-slate-200 px-3 py-2 font-semibold">
@@ -106,7 +106,10 @@ const renderMessageContent = (content: string, isUserMessage = false) => {
       return (
         <h3
           key={`block-${blockIndex}`}
-          className={cn('text-[15px] font-bold leading-6', isUserMessage ? 'text-white' : 'text-slate-950')}
+          className={cn(
+            'rounded-xl px-3 py-2 text-[15px] font-bold leading-6',
+            isUserMessage ? 'bg-white/10 text-white' : 'border border-blue-100 bg-blue-50 text-blue-950'
+          )}
         >
           {formatInlineContent(headingMatch[2], isUserMessage)}
         </h3>
@@ -129,7 +132,7 @@ const renderMessageContent = (content: string, isUserMessage = false) => {
           {lines.map((line, index) => (
             <li
               key={`item-${blockIndex}-${index}`}
-              className={cn('list-disc text-sm leading-6', isUserMessage ? 'text-white' : 'text-slate-700')}
+              className={cn('list-disc text-sm leading-6 marker:text-blue-600', isUserMessage ? 'text-white marker:text-white' : 'text-slate-700')}
             >
               {formatInlineContent(line.replace(/^(\*|-)\s+/, ''), isUserMessage)}
             </li>
@@ -144,7 +147,7 @@ const renderMessageContent = (content: string, isUserMessage = false) => {
           {lines.map((line, index) => (
             <li
               key={`item-${blockIndex}-${index}`}
-              className={cn('list-decimal text-sm leading-6', isUserMessage ? 'text-white' : 'text-slate-700')}
+              className={cn('list-decimal text-sm leading-6 marker:font-semibold marker:text-blue-600', isUserMessage ? 'text-white marker:text-white' : 'text-slate-700')}
             >
               {formatInlineContent(line.replace(/^\d+\.\s+/, ''), isUserMessage)}
             </li>
@@ -388,7 +391,7 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
                         'max-w-[min(100%,52rem)] rounded-2xl px-4 py-3 shadow-sm',
                         message.type === 'user'
                           ? 'rounded-br-md bg-[#102a5c] text-primary-foreground'
-                          : 'rounded-bl-md border border-slate-200 bg-white text-slate-800'
+                          : 'rounded-bl-md border border-blue-100 bg-[linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] text-slate-800 shadow-[0_18px_48px_-34px_rgba(37,99,235,0.55)]'
                       )}
                     >
                       <div className="space-y-3 break-words">

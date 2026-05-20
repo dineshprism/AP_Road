@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
   filename: (req, file, cb) => {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${Date.now()}-${req.params.id}-${safeName}`);
+    cb(null, `upload-${Date.now()}-${req.params.id}-${safeName}`);
   },
 });
 
@@ -41,6 +41,50 @@ const upload = multer({
 
 // All routes require authentication
 router.use(authMiddleware);
+
+function sanitizeFilePart(value: string) {
+  return value
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80);
+}
+
+function getDistrictShortcut(district: string) {
+  const normalized = district.trim();
+  const knownShortcuts: Record<string, string> = {
+    "YSR Kadapa": "YSRK",
+    "Sri Potti Sriramulu Nellore": "SPSN",
+    "Alluri Sitharama Raju": "ASR",
+    "Dr. B.R. Ambedkar Konaseema": "BRAK",
+    "NTR": "NTR",
+  };
+
+  if (knownShortcuts[normalized]) {
+    return knownShortcuts[normalized];
+  }
+
+  const words = normalized
+    .replace(/[^a-zA-Z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (words.length <= 1) {
+    return sanitizeFilePart(words[0] || "DIST").slice(0, 5).toUpperCase() || "DIST";
+  }
+
+  return words.map((word) => word[0]).join("").slice(0, 5).toUpperCase();
+}
+
+function getSignedCopyFileName(district: string, firNumber: string, originalName: string) {
+  const districtShortcut = getDistrictShortcut(district);
+  const firPart = sanitizeFilePart(firNumber) || "FIR";
+  const originalExt = path.extname(originalName).toLowerCase();
+  const allowedExt = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
+  const extension = allowedExt.has(originalExt) ? originalExt : ".pdf";
+
+  return `${districtShortcut}_${firPart}${extension}`;
+}
 
 // POST /api/submissions — create a new submission
 router.post("/", async (req: AuthRequest, res: Response) => {
@@ -289,8 +333,8 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     const isAdmin = roleResult.rows.length > 0;
 
     const existingResult = isAdmin
-      ? await pool.query("SELECT signed_copy_path FROM accident_submissions WHERE id = $1", [id])
-      : await pool.query("SELECT signed_copy_path FROM accident_submissions WHERE id = $1 AND user_id = $2", [id, userId]);
+      ? await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1", [id])
+      : await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1 AND user_id = $2", [id, userId]);
 
     if (existingResult.rows.length === 0) {
       fs.unlinkSync(file.path);
@@ -298,7 +342,8 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
       return;
     }
 
-    const previousPath = existingResult.rows[0].signed_copy_path as string | null;
+    const submission = existingResult.rows[0] as { district: string; fir_number: string; signed_copy_path: string | null };
+    const previousPath = submission.signed_copy_path;
     if (previousPath) {
       const absolutePreviousPath = path.resolve(process.cwd(), "uploads", previousPath);
       if (fs.existsSync(absolutePreviousPath)) {
@@ -306,7 +351,16 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
       }
     }
 
-    const relativePath = path.posix.join("signed-copies", path.basename(file.path));
+    const finalFileName = getSignedCopyFileName(submission.district, submission.fir_number, file.originalname);
+    const finalPath = path.join(uploadsDir, finalFileName);
+    if (file.path !== finalPath) {
+      if (fs.existsSync(finalPath)) {
+        fs.unlinkSync(finalPath);
+      }
+      fs.renameSync(file.path, finalPath);
+    }
+
+    const relativePath = path.posix.join("signed-copies", finalFileName);
     await pool.query(
       `UPDATE accident_submissions
        SET signed_copy_uploaded = TRUE,
@@ -314,12 +368,12 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
            signed_copy_path = $2,
            signed_copy_uploaded_at = now()
        WHERE id = $3`,
-      [file.originalname, relativePath, id]
+      [finalFileName, relativePath, id]
     );
 
     res.json({
       signed_copy_uploaded: true,
-      signed_copy_name: file.originalname,
+      signed_copy_name: finalFileName,
       signed_copy_url: `/uploads/${relativePath}`,
     });
   } catch (err: any) {

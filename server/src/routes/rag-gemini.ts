@@ -8,9 +8,9 @@ import crypto from "crypto";
 const router = Router();
 const geminiModel = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 const geminiThinkingBudget = Number(process.env.GEMINI_THINKING_BUDGET ?? 0);
-const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 1200);
-const geminiRetryAttempts = 2;
-const geminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 12000);
+const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 700);
+const geminiRetryAttempts = Number(process.env.GEMINI_RETRY_ATTEMPTS ?? 1);
+const geminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 8000);
 const geminiCacheTtlMs = Number(process.env.GEMINI_CACHE_TTL_MS ?? 10 * 60 * 1000);
 const geminiResponseCache = new Map<
   string,
@@ -272,10 +272,10 @@ If data is missing, say so briefly instead of guessing.
 
 Output rules:
 - Return clean markdown only. Do not wrap the answer in code fences.
-- Keep the answer under 220 words.
-- Use 3 to 5 short sections with markdown headings like "## Executive Summary".
+- Keep the answer under 150 words.
+- Use exactly 3 short sections with markdown headings on their own line, like "## Executive Summary".
 - Use bullets for findings and action points.
-- Use a compact markdown table only when comparing causes, risk signals, or actions improves clarity.
+- Use one compact markdown table only if it clearly improves clarity.
 - Include a final "## Action Points" section unless the user's question is a narrow follow-up.
 - Avoid repeating raw accident facts unless needed.
 
@@ -335,10 +335,10 @@ If the latest user request is narrow, answer only that theme.
 
 Output rules:
 - Return clean markdown only. Do not wrap the answer in code fences.
-- Keep the answer under 260 words.
-- Use 3 to 5 short sections with markdown headings like "## Pattern Summary".
+- Keep the answer under 180 words.
+- Use exactly 3 short sections with markdown headings on their own line, like "## Pattern Summary".
 - Use bullets for findings and action points.
-- Use a compact markdown table for repeated causes, priority locations, or action ownership when useful.
+- Use one compact markdown table only if it clearly improves clarity.
 - Include a final "## Action Points" section unless the user's question is a narrow follow-up.
 - Do not restate every accident individually.
 

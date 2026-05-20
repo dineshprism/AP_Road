@@ -239,7 +239,7 @@ const AccidentForm = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>FIR Number *</Label><Input value={firNumber} onChange={(e) => setFirNumber(e.target.value)} placeholder="e.g., FIR/123/2026" required /></div>
+                <div><Label>FIR Number *</Label><Input value={firNumber} onChange={(e) => setFirNumber(e.target.value)} placeholder="e.g., 113/2026" required /></div>
                 <div><Label>LAT - LONG (GPS)</Label><Input value={latLong} onChange={(e) => setLatLong(e.target.value)} placeholder="e.g., 15.9129, 79.7400" /></div>
                 <div>
                   <Label>Type of Road *</Label>

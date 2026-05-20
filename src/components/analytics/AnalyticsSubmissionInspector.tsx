@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -390,40 +389,37 @@ const AnalyticsSubmissionInspector = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="h-[96vh] max-h-[96vh] max-w-[98vw] overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0 sm:rounded-[24px]"
+        className="h-[98vh] max-h-[98vh] max-w-[99vw] overflow-hidden border-slate-200 bg-[linear-gradient(180deg,#fbfdff_0%,#f3f7fe_100%)] p-0 sm:rounded-2xl"
       >
         <div className="flex h-full min-h-0 flex-col">
-          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-5 py-4 text-white">
-            <div className="flex items-start justify-between gap-4">
-              <DialogHeader className="pr-2 text-left">
-                <DialogTitle className="text-xl font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
-                <DialogDescription className="text-sm text-slate-200">
-                  Matching submissions for the selected analytics count. Inspect records, open the full submission, or run AI analysis from here.
-                </DialogDescription>
+          <div className="border-b border-slate-200 bg-[linear-gradient(135deg,#0f274d_0%,#173c73_55%,#2b5c8f_100%)] px-4 py-2.5 text-white">
+            <div className="flex items-center justify-between gap-4">
+              <DialogHeader className="min-w-0 pr-2 text-left">
+                <DialogTitle className="truncate text-base font-semibold tracking-tight">{data?.title || "Loading submissions"}</DialogTitle>
               </DialogHeader>
               <DialogClose asChild>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="shrink-0 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                  className="h-8 shrink-0 border-white/25 bg-white/10 px-3 text-xs text-white hover:bg-white/20 hover:text-white"
                 >
-                  <X className="mr-2 h-4 w-4" />
+                  <X className="mr-1.5 h-3.5 w-3.5" />
                   Close
                 </Button>
               </DialogClose>
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Badge className="border-white/20 bg-white/10 text-white">
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+              <Badge className="h-6 border-white/20 bg-white/10 px-2 text-xs text-white">
                 {loading ? "Loading..." : `${data?.count || 0} submissions`}
               </Badge>
               {data?.scope.scopeLabel && (
-                <Badge variant="outline" className="border-white/20 text-white">
+                <Badge variant="outline" className="h-6 border-white/20 px-2 text-xs text-white">
                   {data.scope.scopeLabel}
                 </Badge>
               )}
               {data?.scope.rangeStart && data?.scope.rangeEnd && (
-                <Badge variant="outline" className="border-white/20 text-white">
+                <Badge variant="outline" className="h-6 border-white/20 px-2 text-xs text-white">
                   {data.scope.rangeStart} to {data.scope.rangeEnd}
                 </Badge>
               )}
@@ -432,32 +428,29 @@ const AnalyticsSubmissionInspector = ({
 
           <div className={cn(
             "grid min-h-0 flex-1 gap-0",
-            activePane === "ai" ? "lg:grid-cols-[300px_minmax(0,1fr)]" : "lg:grid-cols-[340px_minmax(0,1fr)]"
+            activePane === "ai" ? "lg:grid-cols-[260px_minmax(0,1fr)]" : "lg:grid-cols-[320px_minmax(0,1fr)]"
           )}>
             <div className="flex min-h-0 flex-col border-r border-slate-200 bg-white/80">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-3 py-2">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Submission Matches</p>
-                <p className="text-xs text-slate-500">Choose a case to preview or analyze</p>
-              </div>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-200 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Matches</p>
               {data && data.submissions.length > 0 && (
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-[#163a70]/20 bg-[#f4f7fb] text-[#163a70] hover:bg-[#e8f0fb]"
+                  className="h-8 border-[#163a70]/20 bg-[#f4f7fb] px-2 text-xs text-[#163a70] hover:bg-[#e8f0fb]"
                   onClick={() => {
                     setAnalysisMode("all");
                     setActivePane("ai");
                   }}
                 >
-                  <Brain className="mr-2 h-4 w-4" />
-                  Analyze All
+                  <Brain className="mr-1.5 h-3.5 w-3.5" />
+                  All
                 </Button>
               )}
             </div>
 
               <ScrollArea className="flex-1">
-              <div className="space-y-2 p-3">
+              <div className="space-y-2 p-2">
                 {loading && (
                   <div className="flex items-center justify-center rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-16 text-slate-500">
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -478,7 +471,7 @@ const AnalyticsSubmissionInspector = ({
                     <div
                       key={submission.id}
                       className={cn(
-                        "cursor-pointer rounded-2xl border p-3 shadow-sm transition-all",
+                        "cursor-pointer rounded-xl border p-2.5 shadow-sm transition-all",
                         isActive
                           ? "border-[#163a70] bg-[linear-gradient(180deg,#f7fbff_0%,#edf4ff_100%)] shadow-[0_16px_36px_-24px_rgba(22,58,112,0.7)]"
                           : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
@@ -490,8 +483,8 @@ const AnalyticsSubmissionInspector = ({
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{submission.firNumber}</p>
-                          <p className="mt-1 text-xs text-slate-500">{submission.district}</p>
+                          <p className="text-xs font-semibold text-slate-900">{submission.firNumber}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">{submission.district}</p>
                         </div>
                         <Badge
                           className={cn(
@@ -504,53 +497,54 @@ const AnalyticsSubmissionInspector = ({
                         </Badge>
                       </div>
 
-                      <div className="mt-2 space-y-2 text-sm text-slate-600">
+                      <div className="mt-2 space-y-1.5 text-xs text-slate-600">
                         <div className="flex items-start gap-2">
-                          <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                          <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                           <span>{submission.placeOfAccident}, {submission.policeStation}</span>
                         </div>
                         <div className="flex items-start gap-2">
-                          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+                          <CalendarClock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
                           <span>{formatDateTime(submission.createdAt)}</span>
                         </div>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                      <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className="rounded-xl bg-slate-50 px-2 py-1.5">
                           <p className="font-semibold uppercase tracking-wide text-slate-500">Lag</p>
-                          <p className="mt-1 text-sm font-bold text-slate-900">{submission.lagHours.toFixed(1)} hrs</p>
+                          <p className="mt-0.5 text-xs font-bold text-slate-900">{submission.lagHours.toFixed(1)} hrs</p>
                         </div>
-                        <div className="rounded-2xl bg-slate-50 px-3 py-2">
+                        <div className="rounded-xl bg-slate-50 px-2 py-1.5">
                           <p className="font-semibold uppercase tracking-wide text-slate-500">Casualties</p>
-                          <p className="mt-1 text-sm font-bold text-slate-900">
+                          <p className="mt-0.5 text-xs font-bold text-slate-900">
                             {submission.personsDied} / {submission.personsInjured}
                           </p>
                         </div>
                       </div>
 
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         <Button
                           size="sm"
                           variant={isActive ? "default" : "outline"}
+                          className="h-7 px-2 text-xs"
                           onClick={(event) => {
                             event.stopPropagation();
                             setSelectedId(submission.id);
                             setActivePane("preview");
                           }}
                         >
-                          <Eye className="mr-2 h-4 w-4" />
+                          <Eye className="mr-1.5 h-3.5 w-3.5" />
                           View
                         </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          className="h-7 border-blue-200 bg-blue-50 px-2 text-xs text-blue-700 hover:bg-blue-100"
                           onClick={(event) => {
                             event.stopPropagation();
                             handleAnalyzeSelected(submission.id);
                           }}
                         >
-                          <Brain className="mr-2 h-4 w-4" />
+                          <Brain className="mr-1.5 h-3.5 w-3.5" />
                           Analyze
                         </Button>
                       </div>
@@ -563,31 +557,32 @@ const AnalyticsSubmissionInspector = ({
 
             <div className="min-h-0 bg-[linear-gradient(180deg,#fbfdff_0%,#f5f8fe_100%)]">
               <Tabs value={activePane} onValueChange={(value) => setActivePane(value as "preview" | "ai")} className="flex h-full min-h-0 flex-col">
-              <div className="border-b border-slate-200 px-4 py-2">
+              <div className="border-b border-slate-200 px-3 py-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <TabsList className="grid h-auto grid-cols-2 rounded-2xl bg-slate-100 p-1">
-                    <TabsTrigger value="preview" className="rounded-xl px-4 py-2">Preview</TabsTrigger>
-                    <TabsTrigger value="ai" className="rounded-xl px-4 py-2">AI Analysis</TabsTrigger>
+                  <TabsList className="grid h-auto grid-cols-2 rounded-xl bg-slate-100 p-0.5">
+                    <TabsTrigger value="preview" className="rounded-lg px-3 py-1.5 text-xs">Preview</TabsTrigger>
+                    <TabsTrigger value="ai" className="rounded-lg px-3 py-1.5 text-xs">AI</TabsTrigger>
                   </TabsList>
 
-                  {selectedSummary && (
+                  {selectedSummary && activePane === "preview" && (
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         variant="outline"
+                        className="h-8 text-xs"
                         onClick={() => navigate(`/submission/${selectedSummary.id}`)}
                       >
-                        <ExternalLink className="mr-2 h-4 w-4" />
+                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
                         Full Page
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
-                        className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                        className="h-8 border-blue-200 bg-blue-50 text-xs text-blue-700 hover:bg-blue-100"
                         onClick={() => handleAnalyzeSelected(selectedSummary.id)}
                       >
-                        <Brain className="mr-2 h-4 w-4" />
-                        Analyze Selected
+                        <Brain className="mr-1.5 h-3.5 w-3.5" />
+                        Analyze
                       </Button>
                     </div>
                   )}
