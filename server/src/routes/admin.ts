@@ -80,6 +80,10 @@ router.get("/activity", async (req: AuthRequest, res: Response) => {
   try {
     if (!(await requirePrism(req, res))) return;
 
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+
     const loginLimit = Math.min(Math.max(Number(req.query.loginLimit || 100), 1), 500);
     const submissionLimit = Math.min(Math.max(Number(req.query.submissionLimit || 100), 1), 500);
 

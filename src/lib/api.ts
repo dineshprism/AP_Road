@@ -175,6 +175,7 @@ export const api = {
       const params = new URLSearchParams();
       if (filters?.loginLimit) params.set("loginLimit", String(filters.loginLimit));
       if (filters?.submissionLimit) params.set("submissionLimit", String(filters.submissionLimit));
+      params.set("_", String(Date.now()));
       const qs = params.toString();
       return request<{
         summary: {
@@ -186,7 +187,7 @@ export const api = {
         };
         loginEvents: any[];
         submissionEvents: any[];
-      }>(`/admin/activity${qs ? `?${qs}` : ""}`);
+      }>(`/admin/activity${qs ? `?${qs}` : ""}`, { cache: "no-store" });
     },
   },
 

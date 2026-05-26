@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
 import AccidentChat from "@/components/AccidentChat";
 import { Brain, Clock3, Eye, FileSpreadsheet, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
+import { toast } from "sonner";
 
 interface LoginEvent {
   id: string;
@@ -64,19 +65,34 @@ const PrismDashboard = () => {
 
   const fetchActivity = async () => {
     setLoading(true);
-    const { data } = await api.admin.activity({ loginLimit: 150, submissionLimit: 150 });
-    const feedbackResponse = await api.feedback.list();
-    setLoginEvents(data?.loginEvents || []);
-    setSubmissionEvents(data?.submissionEvents || []);
-    setFeedbackItems(feedbackResponse.data || []);
-    setSummary(data?.summary || {
-      total_logins: 0,
-      logins_last_24h: 0,
-      total_submissions: 0,
-      submissions_last_24h: 0,
-      active_submission_districts: 0,
-    });
-    setLoading(false);
+    try {
+      const [activityResponse, feedbackResponse] = await Promise.all([
+        api.admin.activity({ loginLimit: 150, submissionLimit: 150 }),
+        api.feedback.list(),
+      ]);
+
+      if (activityResponse.error) {
+        toast.error(activityResponse.error);
+      }
+
+      if (feedbackResponse.error) {
+        toast.error(feedbackResponse.error);
+      }
+
+      const data = activityResponse.data;
+      setLoginEvents(data?.loginEvents || []);
+      setSubmissionEvents(data?.submissionEvents || []);
+      setFeedbackItems(feedbackResponse.data || []);
+      setSummary(data?.summary || {
+        total_logins: 0,
+        logins_last_24h: 0,
+        total_submissions: 0,
+        submissions_last_24h: 0,
+        active_submission_districts: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -134,8 +150,8 @@ const PrismDashboard = () => {
             <Button variant="outline" onClick={() => navigate("/dsr-reports")}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> DSR Reports
             </Button>
-            <Button onClick={() => void fetchActivity()}>
-              <RefreshCcw className="mr-2 h-4 w-4" /> Refresh Logs
+            <Button onClick={() => void fetchActivity()} disabled={loading}>
+              <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh Logs
             </Button>
           </div>
         </div>
