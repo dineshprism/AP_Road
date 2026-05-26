@@ -511,7 +511,7 @@ router.get("/pro", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Analytics Pro error:", err);
-    res.status(500).json({ error: `Failed to generate analytics pro data: ${err.message}` });
+    res.status(500).json({ error: "Failed to generate analytics pro data" });
   }
 });
 
@@ -575,7 +575,7 @@ router.get("/pro-drilldown", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Analytics Pro drilldown error:", err);
-    res.status(500).json({ error: `Failed to load drilldown submissions: ${err.message}` });
+    res.status(500).json({ error: "Failed to load drilldown submissions" });
   }
 });
 

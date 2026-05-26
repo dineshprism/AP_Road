@@ -1122,7 +1122,7 @@ router.get("/enhanced", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Enhanced analytics error:", err);
-    res.status(500).json({ error: `Failed to generate enhanced analytics: ${err.message}` });
+    res.status(500).json({ error: "Failed to generate enhanced analytics" });
   }
 });
 
@@ -1291,7 +1291,7 @@ router.get("/enhanced-drilldown", async (req: AuthRequest, res: Response) => {
     });
   } catch (err: any) {
     console.error("Enhanced analytics drilldown error:", err);
-    res.status(500).json({ error: `Failed to load drilldown submissions: ${err.message}` });
+    res.status(500).json({ error: "Failed to load drilldown submissions" });
   }
 });
 

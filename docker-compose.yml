@@ -21,8 +21,6 @@ services:
   app:
     build:
       context: .
-      args:
-        VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
     restart: always
     env_file:
       - .env.docker
@@ -39,6 +37,7 @@ services:
       PORT: 3000
       NODE_ENV: production
       CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN must be set in .env}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:?GOOGLE_MAPS_API_KEY must be set in .env}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       GEMINI_THINKING_BUDGET: ${GEMINI_THINKING_BUDGET:-0}

@@ -31,11 +31,11 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "Create it with:"
     echo ""
     echo "cat > $ENV_FILE << 'EOF'"
-    echo 'VITE_GOOGLE_MAPS_API_KEY=your-google-maps-key'
+    echo 'GOOGLE_MAPS_API_KEY=your-google-maps-key'
     echo 'GEMINI_API_KEY=your-gemini-api-key'
     echo 'DB_PASSWORD=CHANGE_ME_STRONG_PASSWORD'
     echo 'DB_PORT=5433'
-    echo 'JWT_SECRET=CHANGE_ME_RANDOM_64_CHAR_STRING'
+    echo 'JWT_SECRET=<random-64-character-secret>'
     echo 'CORS_ORIGIN=http://YOUR_VM_EXTERNAL_IP:3000'
     echo 'EOF'
     echo ""

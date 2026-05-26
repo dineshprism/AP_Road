@@ -537,7 +537,7 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
   } catch (err: any) {
     console.error("Gemini analyze error:", err);
     res.status(500).json({ 
-      error: err?.message || "AI analysis failed. Please try again later."
+      error: "AI analysis failed. Please try again later."
     });
   }
 });
@@ -656,7 +656,7 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
   } catch (err: any) {
     console.error("Gemini batch analyze error:", err);
     res.status(500).json({ 
-      error: err?.message || "AI batch analysis failed. Please try again later."
+      error: "AI batch analysis failed. Please try again later."
     });
   }
 });

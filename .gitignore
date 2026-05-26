@@ -17,6 +17,14 @@ dist-ssr
 .env.docker
 server/.env
 
+# Sensitive local data and generated exports
+*credentials*
+*.xlsx
+road-accident-data.json
+server/uploads/
+uploads/
+*signed-copies*
+
 # Live database migration exports
 migration-export/
 server/migration-export/

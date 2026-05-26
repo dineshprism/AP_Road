@@ -16,7 +16,7 @@
 cd server
 
 # Add sample accident data
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -f sample-analytics-data.sql
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -f sample-analytics-data.sql
 
 # This adds 5 sample accident submissions with:
 # - Multiple districts (Guntur, Visakhapatnam, Krishna, Chittoor, Kurnool)
@@ -50,13 +50,13 @@ npm run dev
 ### **🔧 Fix 4: Check Database**
 ```bash
 # Check if database exists
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -c "\l"
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -c "\l"
 
 # Check if table exists
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -c "\dt"
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -c "\dt"
 
 # Check if data exists
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -c "SELECT COUNT(*) FROM accident_submissions;"
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -c "SELECT COUNT(*) FROM accident_submissions;"
 ```
 
 ## **🎯 SUCCESS CHECKLIST**:
@@ -81,7 +81,7 @@ curl http://localhost:3000/api/health
 ### **Step 1: Add Sample Data**
 ```bash
 cd server
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -f sample-analytics-data.sql
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -f sample-analytics-data.sql
 ```
 
 ### **Step 2: Start Servers**

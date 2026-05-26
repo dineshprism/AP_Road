@@ -28,7 +28,7 @@ curl http://localhost:3000/api/health
 cd server
 cat .env | grep GEMINI_API_KEY
 
-# Should show: GEMINI_API_KEY=AIzaSyDOzvVEl2ixsUtWvz87YIerN2gqNeofPAQ
+# Should show: GEMINI_API_KEY=REDACTED_GEMINI_API_KEY
 
 # If not set, add it to .env file
 ```
@@ -74,7 +74,7 @@ cd server && npm start
 ### **Issue 2: Gemini API Key Problems**
 ```bash
 # Verify API key format
-# Should be like: AIzaSyDOzvVEl2ixsUtWvz87YIerN2gqNeofPAQ
+# Should be like: REDACTED_GEMINI_API_KEY
 
 # Test API key directly
 curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent" \
@@ -90,9 +90,9 @@ cd server
 ls -la .env*
 
 # Ensure .env file contains:
-GEMINI_API_KEY=AIzaSyDOzvVEl2ixsUtWvz87YIerN2gqNeofPAQ
-DATABASE_URL=postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db
-JWT_SECRET=aP_rOaD_sAfEtY_sEcReT_kEy_2026_cHaNgE_tHiS_iN_pRoDuCtIoN_x9k2m
+GEMINI_API_KEY=REDACTED_GEMINI_API_KEY
+DATABASE_URL=postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db
+JWT_SECRET=REDACTED_JWT_SECRET
 PORT=3000
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:8080
@@ -101,7 +101,7 @@ CORS_ORIGIN=http://localhost:8080
 ### **Issue 4: Database Connection Problems**
 ```bash
 # Test database connection
-psql "postgresql://postgres:Github%2320262027@localhost:5432/road_accident_db" -c "\l"
+psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db" -c "\l"
 
 # If connection fails, check:
 # 1. PostgreSQL is running

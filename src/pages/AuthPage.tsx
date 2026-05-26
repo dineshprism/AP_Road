@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { api, setToken } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ const DEMO_DISTRICTS = ["Prism"];
 const STANDARD_DISTRICTS = AP_DISTRICTS.filter((district) => !DEMO_DISTRICTS.includes(district));
 
 const AuthPage = () => {
-  const { user, loading: authLoading, isAdmin, roles } = useAuth();
+  const { user, loading: authLoading, isAdmin, roles, refreshAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,8 +42,7 @@ const AuthPage = () => {
     if (error || !data) {
       toast.error(error || "Login failed");
     } else {
-      setToken(data.token);
-      window.location.reload();
+      await refreshAuth();
     }
     setLoading(false);
   };

@@ -86,6 +86,20 @@ function getSignedCopyFileName(district: string, firNumber: string, originalName
   return `${districtShortcut}_${firPart}${extension}`;
 }
 
+function hasAllowedFileSignature(filePath: string, mimeType: string) {
+  const header = fs.readFileSync(filePath).subarray(0, 8);
+  if (mimeType === "application/pdf") {
+    return header.subarray(0, 5).toString("ascii") === "%PDF-";
+  }
+  if (mimeType === "image/jpeg") {
+    return header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
+  }
+  if (mimeType === "image/png") {
+    return header.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  }
+  return false;
+}
+
 // POST /api/submissions — create a new submission
 router.post("/", async (req: AuthRequest, res: Response) => {
   try {
@@ -323,6 +337,12 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
 
     if (!file) {
       res.status(400).json({ error: "Signed copy file is required" });
+      return;
+    }
+
+    if (!hasAllowedFileSignature(file.path, file.mimetype)) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: "Uploaded file content does not match an allowed PDF, JPG, or PNG file" });
       return;
     }
 

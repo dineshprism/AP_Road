@@ -63,10 +63,9 @@ function districtStrokeColor(count: number) {
 }
 
 async function getGoogleMapsApiKey() {
-  const token = localStorage.getItem("auth_token");
   const response = await fetch("/api/maps/config", {
     cache: "no-store",
-    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: "include",
   });
   if (!response.ok) return "";
   const data = await response.json().catch(() => ({}));

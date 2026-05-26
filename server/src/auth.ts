@@ -38,13 +38,20 @@ export function verifyToken(token: string): AuthPayload {
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   const header = req.headers.authorization;
-  if (!header || !header.startsWith("Bearer ")) {
-    res.status(401).json({ error: "Authorization header missing or invalid" });
+  const bearerToken = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  const cookieToken = req.headers.cookie
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("auth_token="))
+    ?.slice("auth_token=".length);
+  const token = bearerToken || (cookieToken ? decodeURIComponent(cookieToken) : null);
+
+  if (!token) {
+    res.status(401).json({ error: "Authentication required" });
     return;
   }
 
   try {
-    const token = header.slice(7);
     req.user = verifyToken(token);
     next();
   } catch {

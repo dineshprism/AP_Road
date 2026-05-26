@@ -36,16 +36,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<AuthContextType["profile"]>(null);
 
   const loadUser = useCallback(async () => {
-    const token = localStorage.getItem("auth_token");
-    if (!token) {
-      setUser(null);
-      setIsAdmin(false);
-      setRoles([]);
-      setProfile(null);
-      setLoading(false);
-      return;
-    }
-
     const { data, error } = await api.auth.me();
     if (error || !data) {
       clearToken();
@@ -67,6 +57,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [loadUser]);
 
   const signOut = () => {
+    void api.auth.logout();
     clearToken();
     setUser(null);
     setIsAdmin(false);

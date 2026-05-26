@@ -2,55 +2,60 @@ import bcrypt from "bcrypt";
 import pool from "../../../src/db.js";
 
 const SALT_ROUNDS = 12;
+const seedPassword = process.env.SEED_DEFAULT_PASSWORD;
+
+if (!seedPassword || seedPassword.length < 12) {
+  throw new Error("Set SEED_DEFAULT_PASSWORD to a strong temporary password before running this seed script.");
+}
 
 const DISTRICT_USERS = [
-  { district: "Alluri Sitharama Raju", username: "alluri_sitharama_raju", password: "ASRj@2025" },
-  { district: "Anakapalli", username: "anakapalli", password: "Ankp@2025" },
-  { district: "Ananthapuram", username: "ananthapuram", password: "Antm@2025" },
-  { district: "Ananthapuramu EXCISE", username: "ananthapuramu_excise", password: "AExc@2025" },
-  { district: "Annamayya", username: "annamayya", password: "Anny@2025" },
-  { district: "Annamayya EXCISE", username: "annamayya_excise", password: "NExc@2025" },
-  { district: "Bapatla", username: "bapatla", password: "Bptl@2025" },
-  { district: "Bapatla EXCISE", username: "bapatla_excise", password: "BExc@2025" },
-  { district: "C I D", username: "c_i_d", password: "CID@2025x" },
-  { district: "Chittoor", username: "chittoor", password: "Chtr@2025" },
-  { district: "Chittoor  EXCISE", username: "chittoor_excise", password: "CExc@2025" },
-  { district: "Coastal Security Police", username: "coastal_security_police", password: "CSP@2025x" },
-  { district: "Dr. B R Ambedkar Konaseema", username: "dr_b_r_ambedkar_konaseema", password: "DBRK@2025" },
-  { district: "Dr. B R Ambedkar Konaseema EXCISE", username: "dr_b_r_ambedkar_konaseema_excise", password: "DKEx@2025" },
-  { district: "Eagle", username: "eagle", password: "Eagl@2025" },
-  { district: "East Godavari", username: "east_godavari", password: "EGod@2025" },
-  { district: "East Godavari EXCISE", username: "east_godavari_excise", password: "EGEx@2025" },
-  { district: "Eluru", username: "eluru", password: "Elru@2025" },
-  { district: "GRP Guntakal", username: "grp_guntakal", password: "GRPG@2025" },
-  { district: "GRP Vijayawada", username: "grp_vijayawada", password: "GRPV@2025" },
-  { district: "Guntur", username: "guntur", password: "Gntr@2025" },
-  { district: "Intelligence  Unit", username: "intelligence_unit", password: "INTU@2025" },
-  { district: "Kakinada", username: "kakinada", password: "Kknd@2025" },
-  { district: "Krishna", username: "krishna", password: "Krsh@2025" },
-  { district: "Kurnool", username: "kurnool", password: "Krnl@2025" },
-  { district: "Markapuram", username: "markapuram", password: "Mrkp@2025" },
-  { district: "NTR Commissionerate", username: "ntr_commissionerate", password: "NTRC@2025" },
-  { district: "Nandyal", username: "nandyal", password: "Ndyl@2025" },
-  { district: "Palnadu", username: "palnadu", password: "Plnd@2025" },
-  { district: "Parvathipuram Manyam", username: "parvathipuram_manyam", password: "PvMy@2025" },
-  { district: "Polavaram", username: "polavaram", password: "Plvr@2025" },
-  { district: "Prakasam", username: "prakasam", password: "Prkm@2025" },
-  { district: "Red Sanders Anti-Smuggling Task Force", username: "red_sanders_anti_smuggling_task_force", password: "RSAT@2025" },
-  { district: "Sri Potti Sriramulu Nellore", username: "sri_potti_sriramulu_nellore", password: "SPSN@2025" },
-  { district: "Sri Sathya Sai", username: "sri_sathya_sai", password: "SSSi@2025" },
-  { district: "Srikakulam", username: "srikakulam", password: "Sklm@2025" },
-  { district: "Tirupathi", username: "tirupathi", password: "Trpt@2025" },
-  { district: "Visakhapatnam Commissionerate", username: "visakhapatnam_commissionerate", password: "VSPC@2025" },
-  { district: "Vizianagaram", username: "vizianagaram", password: "Vzng@2025" },
-  { district: "West Godavari", username: "west_godavari", password: "WGod@2025" },
-  { district: "YSR Kadapa", username: "ysr_kadapa", password: "Kdpa@2025" },
-  { district: "Prism", username: "prism", password: "Prsm@2025" },
+  { district: "Alluri Sitharama Raju", username: "alluri_sitharama_raju" },
+  { district: "Anakapalli", username: "anakapalli" },
+  { district: "Ananthapuram", username: "ananthapuram" },
+  { district: "Ananthapuramu EXCISE", username: "ananthapuramu_excise" },
+  { district: "Annamayya", username: "annamayya" },
+  { district: "Annamayya EXCISE", username: "annamayya_excise" },
+  { district: "Bapatla", username: "bapatla" },
+  { district: "Bapatla EXCISE", username: "bapatla_excise" },
+  { district: "C I D", username: "c_i_d" },
+  { district: "Chittoor", username: "chittoor" },
+  { district: "Chittoor  EXCISE", username: "chittoor_excise" },
+  { district: "Coastal Security Police", username: "coastal_security_police" },
+  { district: "Dr. B R Ambedkar Konaseema", username: "dr_b_r_ambedkar_konaseema" },
+  { district: "Dr. B R Ambedkar Konaseema EXCISE", username: "dr_b_r_ambedkar_konaseema_excise" },
+  { district: "Eagle", username: "eagle" },
+  { district: "East Godavari", username: "east_godavari" },
+  { district: "East Godavari EXCISE", username: "east_godavari_excise" },
+  { district: "Eluru", username: "eluru" },
+  { district: "GRP Guntakal", username: "grp_guntakal" },
+  { district: "GRP Vijayawada", username: "grp_vijayawada" },
+  { district: "Guntur", username: "guntur" },
+  { district: "Intelligence  Unit", username: "intelligence_unit" },
+  { district: "Kakinada", username: "kakinada" },
+  { district: "Krishna", username: "krishna" },
+  { district: "Kurnool", username: "kurnool" },
+  { district: "Markapuram", username: "markapuram" },
+  { district: "NTR Commissionerate", username: "ntr_commissionerate" },
+  { district: "Nandyal", username: "nandyal" },
+  { district: "Palnadu", username: "palnadu" },
+  { district: "Parvathipuram Manyam", username: "parvathipuram_manyam" },
+  { district: "Polavaram", username: "polavaram" },
+  { district: "Prakasam", username: "prakasam" },
+  { district: "Red Sanders Anti-Smuggling Task Force", username: "red_sanders_anti_smuggling_task_force" },
+  { district: "Sri Potti Sriramulu Nellore", username: "sri_potti_sriramulu_nellore" },
+  { district: "Sri Sathya Sai", username: "sri_sathya_sai" },
+  { district: "Srikakulam", username: "srikakulam" },
+  { district: "Tirupathi", username: "tirupathi" },
+  { district: "Visakhapatnam Commissionerate", username: "visakhapatnam_commissionerate" },
+  { district: "Vizianagaram", username: "vizianagaram" },
+  { district: "West Godavari", username: "west_godavari" },
+  { district: "YSR Kadapa", username: "ysr_kadapa" },
+  { district: "Prism", username: "prism" },
 ] as const;
 
 const ADMIN_USERS = [
-  { username: "dgp", password: "DGP@admin2025", fullName: "Director General of Police", role: "dgp", district: "State HQ" },
-  { username: "adgp", password: "ADGP@admin2025", fullName: "Additional DGP", role: "adgp", district: "State HQ" },
+  { username: "dgp", fullName: "Director General of Police", role: "dgp", district: "State HQ" },
+  { username: "adgp", fullName: "Additional DGP", role: "adgp", district: "State HQ" },
 ];
 
 async function seedUsers() {
@@ -79,13 +84,13 @@ async function seedUsers() {
     await client.query("DELETE FROM users");
 
     console.log("=== DISTRICT LOGINS ===\n");
-    console.log("District".padEnd(40) + "Username".padEnd(45) + "Password");
-    console.log("-".repeat(110));
+    console.log("District".padEnd(40) + "Username".padEnd(45));
+    console.log("-".repeat(85));
 
     // Create district users
     for (const account of DISTRICT_USERS) {
-      const { district, username, password } = account;
-      const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+      const { district, username } = account;
+      const passwordHash = await bcrypt.hash(seedPassword, SALT_ROUNDS);
 
       const userResult = await client.query(
         "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
@@ -113,16 +118,16 @@ async function seedUsers() {
         [userId, district === "Prism" ? "PRISM Team" : `${district} DRSC Unit`, district, district === "Prism" ? "PRISM Super Admin" : "District DRSC"]
       );
 
-      console.log(district.padEnd(40) + username.padEnd(45) + password);
+      console.log(district.padEnd(40) + username.padEnd(45));
     }
 
     console.log("\n=== ADMIN LOGINS ===\n");
-    console.log("Role".padEnd(15) + "Username".padEnd(20) + "Password");
-    console.log("-".repeat(55));
+    console.log("Role".padEnd(15) + "Username".padEnd(20));
+    console.log("-".repeat(35));
 
     // Create admin users (DGP & ADGP)
     for (const admin of ADMIN_USERS) {
-      const passwordHash = await bcrypt.hash(admin.password, SALT_ROUNDS);
+      const passwordHash = await bcrypt.hash(seedPassword, SALT_ROUNDS);
 
       const userResult = await client.query(
         "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id",
@@ -148,7 +153,7 @@ async function seedUsers() {
         [userId, admin.fullName, admin.district, admin.role.toUpperCase()]
       );
 
-      console.log(admin.role.toUpperCase().padEnd(15) + admin.username.padEnd(20) + admin.password);
+      console.log(admin.role.toUpperCase().padEnd(15) + admin.username.padEnd(20));
     }
 
     await client.query("COMMIT");

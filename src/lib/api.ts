@@ -1,13 +1,5 @@
 const API_BASE = "/api";
 
-function getToken(): string | null {
-  return localStorage.getItem("auth_token");
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem("auth_token", token);
-}
-
 export function clearToken(): void {
   localStorage.removeItem("auth_token");
 }
@@ -16,7 +8,6 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<{ data: T | null; error: string | null }> {
-  const token = getToken();
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
@@ -26,14 +17,11 @@ async function request<T>(
     headers["Content-Type"] = "application/json";
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -52,19 +40,15 @@ async function downloadFile(
   path: string,
   options: RequestInit = {}
 ): Promise<{ blob: Blob | null; filename: string | null; error: string | null }> {
-  const token = getToken();
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
-
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers,
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -84,7 +68,6 @@ async function downloadFile(
 // ---- Auth API ----
 
 export interface AuthResponse {
-  token: string;
   user: { id: string; email: string };
 }
 
@@ -119,6 +102,12 @@ export const api = {
 
     me() {
       return request<MeResponse>("/auth/me");
+    },
+
+    logout() {
+      return request<{ success: boolean }>("/auth/logout", {
+        method: "POST",
+      });
     },
   },
 
@@ -372,16 +361,9 @@ export async function openProtectedAsset(
     throw new Error("Signed copy is not available");
   }
 
-  const token = getToken();
-  if (!token) {
-    throw new Error("Please login again to access the signed copy");
-  }
-
   try {
     const res = await fetch(assetUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      credentials: "include",
     });
 
     if (!res.ok) {

@@ -262,13 +262,13 @@ Create a `.env` file in the `server/` directory:
 
 ```env
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/road_accident_db
-JWT_SECRET=a-random-64-character-secret
+JWT_SECRET=<random-64-character-secret>
 PORT=3000
 CORS_ORIGIN=http://localhost:8080
 NODE_ENV=development
 ```
 
-The frontend uses `VITE_API_URL` (optional) — defaults to `/api` which is proxied by Vite in dev mode.
+The frontend calls `/api` directly. In Docker/production, set `GOOGLE_MAPS_API_KEY` for the backend; do not use `VITE_GOOGLE_MAPS_API_KEY`.
 
 ---
 

@@ -6,6 +6,19 @@ import { generateToken, authMiddleware, AuthRequest } from "../auth.js";
 import { findUserForLogin } from "../user-store.js";
 
 const router = Router();
+const AUTH_COOKIE_NAME = "auth_token";
+const AUTH_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function authCookieOptions() {
+  const secure = process.env.NODE_ENV === "production";
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: secure ? "strict" as const : "lax" as const,
+    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+    path: "/",
+  };
+}
 
 // Rate limit login: 10 attempts per 15 minutes per IP
 const loginLimiter = rateLimit({
@@ -58,14 +71,19 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
       console.error("Failed to record login activity:", activityError);
     }
 
+    res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
     res.json({
-      token,
       user: { id: user.id, email: user.email },
     });
   } catch (err: any) {
     console.error("Login error:", err);
     res.status(500).json({ error: "Login service unavailable" });
   }
+});
+
+router.post("/logout", (_req: AuthRequest, res: Response) => {
+  res.clearCookie(AUTH_COOKIE_NAME, { path: "/" });
+  res.json({ success: true });
 });
 
 // GET /api/auth/me — get current user info + profile + roles
