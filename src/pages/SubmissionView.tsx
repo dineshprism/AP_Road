@@ -244,7 +244,7 @@ const SubmissionView = () => {
               {s.signed_copy_url && (
                 <div className="pt-3">
                   <Button variant="outline" onClick={() => void handleOpenSignedCopy()}>
-                    Signed Copy
+                    <Download className="mr-2 h-4 w-4" /> Signed Copy
                   </Button>
                 </div>
               )}

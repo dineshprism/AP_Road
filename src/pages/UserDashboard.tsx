@@ -718,11 +718,11 @@ const UserDashboard = () => {
                                   disabled={uploadingSubmissionId === submission.id}
                                 >
                                   {submission.signed_copy_uploaded ? <FileCheck className="mr-1 h-4 w-4" /> : <Upload className="mr-1 h-4 w-4" />}
-                                  {uploadingSubmissionId === submission.id ? "Uploading..." : submission.signed_copy_uploaded ? "Replace Uploaded Signed Copy" : "Upload Signed Copy"}
+                                  {uploadingSubmissionId === submission.id ? "Uploading..." : submission.signed_copy_uploaded ? "Reupload Signed Copy" : "Upload Signed Copy"}
                                 </Button>
                                 {submission.signed_copy_url && (
                                   <Button variant="ghost" size="sm" onClick={() => void handleOpenSignedCopy(submission)}>
-                                    <FileText className="mr-1 h-4 w-4" /> Signed Copy
+                                    <Download className="mr-1 h-4 w-4" /> Signed Copy
                                   </Button>
                                 )}
                                 <input
