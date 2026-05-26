@@ -263,6 +263,45 @@
     background: linear-gradient(90deg, rgba(22, 58, 112, 0), rgba(22, 58, 112, 0.18), rgba(245, 158, 11, 0.18), rgba(22, 58, 112, 0));
     height: 1px;
   }
+
+  .ai-markdown {
+    @apply space-y-3;
+  }
+
+  .ai-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .ai-markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .ai-markdown strong {
+    @apply font-bold text-slate-950 dark:text-white;
+  }
+
+  .ai-markdown a {
+    @apply font-semibold text-blue-700 underline underline-offset-4 dark:text-blue-300;
+  }
+
+  .ai-markdown hr {
+    @apply my-4 border-slate-200 dark:border-slate-800;
+  }
+
+  .ai-markdown-compact {
+    @apply space-y-2;
+  }
+
+  .ai-markdown-compact p,
+  .ai-markdown-inverted p,
+  .ai-markdown-inverted li,
+  .ai-markdown-inverted strong {
+    color: white;
+  }
+
+  .ai-markdown-inverted code {
+    @apply bg-white/15 text-white;
+  }
 }
 
 @keyframes gov-marquee-scroll {
