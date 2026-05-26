@@ -24,6 +24,7 @@ const app = express();
 app.set("trust proxy", 1);
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "2000", 10);
 
 // Security middleware
 app.use(helmet({
@@ -42,10 +43,11 @@ app.use(helmet({
   },
 }));
 
-// Global rate limiter: 200 requests per 15 minutes per IP
+// Global rate limiter: enough room for normal dashboard usage, still bounded per IP.
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: globalRateLimitMax,
+  message: { error: "Too many requests. Please wait a few minutes and try again." },
   standardHeaders: true,
   legacyHeaders: false,
 }));

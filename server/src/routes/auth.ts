@@ -8,6 +8,7 @@ import { findUserForLogin } from "../user-store.js";
 const router = Router();
 const AUTH_COOKIE_NAME = "auth_token";
 const AUTH_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "30", 10);
 
 function authCookieOptions() {
   const secure = process.env.NODE_ENV === "production";
@@ -20,10 +21,10 @@ function authCookieOptions() {
   };
 }
 
-// Rate limit login: 10 attempts per 15 minutes per IP
+// Rate limit login attempts per IP.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: loginRateLimitMax,
   message: { error: "Too many login attempts. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
