@@ -6,6 +6,7 @@ import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import { requireElevated } from "../rbac.js";
 import { buildMigrationBundle } from "../dataBundleExport.js";
+import { isPrismBackupIpAllowed, logBackupDownload } from "../backup-security.js";
 
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -85,6 +86,11 @@ router.get("/backup", backupLimiter, async (req: AuthRequest, res: Response) => 
   try {
     if (!(await requirePrism(req, res))) return;
 
+    if (!isPrismBackupIpAllowed(req)) {
+      res.status(403).json({ error: "Backup download is not allowed from this network" });
+      return;
+    }
+
     console.log(`[backup] Started by user ${req.user!.userId}`);
     const bundle = await buildMigrationBundle(client, {
       includeUploads: true,
@@ -102,6 +108,12 @@ router.get("/backup", backupLimiter, async (req: AuthRequest, res: Response) => 
     res.setHeader("X-Backup-Submissions", String(submissionCount));
     res.setHeader("X-Backup-Uploads", String(uploadCount));
     res.json(bundle);
+
+    await logBackupDownload(req.user!.userId, req, {
+      filename,
+      submissionCount,
+      uploadCount,
+    });
 
     console.log(
       `[backup] Completed for user ${req.user!.userId}: ${submissionCount} submissions, ${uploadCount} signed copies`

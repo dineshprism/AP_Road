@@ -9,7 +9,8 @@
 |----------|--------|
 | **Report ID** | VAPT-AP-ROAD-2026-001 |
 | **Assessment date** | 29 May 2026 |
-| **Report version** | 2.0 (Full — Black / White / Grey box) |
+| **Report version** | 2.1 (Remediation update) |
+| **Security score** | **82 / 100** (B+) — see [§1.4](#14-security-score-82100) |
 | **Classification** | Official — Sensitive (Police) |
 | **Repository** | https://github.com/dineshprism/AP_Road |
 
@@ -49,9 +50,19 @@ This report documents a **full Vulnerability Assessment and Penetration Testing 
 
 **Strengths:** HTTPS/HSTS, Helmet CSP, httpOnly JWT cookies, CSRF on mutations, parameterized SQL, upload magic-byte validation, bcrypt passwords, role checks on sensitive routes, dependency audit clean, CORS no longer returns HTTP 500.
 
-**Primary residual risks:** operational secret hygiene, **Prism full-backup sensitivity**, elevated-role statewide data access (by design), optional hardening (MFA, WAF, backup streaming).
+**Primary residual risks:** **Prism full-backup sensitivity** (mitigated with audit log + optional IP allowlist), elevated-role statewide data access (by design), nginx `server_tokens`, backup streaming for very large datasets.
 
 **No critical unauthenticated remote code execution or SQL injection** was identified in code review or unauthenticated probing.
+
+### 1.4 Security score (82/100)
+
+| Item | Status |
+|------|--------|
+| GCP Maps/Gemini keys + referrer lock | **Done** (ops) |
+| MFA for Prism/DGP/ADGP | **Not required** — per project requirement |
+| `server_tokens off` | Ops — apply on nginx when convenient |
+| Backup audit log + IP allowlist | **Implemented** (`backup_download` in `auth_activity_log`, `PRISM_BACKUP_IP_ALLOWLIST`) |
+| IDOR tests BB-A–G | **PASS** — documented in `docs/IDOR-TEST-RESULTS.md` |
 
 ### 1.3 Finding counts
 
@@ -496,16 +507,17 @@ See §9. No hardcoded production secrets found in committed source (secrets must
 
 ## 12. Remediation roadmap
 
-| Priority | Action | Owner |
-|----------|--------|-------|
-| **P0** | Rotate secrets if ever exposed in chat/logs | Ops |
-| **P1** | Confirm nginx `client_max_body_size 25M` on prod | Ops |
-| **P1** | GCP Maps referrer restriction | Ops |
-| **P2** | MFA for Prism, DGP, ADGP | Policy / IT |
-| **P2** | `server_tokens off` in nginx | Ops |
-| **P3** | Backup audit log table + optional IP allowlist | Dev |
-| **P3** | Stream large backups (avoid OOM) | Dev |
-| **P4** | Scheduled authenticated IDOR regression tests | QA |
+| Priority | Action | Status |
+|----------|--------|--------|
+| **P0** | Rotate secrets if ever exposed in chat/logs | Ongoing ops |
+| **P1** | Confirm nginx `client_max_body_size 25M` on prod | Verify on server |
+| **P1** | GCP Maps referrer restriction | **Done** |
+| **P2** | MFA for Prism, DGP, ADGP | **N/A** — not in requirements |
+| **P2** | `server_tokens off` in nginx | Pending ops |
+| **P2** | Backup audit log + optional IP allowlist | **Done** (code) |
+| **P3** | IDOR BB-A–G | **PASS** — `docs/IDOR-TEST-RESULTS.md` |
+| **P3** | Stream large backups (avoid OOM) | Future enhancement |
+| **P4** | Live IDOR re-test with two district accounts | Optional QA |
 
 ---
 

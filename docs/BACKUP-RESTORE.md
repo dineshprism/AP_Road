@@ -68,6 +68,8 @@ npm run data:backup -- --out /tmp/road-accident-backup.json
 ## Limits & security
 
 - **6 downloads per hour** (abuse protection — enough for manual use anytime)  
+- Each download is logged in `auth_activity_log` as `backup_download` (user, IP, counts)  
+- Optional: set `PRISM_BACKUP_IP_ALLOWLIST=1.2.3.4,5.6.7.8` in production `.env` to block backup from other IPs  
 - Files contain password hashes and PDFs — keep confidential  
 - Very large sites: file may be big; wait for download to finish  
 
