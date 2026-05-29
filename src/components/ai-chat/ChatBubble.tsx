@@ -1,47 +1,53 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
-import { Bot, User } from "lucide-react";
+import { Sparkles, User } from "lucide-react";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { cn } from "@/lib/utils";
 
 interface ChatBubbleProps {
   type: "user" | "assistant";
   content: string;
-  timestamp: Date;
+  isLatest?: boolean;
 }
 
-export function ChatBubble({ type, content, timestamp }: ChatBubbleProps) {
+export const ChatBubble = memo(function ChatBubble({ type, content, isLatest }: ChatBubbleProps) {
   const isUser = type === "user";
+
+  if (isUser) {
+    return (
+      <motion.div
+        initial={isLatest ? { opacity: 0, y: 6 } : false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="flex justify-end"
+      >
+        <div className="flex max-w-[85%] items-start gap-2">
+          <div className="rounded-2xl rounded-br-md bg-[#163a70] px-4 py-2.5 text-sm leading-6 text-white shadow-sm">
+            <p className="whitespace-pre-wrap break-words">{content}</p>
+          </div>
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+            <User className="h-4 w-4" />
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      className={cn("flex items-end gap-3", isUser ? "justify-end" : "justify-start")}
+      initial={isLatest ? { opacity: 0, y: 8 } : false}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      className="flex gap-3"
     >
-      {!isUser && (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-700 to-cyan-600 text-white shadow-lg shadow-blue-900/20">
-          <Bot className="h-4 w-4" />
-        </div>
-      )}
-      <div
-        className={cn(
-          "max-w-[min(100%,56rem)] overflow-hidden rounded-2xl px-4 py-3 shadow-sm",
-          isUser
-            ? "rounded-br-md bg-gradient-to-br from-[#102a5c] to-[#1d4f91] text-white"
-            : "rounded-bl-md border border-white/70 bg-white/85 text-slate-800 shadow-[0_22px_70px_-44px_rgba(15,23,42,0.55)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/82"
-        )}
-      >
-        <MarkdownRenderer content={content} compact={isUser} inverted={isUser} />
-        <p className={cn("mt-3 text-[11px]", isUser ? "text-white/70" : "text-slate-400")}>
-          {timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </p>
+      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#163a70] to-[#2563eb] text-white shadow-sm">
+        <Sparkles className="h-4 w-4" />
       </div>
-      {isUser && (
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-900/20">
-          <User className="h-4 w-4" />
+      <div className="min-w-0 flex-1">
+        <div className="rounded-2xl rounded-tl-md border border-slate-200/90 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+          <MarkdownRenderer content={content} />
         </div>
-      )}
+      </div>
     </motion.div>
   );
-}
+});

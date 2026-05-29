@@ -1,8 +1,9 @@
+import React, { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import "highlight.js/styles/github-dark.css";
+import "highlight.js/styles/github.css";
 import { AlertBox } from "./AlertBox";
 import { AnalyticsCard } from "./AnalyticsCard";
 import { ChartRenderer, ChartSpec } from "./ChartRenderer";
@@ -19,26 +20,60 @@ interface MarkdownRendererProps {
   inverted?: boolean;
 }
 
+type ContentSegment =
+  | { type: "markdown"; value: string }
+  | { type: "json"; value: unknown };
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function parseJson(content: string): unknown | null {
-  const trimmed = content.trim();
-  const fenced = trimmed.match(/^```json\s*([\s\S]*?)\s*```$/i);
-  const candidate = fenced ? fenced[1] : trimmed;
-
-  if (!candidate.startsWith("{") && !candidate.startsWith("[")) return null;
-
+function tryParseJson(text: string): unknown | null {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
   try {
-    return JSON.parse(candidate);
+    return JSON.parse(trimmed);
   } catch {
     return null;
   }
 }
 
+function splitContentSegments(content: string): ContentSegment[] {
+  const trimmed = content.trim();
+  const wholeJson = tryParseJson(trimmed);
+  if (wholeJson) return [{ type: "json", value: wholeJson }];
+
+  const segments: ContentSegment[] = [];
+  const pattern = /```json\s*([\s\S]*?)```/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(trimmed)) !== null) {
+    if (match.index > lastIndex) {
+      const md = trimmed.slice(lastIndex, match.index).trim();
+      if (md) segments.push({ type: "markdown", value: md });
+    }
+    const parsed = tryParseJson(match[1]);
+    if (parsed) segments.push({ type: "json", value: parsed });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < trimmed.length) {
+    const md = trimmed.slice(lastIndex).trim();
+    if (md) segments.push({ type: "markdown", value: md });
+  }
+
+  if (segments.length === 0) {
+    return [{ type: "markdown", value: content }];
+  }
+
+  return segments;
+}
+
 function numberEntries(data: JsonRecord) {
-  return Object.entries(data).filter(([, value]) => typeof value === "number" || typeof value === "string").slice(0, 6);
+  return Object.entries(data)
+    .filter(([, value]) => typeof value === "number" || typeof value === "string")
+    .slice(0, 6);
 }
 
 function findRows(data: unknown): Array<Record<string, unknown>> | null {
@@ -48,6 +83,13 @@ function findRows(data: unknown): Array<Record<string, unknown>> | null {
   for (const value of Object.values(data)) {
     if (Array.isArray(value) && value.every(isRecord)) {
       return value as Array<Record<string, unknown>>;
+    }
+    if (isRecord(value)) {
+      for (const nested of Object.values(value)) {
+        if (Array.isArray(nested) && nested.every(isRecord)) {
+          return nested as Array<Record<string, unknown>>;
+        }
+      }
     }
   }
 
@@ -71,8 +113,9 @@ function findCharts(data: unknown): ChartSpec[] {
 
 function findInsights(data: unknown): string[] {
   if (!isRecord(data)) return [];
-  const value = data.insights || data.summary || data.recommendations || data.action_points;
+  const value = data.insights || data.summary || data.recommendations || data.action_points || data.key_findings;
   if (Array.isArray(value)) return value.map(String);
+  if (typeof value === "string" && value.trim()) return [value];
   return [];
 }
 
@@ -85,7 +128,7 @@ function StructuredJsonView({ data }: { data: unknown }) {
   return (
     <div className="space-y-4">
       {stats.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
           {stats.map(([key, value], index) => (
             <AnalyticsCard
               key={key}
@@ -97,31 +140,77 @@ function StructuredJsonView({ data }: { data: unknown }) {
         </div>
       )}
 
-      {rows && <DataTable title="Structured Data" rows={rows} />}
+      {rows && rows.length > 0 && <DataTable title="Analysis data" rows={rows} />}
 
       {charts.map((chart, index) => (
-        <ChartRenderer key={index} spec={chart} />
+        <ChartRenderer key={`${chart.title || "chart"}-${index}`} spec={chart} />
       ))}
 
-      <InsightPanel title="Insights" insights={insights} />
-
-      <details className="rounded-xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950">
-        <summary className="cursor-pointer font-bold text-slate-900 dark:text-slate-100">Raw JSON</summary>
-        <div className="mt-3">
-          <CodeBlock language="json" value={JSON.stringify(data, null, 2)} />
-        </div>
-      </details>
+      {insights.length > 0 && <InsightPanel title="Key insights" insights={insights} />}
     </div>
   );
 }
 
-export function MarkdownRenderer({ content, compact = false, inverted = false }: MarkdownRendererProps) {
-  const parsedJson = parseJson(content);
+const markdownComponents = {
+  a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    const safeHref = href && !/^(javascript|data):/i.test(href) ? href : undefined;
+    return (
+      <a href={safeHref} target="_blank" rel="noopener noreferrer" className="font-medium text-blue-700 underline underline-offset-2 dark:text-blue-300" {...props}>
+        {children}
+      </a>
+    );
+  },
+  h1: ({ children }: { children?: React.ReactNode }) => (
+    <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">{children}</h1>
+  ),
+  h2: ({ children }: { children?: React.ReactNode }) => (
+    <h2 className="mt-5 border-b border-slate-200 pb-2 text-lg font-bold text-slate-900 dark:border-slate-700 dark:text-white">{children}</h2>
+  ),
+  h3: ({ children }: { children?: React.ReactNode }) => (
+    <h3 className="mt-4 text-base font-semibold text-slate-900 dark:text-slate-100">{children}</h3>
+  ),
+  p: ({ children }: { children?: React.ReactNode }) => (
+    <p className="text-[0.9375rem] leading-7 text-slate-700 dark:text-slate-300">{children}</p>
+  ),
+  ul: ({ children }: { children?: React.ReactNode }) => (
+    <ul className="my-2 list-disc space-y-1.5 pl-5 text-[0.9375rem] leading-7 text-slate-700 dark:text-slate-300">{children}</ul>
+  ),
+  ol: ({ children }: { children?: React.ReactNode }) => (
+    <ol className="my-2 list-decimal space-y-1.5 pl-5 text-[0.9375rem] leading-7 text-slate-700 dark:text-slate-300">{children}</ol>
+  ),
+  li: ({ children }: { children?: React.ReactNode }) => <li className="break-words">{children}</li>,
+  blockquote: ({ children }: { children?: React.ReactNode }) => <AlertBox title="Note">{children}</AlertBox>,
+  hr: () => <hr className="my-5 border-slate-200 dark:border-slate-700" />,
+  table: ({ children }: { children?: React.ReactNode }) => (
+    <div className="ai-table-wrap">
+      <table>{children}</table>
+    </div>
+  ),
+  thead: ({ children }: { children?: React.ReactNode }) => <thead>{children}</thead>,
+  th: ({ children }: { children?: React.ReactNode }) => <th>{children}</th>,
+  td: ({ children }: { children?: React.ReactNode }) => <td>{children}</td>,
+  code({ inline, className, children, ...props }: { inline?: boolean; className?: string; children?: React.ReactNode }) {
+    const match = /language-(\w+)/.exec(className || "");
+    const value = String(children).replace(/\n$/, "");
 
-  if (parsedJson) {
-    return <StructuredJsonView data={parsedJson} />;
-  }
+    if (inline) {
+      return (
+        <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[0.85em] text-slate-800 dark:bg-slate-800 dark:text-slate-100" {...props}>
+          {children}
+        </code>
+      );
+    }
 
+    if (match?.[1] === "json") {
+      const parsed = tryParseJson(value);
+      if (parsed) return <StructuredJsonView data={parsed} />;
+    }
+
+    return <CodeBlock language={match?.[1]} value={value} />;
+  },
+};
+
+function MarkdownBlock({ value, compact, inverted }: { value: string; compact?: boolean; inverted?: boolean }) {
   return (
     <div className={cn("ai-markdown", compact && "ai-markdown-compact", inverted && "ai-markdown-inverted")}>
       <ReactMarkdown
@@ -139,56 +228,31 @@ export function MarkdownRenderer({ content, compact = false, inverted = false }:
             },
           ],
         ]}
-        components={{
-          a: ({ href, children, ...props }) => {
-            const safeHref = href && !/^(javascript|data):/i.test(href) ? href : undefined;
-            return (
-              <a
-                href={safeHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                {...props}
-              >
-                {children}
-              </a>
-            );
-          },
-          h1: ({ children }) => <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">{children}</h1>,
-          h2: ({ children }) => <h2 className="mt-5 text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">{children}</h2>,
-          h3: ({ children }) => <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">{children}</h3>,
-          p: ({ children }) => <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">{children}</p>,
-          ul: ({ children }) => <ul className="space-y-2 pl-5 text-sm leading-7 text-slate-700 dark:text-slate-300">{children}</ul>,
-          ol: ({ children }) => <ol className="space-y-2 pl-5 text-sm leading-7 text-slate-700 dark:text-slate-300">{children}</ol>,
-          li: ({ children }) => <li className="list-disc marker:text-blue-600">{children}</li>,
-          blockquote: ({ children }) => <AlertBox title="Note">{children}</AlertBox>,
-          table: ({ children }) => (
-            <div className="my-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[520px] border-collapse text-left text-sm">{children}</table>
-              </div>
-            </div>
-          ),
-          thead: ({ children }) => <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600 dark:bg-slate-900 dark:text-slate-300">{children}</thead>,
-          th: ({ children }) => <th className="border-b border-slate-200 px-4 py-3 font-bold dark:border-slate-800">{children}</th>,
-          td: ({ children }) => <td className="border-b border-slate-100 px-4 py-3 align-top text-slate-700 dark:border-slate-800 dark:text-slate-300">{children}</td>,
-          code({ inline, className, children, ...props }: any) {
-            const match = /language-(\w+)/.exec(className || "");
-            const value = String(children).replace(/\n$/, "");
-
-            if (inline) {
-              return (
-                <code className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[0.9em] font-semibold text-blue-800 dark:bg-slate-800 dark:text-blue-200" {...props}>
-                  {children}
-                </code>
-              );
-            }
-
-            return <CodeBlock language={match?.[1]} value={value} />;
-          },
-        }}
+        components={markdownComponents}
       >
-        {content}
+        {value}
       </ReactMarkdown>
     </div>
   );
 }
+
+function RichContent({ content, compact, inverted }: MarkdownRendererProps) {
+  const segments = useMemo(() => splitContentSegments(content), [content]);
+
+  return (
+    <div className="space-y-4">
+      {segments.map((segment, index) =>
+        segment.type === "json" ? (
+          <StructuredJsonView key={`json-${index}`} data={segment.value} />
+        ) : (
+          <MarkdownBlock key={`md-${index}`} value={segment.value} compact={compact} inverted={inverted} />
+        )
+      )}
+    </div>
+  );
+}
+
+export const MarkdownRenderer = memo(function MarkdownRenderer({ content, compact = false, inverted = false }: MarkdownRendererProps) {
+  if (!content.trim()) return null;
+  return <RichContent content={content} compact={compact} inverted={inverted} />;
+});
