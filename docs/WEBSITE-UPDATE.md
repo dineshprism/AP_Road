@@ -21,6 +21,7 @@ How to ship changes to **https://roadsafety.prismappolice.in** without losing da
 | On server: `git reset --hard origin/main` | `git pull` if the server has local commits (e.g. `okk`) |
 | `docker compose build` + `up -d --force-recreate app` | `docker compose down -v` (deletes DB volume) |
 | Edit `.env` only on the VM when secrets/URLs change | Put `.env` in GitHub |
+| **Weekly:** Prism → Download full backup (see `docs/BACKUP-RESTORE.md`) | Rely only on server disk without off-site backup files |
 | Backup DB before risky changes | `npm run data:import:aws --replace` on production unless you intend to wipe data |
 
 ---
@@ -219,7 +220,13 @@ Order:
 
 ---
 
-## 2.6 Optional: DB backup before big releases
+## 2.6 Production data backup (weekly / daily)
+
+**Routine (no SSH):** Log in as **Prism** on https://roadsafety.prismappolice.in → **Download full backup** → save the JSON to your PC or cloud storage. Do this **at least weekly**; **daily** during busy submission periods.
+
+Details and restore steps: **`docs/BACKUP-RESTORE.md`**
+
+## 2.7 Optional: DB backup before big releases
 
 ```bash
 cd /opt/road-accident-hub/app
@@ -229,7 +236,7 @@ ls -lh ~/backup-*.sql
 
 ---
 
-## 2.7 Post-deploy checklist
+## 2.8 Post-deploy checklist
 
 | Check | Command / action |
 |-------|------------------|

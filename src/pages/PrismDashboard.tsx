@@ -202,14 +202,11 @@ const PrismDashboard = () => {
 
         <Card className="mb-6 border border-[#138808]/25 bg-gradient-to-r from-[#f0fdf4] to-white shadow-sm">
           <CardContent className="py-4 text-sm leading-relaxed text-muted-foreground">
-            <p className="font-semibold text-primary">Production backup (Prism only)</p>
+            <p className="font-semibold text-primary">Production backup — download weekly (or daily)</p>
             <p className="mt-1">
-              One click exports all portal data to a seed-ready JSON file: district submissions (full form
-              details), users, roles, feedback, activity logs, and embedded signed-copy PDFs. To restore after
-              an incident, copy the file to the server and run{" "}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">npm run data:import:aws</code> with{" "}
-              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">--replace --restore-uploads</code>.
-              See <span className="font-medium text-primary">docs/BACKUP-RESTORE.md</span> in the repo.
+              All live data is on this server only. Use <strong>Download full backup</strong> above on a
+              schedule (weekly minimum, daily if needed) and save each file off-site. The export includes every
+              district submission, signed copies, users, and logs — ready to re-import if production fails.
             </p>
           </CardContent>
         </Card>

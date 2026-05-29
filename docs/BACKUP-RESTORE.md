@@ -1,4 +1,27 @@
-# Backup & restore (Prism + CLI)
+# Backup & restore (production only)
+
+**All live data lives on production** (`https://roadsafety.prismappolice.in`). There is no separate “dev database” to back up — you protect production by **downloading a backup file from Prism** on a schedule.
+
+| Schedule | Recommended for |
+|----------|-----------------|
+| **Weekly** | Normal operations (minimum) |
+| **Daily** | Heavy data entry weeks or before/after important deadlines |
+
+Store each file on your PC, Google Drive, or S3 with a date in the name (the download already includes a timestamp).
+
+---
+
+## Daily / weekly routine (production)
+
+1. Log in as **Prism** on the live site.
+2. Open **PRISM Dashboard**.
+3. Click **Download full backup**.
+4. Save the `.json` somewhere safe (do not leave only on the server).
+5. Optional: note submission count in the toast / file size for your records.
+
+No server SSH required for routine backups — the button does the same export as the CLI.
+
+---
 
 Full production backup in **one seed-ready JSON file** — same format as GCP→AWS migration.
 
@@ -16,20 +39,20 @@ The file header includes `restore.importCommand` with the exact import command.
 
 ---
 
-## Option A — Prism dashboard (easiest)
+## Prism dashboard (use this every week)
 
-1. Log in as **Prism**.
+1. Log in as **Prism** on **production**.
 2. Open **PRISM Dashboard**.
 3. Click **Download full backup**.
-4. Save the `.json` file somewhere safe (USB, S3, your PC).
+4. Save the `.json` off the server (PC / cloud storage).
 
 Large sites may take 1–5 minutes; wait until the download starts.
 
-Limit: **6 downloads per hour** per server (abuse protection).
+Limit: **6 downloads per hour** (enough for daily manual backups).
 
 ---
 
-## Option B — CLI on the server
+## CLI on the server (optional fallback)
 
 ```bash
 cd /opt/road-accident-hub/app/server
@@ -83,13 +106,16 @@ docker compose exec db psql -U postgres road_accident_db -c "SELECT COUNT(*) FRO
 
 ---
 
-## Quick schedule (recommended)
+## When to back up
 
 | When | Action |
 |------|--------|
-| Weekly | Prism → **Download full backup** |
-| Before every deploy | Optional SQL dump: `pg_dump` (see WEBSITE-UPDATE.md §2.6) |
-| After major data entry | Extra backup |
+| **Every week** (minimum) | Prism → **Download full backup** on production |
+| **Every day** (optional) | Same, if districts are submitting heavily |
+| Before risky server work | Extra backup + optional `pg_dump` (WEBSITE-UPDATE.md §2.6) |
+| After deploy | Not required if you already have a recent file; deploy does not replace DB |
+
+You do **not** need backups from a local PC install — production Prism download is the source of truth.
 
 ---
 
