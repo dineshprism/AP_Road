@@ -99,31 +99,33 @@ function isAllowedDevOrigin(origin: string): boolean {
   }
 }
 
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin) {
-      if (
-        process.env.NODE_ENV !== "production" ||
-        configuredOrigins.some(isAllowedDevOrigin)
-      ) {
+// Browsers often omit Origin on same-site document navigations (GET /). Block only
+// cross-origin mutations without a valid Origin — not static/health GETs.
+app.use((req, res, next) => {
+  const safeMethod = req.method === "GET" || req.method === "HEAD" || req.method === "OPTIONS";
+  cors({
+    origin(origin, callback) {
+      if (!origin) {
+        if (process.env.NODE_ENV !== "production" || safeMethod) {
+          callback(null, true);
+          return;
+        }
+        callback(new Error("CORS blocked: missing Origin header"));
+        return;
+      }
+      if (configuredOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
-      callback(new Error("CORS blocked: missing Origin header"));
-      return;
-    }
-    if (configuredOrigins.includes(origin)) {
-      callback(null, true);
-      return;
-    }
-    if (isAllowedDevOrigin(origin)) {
-      callback(null, true);
-      return;
-    }
-    callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
-  credentials: true,
-}));
+      if (isAllowedDevOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    credentials: true,
+  })(req, res, next);
+});
 app.use(express.json({ limit: "2mb" }));
 app.use(csrfProtection);
 
