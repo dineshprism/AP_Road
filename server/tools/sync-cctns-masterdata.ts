@@ -95,7 +95,7 @@ function normalizeName(value: string): string | null {
 async function main() {
   await runMigrations();
 
-  const csvPath = path.resolve(process.cwd(), "..", "CCTNS-Masterdata.csv");
+  const csvPath = path.resolve(process.cwd(), "..", "data", "masterdata", "CCTNS-Masterdata.csv");
   if (!fs.existsSync(csvPath)) {
     throw new Error(`CSV file not found: ${csvPath}`);
   }

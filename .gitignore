@@ -43,3 +43,12 @@ server/migration-export/
 
 # Server build
 server/dist
+
+# Local dev logs (keep out of git)
+*.log
+dev-*.log
+server/.server-*.log
+
+# Archive may contain large local exports; ignore heavy binaries inside archive
+_archive/data-exports/*.xlsx
+_archive/logs/
