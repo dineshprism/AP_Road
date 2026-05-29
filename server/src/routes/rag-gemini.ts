@@ -1,6 +1,8 @@
 import { Router, Response } from "express";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import pool from "../db.js";
+import { getUserAccess } from "../rbac.js";
+import { MAX_BATCH_SUBMISSION_IDS } from "../security-utils.js";
 import { GoogleGenAI } from "@google/genai";
 import { AccidentSubmissionRecord, analyzeWithLocalRag } from "../rag-local.js";
 import crypto from "crypto";
@@ -77,19 +79,11 @@ function formatStructuredField(value: unknown): string {
   return String(value);
 }
 
-async function isAdminUser(userId: string) {
-  const roleResult = await pool.query(
-    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism') LIMIT 1",
-    [userId]
-  );
-  return roleResult.rows.length > 0;
-}
-
 async function fetchAccessibleSubmissions(userId: string, submissionIds: string[]) {
-  const admin = await isAdminUser(userId);
-  if (submissionIds.length === 0) return [];
+  const access = await getUserAccess(userId);
+  if (submissionIds.length === 0) return { rows: [], access };
 
-  const result = admin
+  const result = access.canViewAnySubmission
     ? await pool.query<AccidentSubmissionRecord>(
         `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
                 road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
@@ -111,7 +105,7 @@ async function fetchAccessibleSubmissions(userId: string, submissionIds: string[
         [submissionIds, userId]
       );
 
-  return result.rows;
+  return { rows: result.rows, access };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
@@ -123,12 +117,12 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {
   ]);
 }
 
-function getPromptCacheKey(prompt: string) {
-  return crypto.createHash("sha256").update(prompt).digest("hex");
+function getPromptCacheKey(prompt: string, userId: string) {
+  return crypto.createHash("sha256").update(`${userId}:${prompt}`).digest("hex");
 }
 
-function getCachedGeminiResponse(prompt: string) {
-  const key = getPromptCacheKey(prompt);
+function getCachedGeminiResponse(prompt: string, userId: string) {
+  const key = getPromptCacheKey(prompt, userId);
   const entry = geminiResponseCache.get(key);
   if (!entry) return null;
   if (entry.expiresAt <= Date.now()) {
@@ -140,9 +134,10 @@ function getCachedGeminiResponse(prompt: string) {
 
 function setCachedGeminiResponse(
   prompt: string,
+  userId: string,
   result: { response: string; responseTime: number; model: string; tokens: number }
 ) {
-  const key = getPromptCacheKey(prompt);
+  const key = getPromptCacheKey(prompt, userId);
   if (geminiResponseCache.size > 200) {
     const firstKey = geminiResponseCache.keys().next().value;
     if (firstKey) {
@@ -156,8 +151,8 @@ function setCachedGeminiResponse(
 }
 
 // Gemini API call for accident analysis
-async function callGemini(prompt: string) {
-  const cached = getCachedGeminiResponse(prompt);
+async function callGemini(prompt: string, userId: string) {
+  const cached = getCachedGeminiResponse(prompt, userId);
   if (cached) {
     return {
       response: cached.response,
@@ -169,7 +164,7 @@ async function callGemini(prompt: string) {
 
   for (let attempt = 1; attempt <= geminiRetryAttempts; attempt += 1) {
     try {
-      console.log(`Calling Gemini model ${geminiModel} with prompt:`, prompt.substring(0, 100) + "...");
+      console.log(`Calling Gemini model ${geminiModel} for user ${userId}`);
 
       const startTime = Date.now();
       const result = await withTimeout(
@@ -203,7 +198,7 @@ async function callGemini(prompt: string) {
         model: geminiModel,
         tokens: response.length // Approximate token count
       };
-      setCachedGeminiResponse(prompt, geminiResult);
+      setCachedGeminiResponse(prompt, userId, geminiResult);
       return geminiResult;
     } catch (error: any) {
       console.error(`Gemini API error on attempt ${attempt}:`, error);
@@ -439,7 +434,8 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
       return;
     }
 
-    const submissions = await fetchAccessibleSubmissions(req.user!.userId, [submissionId]);
+    const userId = req.user!.userId;
+    const { rows: submissions } = await fetchAccessibleSubmissions(userId, [submissionId]);
     if (submissions.length === 0) {
       res.status(404).json({ error: "Submission not found" });
       return;
@@ -450,7 +446,7 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
 
     let geminiResult;
     try {
-      geminiResult = await callGemini(prompt);
+      geminiResult = await callGemini(prompt, userId);
     } catch (err) {
       if (!isGeminiUnavailable(err)) {
         throw err;
@@ -551,8 +547,17 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
       res.status(400).json({ error: "Submission IDs array is required" });
       return;
     }
+    if (submissionIds.length > MAX_BATCH_SUBMISSION_IDS) {
+      res.status(400).json({ error: `Maximum ${MAX_BATCH_SUBMISSION_IDS} submissions per batch` });
+      return;
+    }
 
-    const submissions = await fetchAccessibleSubmissions(req.user!.userId, submissionIds);
+    const userId = req.user!.userId;
+    const { rows: submissions, access } = await fetchAccessibleSubmissions(userId, submissionIds);
+    if (!access.canViewAnySubmission && submissions.length !== submissionIds.length) {
+      res.status(403).json({ error: "Access denied for one or more submissions" });
+      return;
+    }
     if (submissions.length === 0) {
       res.status(404).json({ error: "No submissions found" });
       return;
@@ -564,7 +569,7 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
 
     let geminiResult;
     try {
-      geminiResult = await callGemini(batchPrompt);
+      geminiResult = await callGemini(batchPrompt, userId);
     } catch (err) {
       if (!isGeminiUnavailable(err)) {
         throw err;

@@ -1,23 +1,11 @@
 import { Router, Response } from "express";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { requireElevated } from "../rbac.js";
 
 const router = Router();
 
-// All admin routes require authentication + admin role
 router.use(authMiddleware);
-
-async function requireAdmin(req: AuthRequest, res: Response): Promise<boolean> {
-  const roleResult = await pool.query(
-    "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism')",
-    [req.user!.userId]
-  );
-  if (roleResult.rows.length === 0) {
-    res.status(403).json({ error: "Admin access required" });
-    return false;
-  }
-  return true;
-}
 
 async function requirePrism(req: AuthRequest, res: Response): Promise<boolean> {
   const roleResult = await pool.query(
@@ -34,7 +22,7 @@ async function requirePrism(req: AuthRequest, res: Response): Promise<boolean> {
 // GET /api/admin/submissions — all submissions with filters
 router.get("/submissions", async (req: AuthRequest, res: Response) => {
   try {
-    if (!(await requireAdmin(req, res))) return;
+    if (!(await requireElevated(req, res))) return;
 
     const { district, year, month, date } = req.query;
 

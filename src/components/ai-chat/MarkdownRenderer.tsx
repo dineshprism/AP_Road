@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import "highlight.js/styles/github-dark.css";
 import { AlertBox } from "./AlertBox";
 import { AnalyticsCard } from "./AnalyticsCard";
@@ -125,8 +126,33 @@ export function MarkdownRenderer({ content, compact = false, inverted = false }:
     <div className={cn("ai-markdown", compact && "ai-markdown-compact", inverted && "ai-markdown-inverted")}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        rehypePlugins={[
+          rehypeHighlight,
+          [
+            rehypeSanitize,
+            {
+              ...defaultSchema,
+              attributes: {
+                ...defaultSchema.attributes,
+                a: [...(defaultSchema.attributes?.a || []), "target", "rel"],
+              },
+            },
+          ],
+        ]}
         components={{
+          a: ({ href, children, ...props }) => {
+            const safeHref = href && !/^(javascript|data):/i.test(href) ? href : undefined;
+            return (
+              <a
+                href={safeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...props}
+              >
+                {children}
+              </a>
+            );
+          },
           h1: ({ children }) => <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">{children}</h1>,
           h2: ({ children }) => <h2 className="mt-5 text-xl font-extrabold tracking-tight text-slate-950 dark:text-white">{children}</h2>,
           h3: ({ children }) => <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-slate-100">{children}</h3>,

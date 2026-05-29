@@ -4,6 +4,12 @@ import path from "path";
 import multer from "multer";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { canPickDistrict, getUserAccess, resolveDistrictForWrite } from "../rbac.js";
+import {
+  assertJsonFieldSize,
+  MAX_UPLOAD_BYTES,
+  toSignedCopyApiUrl,
+} from "../security-utils.js";
 
 const router = Router();
 const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
@@ -22,6 +28,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowedMimeTypes = new Set([
       "application/pdf",
@@ -75,14 +82,27 @@ function getDistrictShortcut(district: string) {
   return words.map((word) => word[0]).join("").slice(0, 5).toUpperCase();
 }
 
-function getSignedCopyFileName(district: string, firNumber: string, originalName: string) {
+function getSignedCopyFileName(
+  submissionId: string,
+  district: string,
+  firNumber: string,
+  originalName: string
+) {
   const districtShortcut = getDistrictShortcut(district);
   const firPart = sanitizeFilePart(firNumber) || "FIR";
+  const idPart = sanitizeFilePart(submissionId).slice(0, 12) || "SUB";
   const originalExt = path.extname(originalName).toLowerCase();
   const allowedExt = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
   const extension = allowedExt.has(originalExt) ? originalExt : ".pdf";
 
-  return `${districtShortcut}_${firPart}${extension}`;
+  return `${districtShortcut}_${firPart}_${idPart}${extension}`;
+}
+
+function mapSubmissionRow(row: Record<string, unknown>) {
+  return {
+    ...row,
+    signed_copy_url: toSignedCopyApiUrl(row.signed_copy_path as string | null),
+  };
 }
 
 function hasAllowedFileSignature(filePath: string, mimeType: string) {
@@ -208,6 +228,33 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const access = await getUserAccess(userId);
+    const effectiveDistrict = resolveDistrictForWrite(access, district);
+    if (!effectiveDistrict) {
+      res.status(403).json({ error: "District profile is required to create submissions" });
+      return;
+    }
+
+    if (!canPickDistrict(access) && effectiveDistrict !== district) {
+      res.status(403).json({ error: "District must match your assigned profile district" });
+      return;
+    }
+
+    try {
+      assertJsonFieldSize(vehicles, "vehicles");
+      assertJsonFieldSize(drivers, "drivers");
+      assertJsonFieldSize(driver_related_causes, "driver_related_causes");
+      assertJsonFieldSize(vehicle_condition_causes, "vehicle_condition_causes");
+      assertJsonFieldSize(road_engineering_culverts, "road_engineering_culverts");
+      assertJsonFieldSize(road_engineering_junctions, "road_engineering_junctions");
+      assertJsonFieldSize(road_engineering_median, "road_engineering_median");
+      assertJsonFieldSize(road_engineering_nature, "road_engineering_nature");
+      assertJsonFieldSize(road_engineering_signages, "road_engineering_signages");
+    } catch (sizeError: any) {
+      res.status(400).json({ error: sizeError.message || "Payload too large" });
+      return;
+    }
+
     const result = await pool.query(
       `INSERT INTO accident_submissions (
         user_id, district, place_of_accident, mandal, police_station, fir_number,
@@ -231,7 +278,7 @@ router.post("/", async (req: AuthRequest, res: Response) => {
         $29, $30, $31
       ) RETURNING id, created_at`,
       [
-        userId, district, place_of_accident, mandal, police_station, fir_number,
+        userId, effectiveDistrict, place_of_accident, mandal, police_station, fir_number,
         lat_long || null, road_type, accident_date, accident_time,
         persons_died || 0, persons_injured || 0, JSON.stringify(victimDetails),
         JSON.stringify(vehicles || []), JSON.stringify(drivers || []),
@@ -248,6 +295,10 @@ router.post("/", async (req: AuthRequest, res: Response) => {
     res.status(201).json({ id: result.rows[0].id, created_at: result.rows[0].created_at });
   } catch (err: any) {
     console.error("Create submission error:", err);
+    if (err?.message?.includes("maximum allowed size")) {
+      res.status(400).json({ error: "One or more fields exceed maximum allowed size" });
+      return;
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 });
@@ -262,12 +313,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       [userId]
     );
 
-    res.json(
-      result.rows.map((row) => ({
-        ...row,
-        signed_copy_url: row.signed_copy_path ? `/uploads/${row.signed_copy_path}` : null,
-      }))
-    );
+    res.json(result.rows.map((row) => mapSubmissionRow(row)));
   } catch (err: any) {
     console.error("Get submissions error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -287,15 +333,10 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check if user is elevated enough to access any submission
-    const roleResult = await pool.query(
-      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism')",
-      [userId]
-    );
-    const isAdmin = roleResult.rows.length > 0;
+    const access = await getUserAccess(userId);
 
     let result;
-    if (isAdmin) {
+    if (access.canViewAnySubmission) {
       result = await pool.query("SELECT * FROM accident_submissions WHERE id = $1", [id]);
     } else {
       result = await pool.query(
@@ -309,11 +350,7 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const row = result.rows[0];
-    res.json({
-      ...row,
-      signed_copy_url: row.signed_copy_path ? `/uploads/${row.signed_copy_path}` : null,
-    });
+    res.json(mapSubmissionRow(result.rows[0]));
   } catch (err: any) {
     console.error("Get submission error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -345,13 +382,9 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
       return;
     }
 
-    const roleResult = await pool.query(
-      "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism')",
-      [userId]
-    );
-    const isAdmin = roleResult.rows.length > 0;
+    const access = await getUserAccess(userId);
 
-    const existingResult = isAdmin
+    const existingResult = access.canViewAnySubmission
       ? await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1", [id])
       : await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1 AND user_id = $2", [id, userId]);
 
@@ -370,7 +403,7 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
       }
     }
 
-    const finalFileName = getSignedCopyFileName(submission.district, submission.fir_number, file.originalname);
+    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, file.originalname);
     const finalPath = path.join(uploadsDir, finalFileName);
     if (file.path !== finalPath) {
       if (fs.existsSync(finalPath)) {
@@ -380,23 +413,45 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     }
 
     const relativePath = path.posix.join("signed-copies", finalFileName);
-    await pool.query(
-      `UPDATE accident_submissions
-       SET signed_copy_uploaded = TRUE,
-           signed_copy_name = $1,
-           signed_copy_path = $2,
-           signed_copy_uploaded_at = now()
-       WHERE id = $3`,
-      [finalFileName, relativePath, id]
-    );
+    const updateResult = access.canViewAnySubmission
+      ? await pool.query(
+          `UPDATE accident_submissions
+           SET signed_copy_uploaded = TRUE,
+               signed_copy_name = $1,
+               signed_copy_path = $2,
+               signed_copy_uploaded_at = now()
+           WHERE id = $3
+           RETURNING id`,
+          [finalFileName, relativePath, id]
+        )
+      : await pool.query(
+          `UPDATE accident_submissions
+           SET signed_copy_uploaded = TRUE,
+               signed_copy_name = $1,
+               signed_copy_path = $2,
+               signed_copy_uploaded_at = now()
+           WHERE id = $3 AND user_id = $4
+           RETURNING id`,
+          [finalFileName, relativePath, id, userId]
+        );
+
+    if (updateResult.rows.length === 0) {
+      fs.unlinkSync(finalPath);
+      res.status(404).json({ error: "Submission not found" });
+      return;
+    }
 
     res.json({
       signed_copy_uploaded: true,
       signed_copy_name: finalFileName,
-      signed_copy_url: `/uploads/${relativePath}`,
+      signed_copy_url: toSignedCopyApiUrl(relativePath),
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({ error: "File exceeds maximum upload size (5 MB)" });
+      return;
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 });

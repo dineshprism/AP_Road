@@ -36,8 +36,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       PORT: 3000
       NODE_ENV: production
-      CORS_ORIGIN: ${CORS_ORIGIN:?CORS_ORIGIN must be set in .env}
-      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:?GOOGLE_MAPS_API_KEY must be set in .env}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:8080,http://localhost:8081}
+      GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       GEMINI_THINKING_BUDGET: ${GEMINI_THINKING_BUDGET:-0}

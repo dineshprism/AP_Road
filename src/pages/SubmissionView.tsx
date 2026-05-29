@@ -64,16 +64,30 @@ const SubmissionView = () => {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (id) {
-      api.submissions.get(id).then(({ data }) => {
-        setSubmission(data);
-        setLoading(false);
-      });
-    }
+    if (!id) return;
+    api.submissions.get(id).then(({ data, error }) => {
+      if (error?.includes("403") || error?.toLowerCase().includes("denied")) {
+        setLoadError("access_denied");
+      } else if (error) {
+        setLoadError("error");
+      }
+      setSubmission(data);
+      setLoading(false);
+    });
   }, [id]);
 
   if (loading) return <div className="min-h-screen bg-background"><GovHeader /><p className="text-center py-12 text-muted-foreground">Loading...</p></div>;
+  if (loadError === "access_denied") {
+    return (
+      <div className="min-h-screen bg-background">
+        <GovHeader />
+        <p className="text-center py-12 text-muted-foreground">You do not have access to this submission.</p>
+      </div>
+    );
+  }
   if (!submission) return <div className="min-h-screen bg-background"><GovHeader /><p className="text-center py-12 text-muted-foreground">Submission not found.</p></div>;
 
   const s = submission;

@@ -251,6 +251,17 @@ const UserDashboard = () => {
   const handleSignedCopyUpload = async (submissionId: string, file: File | null) => {
     if (!file) return;
 
+    const maxUploadBytes = 5 * 1024 * 1024;
+    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
+    if (file.size > maxUploadBytes) {
+      toast.error("File must be 5 MB or smaller");
+      return;
+    }
+    if (!allowedTypes.has(file.type)) {
+      toast.error("Only PDF, JPG, and PNG files are allowed");
+      return;
+    }
+
     setUploadingSubmissionId(submissionId);
     const { data, error } = await api.submissions.uploadSignedCopy(submissionId, file);
 

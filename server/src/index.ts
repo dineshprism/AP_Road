@@ -17,14 +17,25 @@ import ragGeminiRoutes from "./routes/rag-gemini.js";
 import reportRoutes from "./routes/reports.js";
 import { runMigrations } from "./migrate.js";
 import { authMiddleware } from "./auth.js";
+import { csrfProtection } from "./csrf.js";
 
-dotenv.config();
+import fs from "fs";
+const serverEnvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env");
+if (fs.existsSync(serverEnvPath)) {
+  dotenv.config({ path: serverEnvPath, override: true });
+}
 
 const app = express();
-app.set("trust proxy", 1);
+if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "2000", 10);
+const globalRateLimitMax = parseInt(
+  process.env.GLOBAL_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "600" : "2000"),
+  10
+);
+const ragRateLimitMax = parseInt(process.env.RAG_RATE_LIMIT_MAX || "60", 10);
 
 // Security middleware
 app.use(helmet({
@@ -33,8 +44,30 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "https://maps.googleapis.com", "https://maps.gstatic.com"],
       styleSrc: ["'self'", "'unsafe-inline'", "https:", "https://fonts.googleapis.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
-      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://*.googleapis.com", "https://*.gstatic.com", "https://*.google.com", "https://*.ggpht.com"],
-      connectSrc: ["'self'", "https://*.googleapis.com", "https://*.google.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "blob:",
+        "https://*.tile.openstreetmap.org",
+        "https://*.basemaps.cartocdn.com",
+        "https://*.tile.opentopomap.org",
+        "https://server.arcgisonline.com",
+        "https://*.googleapis.com",
+        "https://*.gstatic.com",
+        "https://*.google.com",
+        "https://*.ggpht.com",
+      ],
+      connectSrc: [
+        "'self'",
+        "https://*.tile.openstreetmap.org",
+        "https://*.basemaps.cartocdn.com",
+        "https://*.tile.opentopomap.org",
+        "https://server.arcgisonline.com",
+        "https://*.googleapis.com",
+        "https://*.google.com",
+        "https://maps.googleapis.com",
+        "https://maps.gstatic.com",
+      ],
       fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com", "https://maps.gstatic.com"],
       frameSrc: ["'self'"],
       objectSrc: ["'none'"],
@@ -57,9 +90,33 @@ const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:8080")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+function isAllowedDevOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    return url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || configuredOrigins.includes(origin)) {
+    if (!origin) {
+      if (
+        process.env.NODE_ENV !== "production" ||
+        configuredOrigins.some(isAllowedDevOrigin)
+      ) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("CORS blocked: missing Origin header"));
+      return;
+    }
+    if (configuredOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    if (isAllowedDevOrigin(origin)) {
       callback(null, true);
       return;
     }
@@ -68,6 +125,15 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json({ limit: "2mb" }));
+app.use(csrfProtection);
+
+const ragLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: ragRateLimitMax,
+  message: { error: "Too many AI requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Serve uploaded files only to authenticated users
 app.use("/api/uploads", authMiddleware, express.static(path.join(__dirname, "../uploads")));
@@ -77,9 +143,25 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+function isUsableGoogleMapsKey(key: string): boolean {
+  if (!key || key.length < 20) return false;
+  const lowered = key.toLowerCase();
+  return !(
+    lowered.includes("your-") ||
+    lowered.includes("placeholder") ||
+    lowered.includes("example") ||
+    lowered.includes("changeme")
+  );
+}
+
 app.get("/api/maps/config", authMiddleware, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  res.json({ apiKey: process.env.GOOGLE_MAPS_API_KEY || "" });
+  const browserKey = (process.env.GOOGLE_MAPS_BROWSER_KEY || "").trim();
+  if (!isUsableGoogleMapsKey(browserKey)) {
+    res.json({ provider: "leaflet" });
+    return;
+  }
+  res.json({ provider: "google", apiKey: browserKey });
 });
 
 // API routes
@@ -91,8 +173,8 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/analytics", enhancedAnalyticsRoutes);
 app.use("/api/analytics", analyticsProRoutes);
 app.use("/api/reports", reportRoutes);
-app.use("/api/rag", localRagRoutes);
-app.use("/api/rag", ragGeminiRoutes);
+app.use("/api/rag", ragLimiter, localRagRoutes);
+app.use("/api/rag", ragLimiter, ragGeminiRoutes);
 
 // Serve static frontend in production
 if (process.env.NODE_ENV === "production") {

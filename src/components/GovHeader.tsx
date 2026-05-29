@@ -9,6 +9,7 @@ const GovHeader = () => {
   const getRoleLabel = () => {
     if (roles.includes("dgp")) return "DGP — Administrator";
     if (roles.includes("adgp")) return "ADGP — Administrator";
+    if (roles.includes("prism")) return "Prism — State Viewer";
     if (isAdmin) return "Administrator";
     return `District: ${profile?.district || "N/A"}`;
   };

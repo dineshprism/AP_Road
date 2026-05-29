@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -9,20 +9,18 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import districtGeoJson from "@/data/andhra-pradesh-districts.json";
-
-// leaflet.heat has no types — declare minimal shape
 import "leaflet.heat";
+import { Layers, Map as MapIcon, RefreshCw } from "lucide-react";
+import districtGeoJson from "@/data/andhra-pradesh-districts.json";
+import { BASEMAPS, type BasemapId } from "@/lib/map-tiles";
+import { AccidentMarkerPopup, type AccidentMarkerData } from "@/components/map/AccidentMarkerPopup";
+
 declare module "leaflet" {
   function heatLayer(
     latlngs: Array<[number, number, number?]>,
     options?: Record<string, unknown>,
   ): L.Layer;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Shared types (same interface the Google version exposes)           */
-/* ------------------------------------------------------------------ */
 
 interface AccidentData {
   id: string;
@@ -36,7 +34,7 @@ interface AccidentData {
   fir_number: string;
 }
 
-interface LeafletFallbackMapProps {
+export interface LeafletFallbackMapProps {
   accidents: AccidentData[];
   userDistrict?: string;
   height?: string;
@@ -45,15 +43,7 @@ interface LeafletFallbackMapProps {
   zoom?: number;
 }
 
-type MarkerPoint = AccidentData & {
-  lat: number;
-  lng: number;
-  severity: "high" | "medium" | "low";
-};
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
+type MarkerPoint = AccidentMarkerData;
 
 const AP_CENTER: L.LatLngExpression = [15.9129, 79.74];
 const AP_BOUNDS: L.LatLngBoundsExpression = [
@@ -61,29 +51,24 @@ const AP_BOUNDS: L.LatLngBoundsExpression = [
   [19.1, 84.3],
 ];
 
-const STREET_TILE_LAYER = {
-  url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-  attribution:
-    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-};
-
-const SEVERITY_COLORS: Record<string, string> = {
+const SEVERITY_COLORS: Record<MarkerPoint["severity"], string> = {
   high: "#c62828",
   medium: "#ef6c00",
   low: "#f9a825",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
-
-function parseMarkerPoint(a: AccidentData): MarkerPoint | null {
-  if (!a.lat_long) return null;
-  const [latRaw, lngRaw] = a.lat_long.split(",").map((v) => Number.parseFloat(v.trim()));
+function parseMarkerPoint(accident: AccidentData): MarkerPoint | null {
+  if (!accident.lat_long) return null;
+  const [latRaw, lngRaw] = accident.lat_long.split(",").map((value) => Number.parseFloat(value.trim()));
   if (Number.isNaN(latRaw) || Number.isNaN(lngRaw)) return null;
-  const severity =
-    a.persons_died > 0 ? "high" : a.persons_injured > 0 ? "medium" : "low";
-  return { ...a, lat: latRaw, lng: lngRaw, severity };
+  const severity: MarkerPoint["severity"] =
+    accident.persons_died > 0 ? "high" : accident.persons_injured > 0 ? "medium" : "low";
+  return {
+    ...accident,
+    lat: latRaw,
+    lng: lngRaw,
+    severity,
+  };
 }
 
 function districtFillColor(count: number) {
@@ -91,7 +76,7 @@ function districtFillColor(count: number) {
   if (count > 10) return "#f38744";
   if (count > 5) return "#f5b942";
   if (count > 0) return "#f8e6a8";
-  return "#d8ead7";
+  return "#e8f4e8";
 }
 
 function districtStrokeColor(count: number) {
@@ -102,9 +87,17 @@ function districtStrokeColor(count: number) {
   return "#3f6f54";
 }
 
-/* ------------------------------------------------------------------ */
-/*  Inner component: heatmap layer (uses leaflet.heat)                 */
-/* ------------------------------------------------------------------ */
+function ActiveBasemap({ basemap }: { basemap: BasemapId }) {
+  const config = BASEMAPS[basemap];
+  return (
+    <TileLayer
+      key={basemap}
+      url={config.url}
+      attribution={config.attribution}
+      maxZoom={config.maxZoom}
+    />
+  );
+}
 
 function HeatmapLayer({ points }: { points: MarkerPoint[] }) {
   const map = useMap();
@@ -112,22 +105,22 @@ function HeatmapLayer({ points }: { points: MarkerPoint[] }) {
   useEffect(() => {
     if (points.length === 0) return undefined;
 
-    const data: [number, number, number][] = points.map((p) => [
-      p.lat,
-      p.lng,
-      Math.min(p.persons_died * 2 + p.persons_injured, 10) / 10,
+    const data: [number, number, number][] = points.map((point) => [
+      point.lat,
+      point.lng,
+      Math.min(point.persons_died * 2 + point.persons_injured, 10) / 10,
     ]);
 
     const heat = L.heatLayer(data, {
-      radius: 25,
-      blur: 18,
+      radius: 28,
+      blur: 20,
       maxZoom: 14,
       gradient: {
-        0.2: "#27ae60",
-        0.4: "#f1c40f",
-        0.6: "#f39c12",
-        0.85: "#c0392b",
-        1.0: "#8f1e12",
+        0.15: "#22c55e",
+        0.35: "#eab308",
+        0.55: "#f97316",
+        0.75: "#dc2626",
+        1.0: "#7f1d1d",
       },
     }).addTo(map);
 
@@ -138,10 +131,6 @@ function HeatmapLayer({ points }: { points: MarkerPoint[] }) {
 
   return null;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Inner component: fit‐bounds helper                                 */
-/* ------------------------------------------------------------------ */
 
 function FitBounds({
   bounds,
@@ -154,36 +143,45 @@ function FitBounds({
 
   useEffect(() => {
     if (bounds) {
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: zoom || 10 });
+      map.fitBounds(bounds, { padding: [36, 36], maxZoom: zoom || 10 });
     }
   }, [map, bounds, zoom]);
 
   return null;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Inner component: recenter control                                  */
-/* ------------------------------------------------------------------ */
+function MapResizeFix() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = window.setTimeout(() => map.invalidateSize(), 120);
+    return () => window.clearTimeout(timer);
+  }, [map]);
+  return null;
+}
 
 function RecenterControl({
   recenterRef,
+  bounds,
+  zoom,
 }: {
   recenterRef: React.MutableRefObject<(() => void) | null>;
+  bounds: L.LatLngBoundsExpression | null;
+  zoom?: number;
 }) {
   const map = useMap();
 
   useEffect(() => {
     recenterRef.current = () => {
-      map.fitBounds(AP_BOUNDS, { padding: [30, 30] });
+      if (bounds) {
+        map.fitBounds(bounds, { padding: [36, 36], maxZoom: zoom || 10 });
+        return;
+      }
+      map.fitBounds(AP_BOUNDS, { padding: [36, 36] });
     };
-  }, [map, recenterRef]);
+  }, [map, recenterRef, bounds, zoom]);
 
   return null;
 }
-
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
 
 const LeafletFallbackMap = ({
   accidents,
@@ -193,6 +191,7 @@ const LeafletFallbackMap = ({
   showDistrictBoundaries = true,
   zoom = 7,
 }: LeafletFallbackMapProps) => {
+  const [basemap, setBasemap] = useState<BasemapId>("street");
   const [heatmapEnabled, setHeatmapEnabled] = useState(showHeatmap);
   const [boundariesEnabled, setBoundariesEnabled] = useState(showDistrictBoundaries);
   const recenterRef = useRef<(() => void) | null>(null);
@@ -200,47 +199,44 @@ const LeafletFallbackMap = ({
   useEffect(() => setHeatmapEnabled(showHeatmap), [showHeatmap]);
   useEffect(() => setBoundariesEnabled(showDistrictBoundaries), [showDistrictBoundaries]);
 
-  /* ---------- derived data ---------- */
-
   const markerPoints = useMemo(() => {
     const source = userDistrict
-      ? accidents.filter((a) => a.district === userDistrict)
+      ? accidents.filter((accident) => accident.district === userDistrict)
       : accidents;
-    return source.map(parseMarkerPoint).filter((p): p is MarkerPoint => p !== null);
+    return source.map(parseMarkerPoint).filter((point): point is MarkerPoint => point !== null);
   }, [accidents, userDistrict]);
 
   const districtCounts = useMemo(() => {
-    const map = new Map<string, { count: number; deaths: number; injuries: number }>();
-    for (const a of accidents) {
-      const entry = map.get(a.district) || { count: 0, deaths: 0, injuries: 0 };
+    const counts = new Map<string, { count: number; deaths: number; injuries: number }>();
+    for (const accident of accidents) {
+      const entry = counts.get(accident.district) || { count: 0, deaths: 0, injuries: 0 };
       entry.count += 1;
-      entry.deaths += a.persons_died;
-      entry.injuries += a.persons_injured;
-      map.set(a.district, entry);
+      entry.deaths += accident.persons_died;
+      entry.injuries += accident.persons_injured;
+      counts.set(accident.district, entry);
     }
-    return map;
+    return counts;
   }, [accidents]);
 
   const districtLocked = Boolean(userDistrict);
+  const totalFatalities = markerPoints.reduce((sum, point) => sum + point.persons_died, 0);
+  const totalInjuries = markerPoints.reduce((sum, point) => sum + point.persons_injured, 0);
 
   const districtBounds = useMemo<L.LatLngBoundsExpression | null>(() => {
     if (!userDistrict) return null;
     const feature = (districtGeoJson.features as GeoJSON.Feature[]).find(
-      (f) =>
-        (f.properties?.district || f.properties?.name || "").toLowerCase() ===
+      (item) =>
+        (item.properties?.district || item.properties?.name || "").toString().toLowerCase() ===
         userDistrict.toLowerCase(),
     );
     if (!feature) return null;
-    const layer = L.geoJSON(feature as GeoJSON.Feature);
-    return layer.getBounds();
+    return L.geoJSON(feature as GeoJSON.Feature).getBounds();
   }, [userDistrict]);
-
-  /* ---------- GeoJSON style callback ---------- */
 
   const geoStyle = useCallback(
     (feature: GeoJSON.Feature | undefined) => {
       if (!feature) return {};
-      const name = feature.properties?.district || feature.properties?.name || "";
+      const name = (feature.properties?.district || feature.properties?.name || "").toString();
       const stats = districtCounts.get(name) || { count: 0 };
 
       if (userDistrict && name.toLowerCase() !== userDistrict.toLowerCase()) {
@@ -249,53 +245,56 @@ const LeafletFallbackMap = ({
 
       return {
         fillColor: districtFillColor(stats.count),
-        fillOpacity: districtLocked ? 0.08 : 0.2,
+        fillOpacity: districtLocked ? 0.12 : 0.22,
         color: districtStrokeColor(stats.count),
-        weight: districtLocked ? 2.5 : 1.5,
+        weight: districtLocked ? 2.5 : 1.6,
+        opacity: 0.9,
       };
     },
     [districtCounts, userDistrict, districtLocked],
   );
 
-  /* ---------- GeoJSON popup on each feature ---------- */
-
   const onEachFeature = useCallback(
     (feature: GeoJSON.Feature, layer: L.Layer) => {
-      const name = feature.properties?.district || feature.properties?.name || "Unknown";
+      const name = (feature.properties?.district || feature.properties?.name || "Unknown").toString();
       const stats = districtCounts.get(name) || { count: 0, deaths: 0, injuries: 0 };
 
       if (userDistrict && name.toLowerCase() !== userDistrict.toLowerCase()) return;
 
       layer.bindPopup(
-        `<div style="min-width:170px">
-          <h4 style="margin:0 0 6px;font-weight:700;font-size:13px">${name}</h4>
-          <p style="margin:2px 0;font-size:12px"><b>Total accidents:</b> ${stats.count}</p>
-          <p style="margin:2px 0;font-size:12px"><b>Fatalities:</b> ${stats.deaths}</p>
-          <p style="margin:2px 0;font-size:12px"><b>Injuries:</b> ${stats.injuries}</p>
+        `<div style="min-width:180px;font-family:system-ui,sans-serif">
+          <p style="margin:0 0 4px;font-size:10px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#64748b">District</p>
+          <h4 style="margin:0 0 8px;font-size:14px;font-weight:700;color:#0f172a">${name}</h4>
+          <p style="margin:2px 0;font-size:12px;color:#334155"><b>Accidents:</b> ${stats.count}</p>
+          <p style="margin:2px 0;font-size:12px;color:#334155"><b>Fatalities:</b> ${stats.deaths}</p>
+          <p style="margin:2px 0;font-size:12px;color:#334155"><b>Injuries:</b> ${stats.injuries}</p>
         </div>`,
-        { closeButton: true },
       );
     },
     [districtCounts, userDistrict],
   );
 
-  /* ---------- render ---------- */
-
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-slate-50 p-4 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {userDistrict ? "District Control View" : "State Command View"}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {userDistrict ? "District Control View" : "State Command View"}
+              </p>
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-800">
+                <MapIcon className="h-3 w-3" />
+                OpenStreetMap · Free & open source
+              </span>
+            </div>
             <h3 className="mt-1 text-lg font-bold text-slate-900">
               {userDistrict ? `${userDistrict} District Map` : "Andhra Pradesh Accident Map"}
             </h3>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
               {userDistrict
-                ? "The map stays focused on your district boundary only, with every recorded spot and hotspot intensity visible in one place."
-                : "State leadership can review the entire Andhra Pradesh map, compare district intensity, and inspect accident spots."}
+                ? "District boundary, incident locations, and hotspot intensity — no API key required."
+                : "Review statewide accident density, district boundaries, and individual incident locations."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
@@ -303,159 +302,153 @@ const LeafletFallbackMap = ({
               {markerPoints.length} mapped incidents
             </span>
             <span className="rounded-full bg-red-50 px-3 py-1 font-medium text-red-700">
-              {markerPoints.reduce((s, p) => s + p.persons_died, 0)} fatalities
+              {totalFatalities} fatalities
             </span>
-            <span className="rounded-full bg-blue-50 px-3 py-1 font-medium text-blue-700">
-              Street view
+            <span className="rounded-full bg-amber-50 px-3 py-1 font-medium text-amber-800">
+              {totalInjuries} injuries
             </span>
           </div>
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-[24px]" style={{ height }}>
-      <MapContainer
-        center={AP_CENTER}
-        zoom={zoom}
-        maxBounds={AP_BOUNDS}
-        minZoom={6}
-        maxZoom={18}
-        scrollWheelZoom
-        style={{ width: "100%", height: "100%", borderRadius: "24px" }}
-      >
-        <TileLayer url={STREET_TILE_LAYER.url} attribution={STREET_TILE_LAYER.attribution} />
+      <div className="relative overflow-hidden rounded-[24px] border border-slate-200/80 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)]" style={{ height }}>
+        <MapContainer
+          center={AP_CENTER}
+          zoom={zoom}
+          maxBounds={AP_BOUNDS}
+          minZoom={6}
+          maxZoom={BASEMAPS[basemap].maxZoom || 18}
+          scrollWheelZoom
+          className="z-0"
+          style={{ width: "100%", height: "100%" }}
+        >
+          <ActiveBasemap basemap={basemap} />
+          <MapResizeFix />
+          <FitBounds bounds={districtBounds || AP_BOUNDS} zoom={districtLocked ? 10 : undefined} />
+          <RecenterControl recenterRef={recenterRef} bounds={districtBounds || AP_BOUNDS} zoom={districtLocked ? 10 : undefined} />
 
-        {/* Fit to district or AP */}
-        <FitBounds
-          bounds={districtBounds || AP_BOUNDS}
-          zoom={districtLocked ? 10 : undefined}
-        />
+          {boundariesEnabled && (
+            <GeoJSON
+              key={`geo-${userDistrict || "all"}-${basemap}`}
+              data={districtGeoJson as GeoJSON.FeatureCollection}
+              style={geoStyle}
+              onEachFeature={onEachFeature}
+            />
+          )}
 
-        <RecenterControl recenterRef={recenterRef} />
+          {heatmapEnabled && <HeatmapLayer points={markerPoints} />}
 
-        {/* District boundaries */}
-        {boundariesEnabled && (
-          <GeoJSON
-            key={`geo-${userDistrict || "all"}`}
-            data={districtGeoJson as GeoJSON.FeatureCollection}
-            style={geoStyle}
-            onEachFeature={onEachFeature}
-          />
+          {markerPoints.map((point) => (
+            <CircleMarker
+              key={point.id}
+              center={[point.lat, point.lng]}
+              radius={point.severity === "high" ? 9 : point.severity === "medium" ? 7 : 6}
+              pathOptions={{
+                fillColor: SEVERITY_COLORS[point.severity],
+                fillOpacity: 0.95,
+                color: "#ffffff",
+                weight: 2.5,
+              }}
+            >
+              <Popup className="accident-map-popup" closeButton>
+                <AccidentMarkerPopup point={point} />
+              </Popup>
+            </CircleMarker>
+          ))}
+        </MapContainer>
+
+        {markerPoints.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center bg-slate-900/10 p-6 backdrop-blur-[1px]">
+            <div className="max-w-sm rounded-2xl border border-slate-200 bg-white/95 px-5 py-4 text-center shadow-lg">
+              <p className="text-sm font-semibold text-slate-900">No geocoded incidents on the map</p>
+              <p className="mt-1 text-xs leading-5 text-slate-600">
+                Submissions need a valid latitude/longitude in the location field to appear here.
+              </p>
+            </div>
+          </div>
         )}
 
-        {/* Heatmap */}
-        {heatmapEnabled && <HeatmapLayer points={markerPoints} />}
-
-        {/* Accident markers */}
-        {markerPoints.map((point) => (
-          <CircleMarker
-            key={point.id}
-            center={[point.lat, point.lng]}
-            radius={point.severity === "high" ? 8 : point.severity === "medium" ? 7 : 6}
-            pathOptions={{
-              fillColor: SEVERITY_COLORS[point.severity],
-              fillOpacity: 0.95,
-              color: "#ffffff",
-              weight: 2,
-            }}
-          >
-            <Popup>
-              <div style={{ minWidth: 220 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.18em", color: "#64748b", textTransform: "uppercase", margin: 0 }}>
-                  {point.district}
-                </p>
-                <h4 style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                  {point.place_of_accident}
-                </h4>
-                <div style={{ marginTop: 8, fontSize: 12, color: "#334155", lineHeight: "20px" }}>
-                  <p style={{ margin: "2px 0" }}><b>FIR:</b> {point.fir_number}</p>
-                  <p style={{ margin: "2px 0" }}><b>Date:</b> {point.accident_date}</p>
-                  <p style={{ margin: "2px 0" }}><b>Time:</b> {point.accident_time}</p>
-                  <p style={{ margin: "2px 0" }}><b>Fatalities:</b> {point.persons_died}</p>
-                  <p style={{ margin: "2px 0" }}><b>Injuries:</b> {point.persons_injured}</p>
-                </div>
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${point.lat},${point.lng}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "inline-flex",
-                    marginTop: 10,
-                    padding: "6px 12px",
-                    borderRadius: 8,
-                    background: "#0f172a",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    textDecoration: "none",
-                  }}
-                >
-                  Open in Google Maps
-                </a>
+        <div className="absolute bottom-3 left-3 z-[1000] hidden max-w-[200px] rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-lg backdrop-blur md:block">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">Severity</h4>
+          <div className="mt-2 space-y-1.5 text-xs text-slate-700">
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-[#c62828] ring-2 ring-white" /> Fatal
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-[#ef6c00] ring-2 ring-white" /> Injury
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="h-3 w-3 rounded-full bg-[#f9a825] ring-2 ring-white" /> Other
+            </div>
+          </div>
+          {!districtLocked && (
+            <>
+              <h4 className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">District density</h4>
+              <div className="mt-2 flex h-2 overflow-hidden rounded-full">
+                <span className="flex-1 bg-[#e8f4e8]" />
+                <span className="flex-1 bg-[#f8e6a8]" />
+                <span className="flex-1 bg-[#f5b942]" />
+                <span className="flex-1 bg-[#f38744]" />
+                <span className="flex-1 bg-[#b42318]" />
               </div>
-            </Popup>
-          </CircleMarker>
-        ))}
-      </MapContainer>
-
-      {/* -------- Severity legend (bottom-left) -------- */}
-      <div className="absolute bottom-3 left-3 z-[1000] hidden rounded-2xl border border-slate-200/90 bg-white/92 p-3 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.42)] backdrop-blur md:bottom-4 md:left-4 md:block md:p-4">
-        <h4 className="text-sm font-semibold text-slate-900">Severity Legend</h4>
-        <div className="mt-3 space-y-2 text-xs text-slate-700">
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#c62828]" /> Fatal accidents
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#ef6c00]" /> Injury accidents
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#f9a825]" /> Other recorded incidents
-          </div>
-        </div>
-      </div>
-
-      {/* -------- Controls (right panel) -------- */}
-      <div className="absolute bottom-3 right-3 z-[1000] flex w-[176px] flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/92 p-2 shadow-[0_18px_50px_-24px_rgba(15,23,42,0.42)] backdrop-blur md:bottom-auto md:right-4 md:top-4 md:w-[220px]">
-        <div className="rounded-xl bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-700">
-          Street view only
+              <p className="mt-1 text-[10px] text-slate-500">Low → high accident count</p>
+            </>
+          )}
         </div>
 
-        <button
-          className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
-          onClick={() => recenterRef.current?.()}
-        >
-          Recenter Map
-        </button>
+        <div className="absolute bottom-3 right-3 z-[1000] flex w-[188px] flex-col gap-2 rounded-2xl border border-slate-200/90 bg-white/95 p-2 shadow-lg backdrop-blur md:bottom-auto md:right-4 md:top-4 md:w-[224px]">
+          <div className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+            <Layers className="h-3.5 w-3.5" />
+            Basemap
+          </div>
+          <div className="grid grid-cols-2 gap-1">
+            {(Object.keys(BASEMAPS) as BasemapId[]).map((id) => (
+              <button
+                key={id}
+                type="button"
+                className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                  basemap === id
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+                onClick={() => setBasemap(id)}
+              >
+                {BASEMAPS[id].label}
+              </button>
+            ))}
+          </div>
 
-        <button
-          className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-            heatmapEnabled
-              ? "bg-primary text-white"
-              : "bg-slate-100 text-slate-700"
-          }`}
-          onClick={() => setHeatmapEnabled((v) => !v)}
-        >
-          {heatmapEnabled ? "Hide" : "Show"} Hotspots
-        </button>
-
-        {!districtLocked && (
           <button
-            className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
-              boundariesEnabled
-                ? "bg-primary text-white"
-                : "bg-slate-100 text-slate-700"
-            }`}
-            onClick={() => setBoundariesEnabled((v) => !v)}
+            type="button"
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+            onClick={() => recenterRef.current?.()}
           >
-            {boundariesEnabled ? "Hide" : "Show"} Boundaries
+            <RefreshCw className="h-3.5 w-3.5" />
+            Recenter
           </button>
-        )}
 
-        {districtLocked && (
-          <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700">
-            District boundary is always visible in district mode
-          </div>
-        )}
-      </div>
+          <button
+            type="button"
+            className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+              heatmapEnabled ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
+            }`}
+            onClick={() => setHeatmapEnabled((value) => !value)}
+          >
+            {heatmapEnabled ? "Hide" : "Show"} Hotspots
+          </button>
+
+          {!districtLocked && (
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${
+                boundariesEnabled ? "bg-primary text-white" : "bg-slate-100 text-slate-700"
+              }`}
+              onClick={() => setBoundariesEnabled((value) => !value)}
+            >
+              {boundariesEnabled ? "Hide" : "Show"} Boundaries
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -1,23 +1,12 @@
 import { Router, Response } from "express";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { requireStateViewer } from "../rbac.js";
+import { escapeCsvCell } from "../security-utils.js";
 
 const router = Router();
 
-// All analytics routes require authentication + admin role
 router.use(authMiddleware);
-
-async function requireAdmin(req: AuthRequest, res: Response): Promise<boolean> {
-  const roleResult = await pool.query(
-    "SELECT role FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp')",
-    [req.user!.userId]
-  );
-  if (roleResult.rows.length === 0) {
-    res.status(403).json({ error: "Admin access required" });
-    return false;
-  }
-  return true;
-}
 
 // Helper to build WHERE clause and params
 function buildWhereClause(district?: string, year?: string) {
@@ -38,7 +27,7 @@ function buildWhereClause(district?: string, year?: string) {
 // GET /api/analytics — comprehensive analytics data
 router.get("/analytics", async (req: AuthRequest, res: Response) => {
   try {
-    if (!(await requireAdmin(req, res))) return;
+    if (!(await requireStateViewer(req, res))) return;
 
     const { district, year } = req.query;
     const { whereClause, params } = buildWhereClause(district as string, year as string);
@@ -267,7 +256,7 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
 // GET /api/analytics/export — export analytics as CSV
 router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
   try {
-    if (!(await requireAdmin(req, res))) return;
+    if (!(await requireStateViewer(req, res))) return;
 
     const { district, year, format } = req.query;
     const { whereClause, params } = buildWhereClause(district as string, year as string);
@@ -302,8 +291,8 @@ router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
       ]);
 
       const csv = [
-        headers.join(","),
-        ...rows.map(r => r.map(cell => `"${cell}"`).join(",")),
+        headers.map(escapeCsvCell).join(","),
+        ...rows.map((r) => r.map(escapeCsvCell).join(",")),
       ].join("\n");
 
       res.setHeader("Content-Type", "text/csv");

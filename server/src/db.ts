@@ -8,9 +8,11 @@ const envCandidates = [
   path.resolve(process.cwd(), "..", ".env"),
 ];
 
-for (const envPath of envCandidates) {
+// Server .env wins over parent .env and pre-set shell vars for local DB settings.
+for (let index = 0; index < envCandidates.length; index += 1) {
+  const envPath = envCandidates[index];
   if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath, override: false });
+    dotenv.config({ path: envPath, override: index === 0 });
   }
 }
 
@@ -47,7 +49,22 @@ function getPoolConfig(): pg.PoolConfig {
   };
 }
 
-const pool = new pg.Pool(getPoolConfig());
+const poolConfig = getPoolConfig();
+
+if (process.env.NODE_ENV === "production") {
+  const hasDbCredentials = Boolean(
+    process.env.DATABASE_URL ||
+      process.env.PGPASSWORD ||
+      process.env.DB_PASSWORD ||
+      ("password" in poolConfig && poolConfig.password)
+  );
+  if (!hasDbCredentials) {
+    console.error("FATAL: Database credentials are required in production.");
+    process.exit(1);
+  }
+}
+
+const pool = new pg.Pool(poolConfig);
 
 pool.on("error", (err) => {
   console.error("Unexpected error on idle client", err);

@@ -25,7 +25,7 @@ A full-stack web application for recording, managing, and analysing fatal road a
 ┌──────────────────────────────────────────────────────────┐
 │                      Client (Browser)                    │
 │         React 18 + TypeScript + Tailwind CSS             │
-│         Vite dev server :8080 (proxies /api → :3000)     │
+│         Vite dev server :8081 (proxies /api → :3000)     │
 └──────────────────┬───────────────────────────────────────┘
                    │  HTTP / JSON (Bearer JWT)
                    ▼
@@ -93,7 +93,7 @@ The frontend is a single-page React application built with Vite and TypeScript.
 
 ```bash
 npm install --legacy-peer-deps
-npm run dev          # Starts Vite dev server on http://localhost:8080
+npm run dev          # Starts Vite dev server on http://localhost:8081
 ```
 
 The Vite dev server proxies all `/api` requests to `http://localhost:3000`.
@@ -250,7 +250,7 @@ npm run dev
 # 7. Start frontend (terminal 2)
 npm run dev
 
-# Frontend: http://localhost:8080
+# Frontend: http://localhost:8081
 # Backend:  http://localhost:3000
 ```
 
@@ -264,7 +264,7 @@ Create a `.env` file in the `server/` directory:
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/road_accident_db
 JWT_SECRET=<random-64-character-secret>
 PORT=3000
-CORS_ORIGIN=http://localhost:8080
+CORS_ORIGIN=http://localhost:8081
 NODE_ENV=development
 ```
 
@@ -376,7 +376,7 @@ road-accident-data-hub-main/
 
 | Script         | Command              | Description                    |
 | -------------- | -------------------- | ------------------------------ |
-| `dev`          | `vite`               | Start dev server (port 8080)   |
+| `dev`          | `vite`               | Start dev server (port 8081)   |
 | `build`        | `vite build`         | Production build               |
 | `preview`      | `vite preview`       | Preview production build       |
 | `test`         | `vitest run`         | Run unit tests                 |
