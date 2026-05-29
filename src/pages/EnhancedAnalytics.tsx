@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { AlertTriangle, BarChart3, Brain, Calculator, Calendar as CalendarIcon, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, Target, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, Brain, Calculator, Calendar as CalendarIcon, Car, ChevronDown, ChevronUp, Clock, FileCheck, Filter, Gauge, Home, RefreshCw, Sparkles, Target, Users } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface EnhancedAnalyticsData {
@@ -555,6 +555,14 @@ const EnhancedAnalytics = () => {
             >
               <Home className="mr-2 h-4 w-4" />
               Home
+            </Button>
+            <Button
+              id="analytics_new"
+              onClick={() => navigate("/analytics_new")}
+              className="bg-gradient-to-r from-[#163a70] to-[#7a4cc2] text-white shadow-md hover:opacity-95"
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              analytics_new
             </Button>
             <Dialog>
               <DialogTrigger asChild>

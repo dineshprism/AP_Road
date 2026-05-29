@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,7 +12,7 @@ import GovHeader from "@/components/GovHeader";
 import AccidentMap from "@/components/AccidentMap";
 import AccidentChat from "@/components/AccidentChat";
 import { AP_DISTRICTS, MONTHS } from "@/lib/constants";
-import { Eye, Filter, RotateCcw, Download, FileText, FileDown, Map, MapPin, Brain, FileSpreadsheet } from "lucide-react";
+import { Eye, Filter, RotateCcw, Download, FileText, FileDown, Map, MapPin, Brain, FileSpreadsheet, BarChart3, Sparkles } from "lucide-react";
 import { exportSubmissionPDF, exportSubmissionDOCX } from "@/lib/exportReport";
 import { toast } from "sonner";
 import {
@@ -38,9 +38,12 @@ interface Submission {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"list" | "map">("list");
+  const [activeTab, setActiveTab] = useState<"list" | "map">(
+    searchParams.get("tab") === "map" ? "map" : "list"
+  );
   const [showChatPanel, setShowChatPanel] = useState(false);
   const [chatSubmissions, setChatSubmissions] = useState<Submission[]>([]);
 
@@ -95,6 +98,18 @@ const AdminDashboard = () => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="gov-page-title mb-0">Admin Dashboard &mdash; All Submissions</h2>
           <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => navigate("/analytics")} className="font-semibold shadow-sm">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </Button>
+            <Button
+              id="analytics_new"
+              onClick={() => navigate("/analytics_new")}
+              className="font-semibold shadow-sm bg-gradient-to-r from-[#163a70] to-[#7a4cc2] text-white hover:opacity-95"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              analytics_new
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate("/dsr-reports")}

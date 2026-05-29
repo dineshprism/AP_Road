@@ -11,12 +11,14 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdgpDashboard from "./pages/AdgpDashboard";
 import EnhancedAnalytics from "./pages/EnhancedAnalytics";
 import AnalyticsPro from "./pages/AnalyticsPro";
+import AnalyticsNew from "./pages/AnalyticsNew";
 import AccidentForm from "./pages/AccidentForm";
 import SubmissionView from "./pages/SubmissionView";
 import NotFound from "./pages/NotFound";
 import AppFooter from "./components/AppFooter";
 import PrismDashboard from "./pages/PrismDashboard";
 import DsrReports from "./pages/DsrReports";
+import MapPreview from "./pages/MapPreview";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/map-preview" element={<MapPreview />} />
                 <Route
                   path="/dashboard"
                   element={
@@ -114,6 +117,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <AnalyticsPro />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics_new"
+                  element={
+                    <ProtectedRoute>
+                      <AnalyticsNew />
                     </ProtectedRoute>
                   }
                 />

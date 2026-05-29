@@ -33,6 +33,7 @@ import {
   MapPin,
   Brain,
   BarChart3,
+  Sparkles,
   Upload,
   FileCheck,
   ShieldCheck,
@@ -430,6 +431,26 @@ const UserDashboard = () => {
                   <p className="mt-1 text-sm leading-5 text-muted-foreground">
                     Review station comparisons, hotspots, and field completeness.
                   </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              id="analytics_new"
+              className="group cursor-pointer overflow-hidden border-0 shadow-md transition-all hover:shadow-xl"
+              onClick={() => navigate("/analytics_new")}
+            >
+              <div className="h-1.5 bg-gradient-to-r from-[#163a70] via-[#7a4cc2] to-[#c75b12]" />
+              <CardContent className="flex min-h-[122px] items-start gap-3 px-4 py-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 transition-colors group-hover:bg-violet-500/20">
+                  <Sparkles className="h-5 w-5 text-violet-700" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-bold leading-snug text-primary">Advanced Analytics (New)</h3>
+                  <p className="mt-1 text-sm leading-5 text-muted-foreground">
+                    Command-center KPIs, drill-downs, timeliness, map, and AI brief — every metric opens source FIRs.
+                  </p>
+                  <Badge className="mt-2 bg-gradient-to-r from-[#163a70] to-[#7a4cc2] text-white">analytics_new</Badge>
                 </div>
               </CardContent>
             </Card>

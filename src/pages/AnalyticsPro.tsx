@@ -954,9 +954,13 @@ const AnalyticsPro = () => {
               <BarChart3 className="mr-2 h-4 w-4" />
               Classic Analytics
             </Button>
-            <Button className="bg-[linear-gradient(135deg,#163a70_0%,#2b5c8f_100%)] text-white shadow-[0_18px_36px_-24px_rgba(22,58,112,0.82)] hover:opacity-95">
+            <Button
+              id="analytics_new"
+              onClick={() => navigate("/analytics_new")}
+              className="bg-[linear-gradient(135deg,#163a70_0%,#7a4cc2_100%)] text-white shadow-[0_18px_36px_-24px_rgba(22,58,112,0.82)] hover:opacity-95"
+            >
               <Sparkles className="mr-2 h-4 w-4" />
-              Analytics
+              analytics_new
             </Button>
           </div>
 
