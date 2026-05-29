@@ -158,7 +158,11 @@ function isUsableGoogleMapsKey(key: string): boolean {
 
 app.get("/api/maps/config", authMiddleware, (_req, res) => {
   res.setHeader("Cache-Control", "no-store");
-  const browserKey = (process.env.GOOGLE_MAPS_BROWSER_KEY || "").trim();
+  const browserKey = (
+    process.env.GOOGLE_MAPS_BROWSER_KEY ||
+    process.env.GOOGLE_MAPS_API_KEY ||
+    ""
+  ).trim();
   if (!isUsableGoogleMapsKey(browserKey)) {
     res.json({ provider: "leaflet" });
     return;
