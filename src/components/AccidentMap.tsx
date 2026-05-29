@@ -1,4 +1,4 @@
-import LeafletFallbackMap from "./LeafletFallbackMap";
+import GoogleAccidentMap from "./GoogleAccidentMap";
 
 interface AccidentData {
   id: string;
@@ -21,9 +21,9 @@ interface AccidentMapProps {
   zoom?: number;
 }
 
-/** Open-source map (Leaflet + OpenStreetMap/CARTO) — no Google API key required. */
+/** Google Maps when /api/maps/config provides a key; otherwise Leaflet (OSM/CARTO). */
 const AccidentMap = (props: AccidentMapProps) => {
-  return <LeafletFallbackMap {...props} />;
+  return <GoogleAccidentMap {...props} />;
 };
 
 export type { AccidentData, AccidentMapProps };
