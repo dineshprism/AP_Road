@@ -22,10 +22,10 @@ const GovHeader = () => {
           <div className="flex items-center gap-3">
             <img src={apLogo} alt="Government of Andhra Pradesh" className="h-12 w-12 rounded-full object-contain bg-white p-0.5 shadow-md" />
             <div>
-              <h1 className="text-white text-lg font-bold leading-tight tracking-wide">
+              <h1 className="text-base font-bold leading-tight tracking-wide text-white sm:text-lg">
                 Government of Andhra Pradesh
               </h1>
-              <p className="text-white/70 text-[11px] font-medium tracking-wide">
+              <p className="text-xs font-medium leading-snug tracking-wide text-white/75 sm:text-sm">
                 Police, Transport, Roads &amp; Buildings Department &mdash; DRSC Portal
               </p>
             </div>
@@ -33,10 +33,10 @@ const GovHeader = () => {
           {user && (
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
-                <p className="text-white text-sm font-semibold">
+                <p className="text-sm font-semibold text-white">
                   {profile?.full_name || user.email}
                 </p>
-                <p className="text-white/60 text-xs">
+                <p className="text-xs text-white/70 sm:text-sm">
                   {getRoleLabel()}
                 </p>
               </div>
@@ -47,7 +47,7 @@ const GovHeader = () => {
                 className="text-white/70 hover:text-white hover:bg-white/10 border border-white/20"
               >
                 <LogOut className="w-4 h-4 mr-1" />
-                <span className="hidden sm:inline text-xs">Logout</span>
+                <span className="hidden text-sm sm:inline">Logout</span>
               </Button>
             </div>
           )}

@@ -361,7 +361,7 @@ const AnalyticsNew = () => {
               <div className="grid w-full max-w-3xl gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 {isAdmin && (
                   <div>
-                    <Label className="text-[10px] font-bold uppercase text-slate-500">District</Label>
+                    <Label className="text-xs font-bold uppercase text-slate-500">District</Label>
                     <Select value={filters.district} onValueChange={(v) => setFilters((p) => ({ ...p, district: v }))}>
                       <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -374,7 +374,7 @@ const AnalyticsNew = () => {
                   </div>
                 )}
                 <div>
-                  <Label className="text-[10px] font-bold uppercase text-slate-500">Year</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-500">Year</Label>
                   <Select value={filters.year} onValueChange={(v) => setFilters((p) => ({ ...p, year: v }))}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -385,7 +385,7 @@ const AnalyticsNew = () => {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[10px] font-bold uppercase text-slate-500">From</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-500">From</Label>
                   <Popover open={fromDateOpen} onOpenChange={setFromDateOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="h-9 w-full justify-start text-xs">
@@ -406,7 +406,7 @@ const AnalyticsNew = () => {
                   </Popover>
                 </div>
                 <div>
-                  <Label className="text-[10px] font-bold uppercase text-slate-500">To</Label>
+                  <Label className="text-xs font-bold uppercase text-slate-500">To</Label>
                   <Popover open={toDateOpen} onOpenChange={setToDateOpen}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="h-9 w-full justify-start text-xs">
@@ -926,7 +926,7 @@ const AnalyticsNew = () => {
                         }
                       >
                         <span className="truncate pr-1">{shortenCauseLabel(cause.name, 18)}</span>
-                        <Badge variant="secondary" className="shrink-0 text-[10px]">{cause.count}</Badge>
+                        <Badge variant="secondary" className="shrink-0 text-xs">{cause.count}</Badge>
                       </button>
                     ))}
                   </CardContent>

@@ -37,11 +37,11 @@ export function KpiTile({
         <div className={cn("h-1 bg-gradient-to-r", tones[tone])} />
         <CardContent className="flex items-start justify-between gap-3 p-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{label}</p>
             <p className="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">{value}</p>
             {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
             {onClick && (
-              <p className="mt-2 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-primary opacity-0 transition group-hover:opacity-100">
+              <p className="mt-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-primary opacity-0 transition group-hover:opacity-100">
                 <MousePointerClick className="h-3 w-3" />
                 {subAction || "View FIRs"}
               </p>
@@ -85,12 +85,12 @@ export function RankRow({
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-slate-900 group-hover:text-[#163a70]">{title}</p>
         {subtitle && <p className="truncate text-xs text-slate-500">{subtitle}</p>}
-        {secondary && <p className="truncate text-[11px] text-slate-400">{secondary}</p>}
+        {secondary && <p className="truncate text-xs text-slate-400">{secondary}</p>}
       </div>
       <div className="text-right">
         <p className="text-sm font-bold text-slate-900">{metric}</p>
         {badge && (
-          <Badge variant="outline" className={cn("mt-1 text-[10px]", ANALYTICS_SEVERITY_STYLES[badge] || "")}>
+          <Badge variant="outline" className={cn("mt-1 text-xs", ANALYTICS_SEVERITY_STYLES[badge] || "")}>
             {badge}
           </Badge>
         )}
@@ -178,7 +178,7 @@ export function InsightStrip({
         onClick && "cursor-pointer hover:border-primary/30"
       )}
     >
-      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{title}</p>
       <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
       {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
     </div>
