@@ -1,3 +1,7 @@
+/** Signed-copy upload cap (override with MAX_UPLOAD_MB env, default 25). */
+export const MAX_UPLOAD_BYTES =
+  Math.max(1, parseInt(process.env.MAX_UPLOAD_MB || "25", 10)) * 1024 * 1024;
+
 export const MAX_BATCH_SUBMISSION_IDS = 20;
 export const MAX_JSON_FIELD_BYTES = 65536;
 export const MIN_PASSWORD_LENGTH = 8;

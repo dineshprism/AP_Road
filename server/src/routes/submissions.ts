@@ -7,6 +7,7 @@ import { authMiddleware, AuthRequest } from "../auth.js";
 import { canPickDistrict, getUserAccess, resolveDistrictForWrite } from "../rbac.js";
 import {
   assertJsonFieldSize,
+  MAX_UPLOAD_BYTES,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
 
@@ -27,6 +28,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowedMimeTypes = new Set([
       "application/pdf",
@@ -355,7 +357,20 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthRequest, res: Response) => {
+router.post("/:id/signed-copy", (req, res, next) => {
+  upload.single("signedCopy")(req, res, (err) => {
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+      return;
+    }
+    if (err) {
+      res.status(400).json({ error: err.message || "Invalid upload" });
+      return;
+    }
+    next();
+  });
+}, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
     const id = req.params.id as string;
@@ -446,6 +461,11 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+      return;
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 });

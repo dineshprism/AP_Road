@@ -16,8 +16,9 @@ import localRagRoutes from "./routes/rag-local.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
 import reportRoutes from "./routes/reports.js";
 import { runMigrations } from "./migrate.js";
-import { authMiddleware } from "./auth.js";
+import { authMiddleware, AuthRequest } from "./auth.js";
 import { csrfProtection } from "./csrf.js";
+import { getUserRoles, MAPS_BROWSER_KEY_ROLES } from "./rbac.js";
 
 import fs from "fs";
 const serverEnvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env");
@@ -32,10 +33,13 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const globalRateLimitMax = parseInt(
-  process.env.GLOBAL_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "600" : "2000"),
+  process.env.GLOBAL_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "400" : "2000"),
   10
 );
-const ragRateLimitMax = parseInt(process.env.RAG_RATE_LIMIT_MAX || "60", 10);
+const ragRateLimitMax = parseInt(
+  process.env.RAG_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "30" : "60"),
+  10
+);
 
 // Security middleware
 app.use(helmet({
@@ -128,7 +132,7 @@ app.use((req, res, next) => {
           callback(null, true);
           return;
         }
-        callback(new Error("CORS blocked: missing Origin header"));
+        callback(null, false);
         return;
       }
       if (configuredOrigins.includes(origin)) {
@@ -139,7 +143,7 @@ app.use((req, res, next) => {
         callback(null, true);
         return;
       }
-      callback(new Error(`CORS blocked for origin: ${origin}`));
+      callback(null, false);
     },
     credentials: true,
   })(req, res, next);
@@ -174,18 +178,32 @@ function isUsableGoogleMapsKey(key: string): boolean {
   );
 }
 
-app.get("/api/maps/config", authMiddleware, (_req, res) => {
-  res.setHeader("Cache-Control", "no-store");
-  const browserKey = (
-    process.env.GOOGLE_MAPS_BROWSER_KEY ||
-    process.env.GOOGLE_MAPS_API_KEY ||
-    ""
-  ).trim();
-  if (!isUsableGoogleMapsKey(browserKey)) {
+app.get("/api/maps/config", authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const roles = await getUserRoles(req.user!.userId);
+    const mayUseGoogleMaps = roles.some((role) =>
+      (MAPS_BROWSER_KEY_ROLES as readonly string[]).includes(role)
+    );
+    if (!mayUseGoogleMaps) {
+      res.json({ provider: "leaflet" });
+      return;
+    }
+
+    const browserKey = (
+      process.env.GOOGLE_MAPS_BROWSER_KEY ||
+      process.env.GOOGLE_MAPS_API_KEY ||
+      ""
+    ).trim();
+    if (!isUsableGoogleMapsKey(browserKey)) {
+      res.json({ provider: "leaflet" });
+      return;
+    }
+    res.json({ provider: "google", apiKey: browserKey });
+  } catch (err) {
+    console.error("Maps config error:", err);
     res.json({ provider: "leaflet" });
-    return;
   }
-  res.json({ provider: "google", apiKey: browserKey });
 });
 
 // API routes

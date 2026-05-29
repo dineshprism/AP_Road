@@ -4,6 +4,8 @@ import { AuthRequest } from "./auth.js";
 
 export const STATE_VIEWER_ROLES = ["admin", "dgp", "adgp"] as const;
 export const ELEVATED_ROLES = ["admin", "dgp", "adgp", "prism"] as const;
+/** Roles that use the accident map UI and may receive a browser Maps API key. */
+export const MAPS_BROWSER_KEY_ROLES = ["user", "admin", "dgp", "adgp"] as const;
 
 export type UserAccess = {
   roles: string[];

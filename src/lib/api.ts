@@ -1,7 +1,7 @@
 const API_BASE = "/api";
 
 export function clearToken(): void {
-  localStorage.removeItem("auth_token");
+  // Session is httpOnly cookie; nothing to clear in localStorage.
 }
 
 async function request<T>(
@@ -32,7 +32,7 @@ async function request<T>(
           data: null,
           error:
             body.error ||
-            "Upload rejected by the server proxy (HTTP 413). Set nginx client_max_body_size 0; in the site config and reload nginx.",
+            "File too large (max 25 MB). If the file is smaller, set nginx client_max_body_size 25M; and reload nginx.",
         };
       }
       return { data: null, error: body.error || `Request failed (${res.status})` };
