@@ -1,6 +1,8 @@
 import { Router, Response } from "express";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { getUserAccess, requireStateViewer } from "../rbac.js";
+import { MAX_BATCH_SUBMISSION_IDS } from "../security-utils.js";
 import {
   AccidentSubmissionRecord,
   analyzeWithLocalRag,
@@ -12,19 +14,11 @@ const router = Router();
 
 router.use(authMiddleware);
 
-async function isAdminUser(userId: string) {
-  const roleResult = await pool.query(
-    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp') LIMIT 1",
-    [userId]
-  );
-  return roleResult.rows.length > 0;
-}
-
 async function fetchAccessibleSubmissions(userId: string, submissionIds: string[]) {
-  const admin = await isAdminUser(userId);
-  if (submissionIds.length === 0) return [];
+  const access = await getUserAccess(userId);
+  if (submissionIds.length === 0) return { rows: [], access };
 
-  const result = admin
+  const result = access.canViewAnySubmission
     ? await pool.query<AccidentSubmissionRecord>(
         `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
                 road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
@@ -46,10 +40,22 @@ async function fetchAccessibleSubmissions(userId: string, submissionIds: string[
         [submissionIds, userId]
       );
 
-  return result.rows;
+  return { rows: result.rows, access };
 }
 
-router.get("/local/config", (_req, res) => {
+function assertBatchAccess(
+  submissionIds: string[],
+  submissions: AccidentSubmissionRecord[],
+  access: Awaited<ReturnType<typeof getUserAccess>>
+): boolean {
+  if (access.canViewAnySubmission) {
+    return true;
+  }
+  return submissions.length === submissionIds.length;
+}
+
+router.get("/local/config", async (req: AuthRequest, res: Response) => {
+  if (!(await requireStateViewer(req, res))) return;
   res.json(getLocalRagConfig());
 });
 
@@ -61,7 +67,7 @@ router.post("/analyze-local", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const submissions = await fetchAccessibleSubmissions(req.user!.userId, [submissionId]);
+    const { rows: submissions } = await fetchAccessibleSubmissions(req.user!.userId, [submissionId]);
     if (submissions.length === 0) {
       res.status(404).json({ error: "Submission not found" });
       return;
@@ -91,7 +97,7 @@ router.post("/analyze-local", async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error("Local RAG analyze error:", error);
-    res.status(500).json({ error: error.message || "Local RAG analysis failed" });
+    res.status(500).json({ error: "Local RAG analysis failed" });
   }
 });
 
@@ -102,8 +108,16 @@ router.post("/batch-analyze-local", async (req: AuthRequest, res: Response) => {
       res.status(400).json({ error: "Submission IDs array is required" });
       return;
     }
+    if (submissionIds.length > MAX_BATCH_SUBMISSION_IDS) {
+      res.status(400).json({ error: `Maximum ${MAX_BATCH_SUBMISSION_IDS} submissions per batch` });
+      return;
+    }
 
-    const submissions = await fetchAccessibleSubmissions(req.user!.userId, submissionIds);
+    const { rows: submissions, access } = await fetchAccessibleSubmissions(req.user!.userId, submissionIds);
+    if (!assertBatchAccess(submissionIds, submissions, access)) {
+      res.status(403).json({ error: "Access denied for one or more submissions" });
+      return;
+    }
     if (submissions.length === 0) {
       res.status(404).json({ error: "No submissions found" });
       return;
@@ -134,22 +148,21 @@ router.post("/batch-analyze-local", async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error("Local RAG batch analyze error:", error);
-    res.status(500).json({ error: error.message || "Local batch RAG analysis failed" });
+    res.status(500).json({ error: "Local batch RAG analysis failed" });
   }
 });
 
 router.get("/similar/:id", async (req: AuthRequest, res: Response) => {
   try {
     const referenceId = String(req.params.id);
-    const accessibleReference = await fetchAccessibleSubmissions(req.user!.userId, [referenceId]);
+    const { rows: accessibleReference, access } = await fetchAccessibleSubmissions(req.user!.userId, [referenceId]);
     if (accessibleReference.length === 0) {
       res.status(404).json({ error: "Reference submission not found" });
       return;
     }
 
     const reference = accessibleReference[0];
-    const admin = await isAdminUser(req.user!.userId);
-    const candidateResult = admin
+    const candidateResult = access.canViewAnySubmission
       ? await pool.query<AccidentSubmissionRecord>(
           `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
                   road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
@@ -213,7 +226,7 @@ router.get("/similar/:id", async (req: AuthRequest, res: Response) => {
     res.json({ reference, similarAccidents });
   } catch (error: any) {
     console.error("Local RAG similar search error:", error);
-    res.status(500).json({ error: error.message || "Failed to find similar accidents" });
+    res.status(500).json({ error: "Failed to find similar accidents" });
   }
 });
 

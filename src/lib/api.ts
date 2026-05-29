@@ -10,6 +10,7 @@ async function request<T>(
 ): Promise<{ data: T | null; error: string | null }> {
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
+    "X-Requested-With": "XMLHttpRequest",
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -41,6 +42,7 @@ async function downloadFile(
   options: RequestInit = {}
 ): Promise<{ blob: Blob | null; filename: string | null; error: string | null }> {
   const headers: Record<string, string> = {
+    "X-Requested-With": "XMLHttpRequest",
     ...(options.headers as Record<string, string> || {}),
   };
 
@@ -75,24 +77,13 @@ export interface MeResponse {
   user: { id: string; email: string };
   profile: { full_name: string; district: string; designation: string | null } | null;
   isAdmin: boolean;
+  isPrism?: boolean;
+  canViewAnySubmission?: boolean;
   roles: string[];
 }
 
 export const api = {
   auth: {
-    signup(data: {
-      email: string;
-      password: string;
-      full_name: string;
-      district: string;
-      designation?: string;
-    }) {
-      return request<AuthResponse>("/auth/signup", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-    },
-
     login(username: string, password: string) {
       return request<AuthResponse>("/auth/login", {
         method: "POST",
@@ -349,7 +340,18 @@ export const api = {
 
 export function getApiAssetUrl(path: string | null | undefined): string | null {
   if (!path) return null;
-  if (/^https?:\/\//i.test(path)) return path;
+  if (/^https?:\/\//i.test(path)) {
+    return null;
+  }
+  if (path.startsWith("/api/uploads/")) {
+    return path;
+  }
+  if (path.startsWith("/uploads/")) {
+    return `/api${path}`;
+  }
+  if (path.startsWith("signed-copies/")) {
+    return `/api/uploads/${path}`;
+  }
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

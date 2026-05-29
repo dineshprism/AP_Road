@@ -7,12 +7,12 @@ export default defineConfig({
     timeout: 10000,
   },
   use: {
-    baseURL: "http://127.0.0.1:8080",
+    baseURL: "http://127.0.0.1:8081",
     trace: "on-first-retry",
   },
   webServer: {
     command: "npm run dev",
-    url: "http://127.0.0.1:8080",
+    url: "http://127.0.0.1:8081",
     reuseExistingServer: !process.env.CI,
   },
 });

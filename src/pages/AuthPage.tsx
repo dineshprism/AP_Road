@@ -23,7 +23,7 @@ const AuthPage = () => {
   const [password, setPassword] = useState("");
 
   if (!authLoading && user) {
-    if (roles.includes("prism")) return <Navigate to="/dashboard" replace />;
+    if (roles.includes("prism")) return <Navigate to="/prism-dashboard" replace />;
     if (roles.includes("dgp")) return <Navigate to="/admin" replace />;
     if (roles.includes("adgp")) return <Navigate to="/adgp-dashboard" replace />;
     if (isAdmin) return <Navigate to="/admin" replace />;
@@ -150,7 +150,7 @@ const AuthPage = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        minLength={6}
+                        minLength={8}
                       />
                     </div>
                     <Button

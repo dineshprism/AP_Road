@@ -62,14 +62,18 @@ function districtStrokeColor(count: number) {
   return "#3f6f54";
 }
 
-async function getGoogleMapsApiKey() {
+async function getGoogleMapsConfig() {
   const response = await fetch("/api/maps/config", {
     cache: "no-store",
     credentials: "include",
+    headers: { "X-Requested-With": "XMLHttpRequest" },
   });
-  if (!response.ok) return "";
+  if (!response.ok) return { provider: "leaflet" as const, apiKey: "" };
   const data = await response.json().catch(() => ({}));
-  return String(data.apiKey || "").trim();
+  if (data.provider === "google" && data.apiKey) {
+    return { provider: "google" as const, apiKey: String(data.apiKey).trim() };
+  }
+  return { provider: "leaflet" as const, apiKey: "" };
 }
 
 function extendBounds(
@@ -433,9 +437,9 @@ const GoogleAccidentMap = (props: AccidentMapProps) => {
 
   useEffect(() => {
     let cancelled = false;
-    getGoogleMapsApiKey()
-      .then((key) => {
-        if (!cancelled) setApiKey(key);
+    getGoogleMapsConfig()
+      .then((config) => {
+        if (!cancelled) setApiKey(config.apiKey);
       })
       .finally(() => {
         if (!cancelled) setLoadingKey(false);
