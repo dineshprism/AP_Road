@@ -27,6 +27,14 @@ async function request<T>(
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      if (res.status === 413) {
+        return {
+          data: null,
+          error:
+            body.error ||
+            "File too large (max 5 MB). If the file is under 5 MB, nginx may be limiting uploads to 1 MB — set client_max_body_size 10M on the server.",
+        };
+      }
       return { data: null, error: body.error || `Request failed (${res.status})` };
     }
 
