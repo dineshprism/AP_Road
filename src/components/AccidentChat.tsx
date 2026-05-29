@@ -73,6 +73,7 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const responseAnchorRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialLoadRef = useRef<string | null>(null);
 
@@ -81,7 +82,23 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
     [submissions]
   );
   const messages = useMemo(() => sessionMessages[sessionKey] || [], [sessionKey, sessionMessages]);
+  const lastAssistantIndex = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].type === "assistant") return index;
+    }
+    return -1;
+  }, [messages]);
   const isPanel = variant === "panel";
+
+  const scrollToResponseStart = useCallback(() => {
+    const scroll = () => {
+      responseAnchorRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    };
+    requestAnimationFrame(() => {
+      scroll();
+      requestAnimationFrame(scroll);
+    });
+  }, []);
   const scopeLabel =
     submissions.length === 1
       ? `${submissions[0].fir_number} · ${submissions[0].district}`
@@ -120,11 +137,17 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
     [submissions]
   );
 
+  // Scroll to the top of the latest bot reply so users read from the beginning (top-down).
   useEffect(() => {
-    const container = messagesContainerRef.current;
-    if (!container) return;
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
-  }, [messages, isLoading]);
+    if (isLoading) {
+      scrollToResponseStart();
+      return;
+    }
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.type === "assistant") {
+      scrollToResponseStart();
+    }
+  }, [messages, isLoading, scrollToResponseStart]);
 
   useEffect(() => {
     if (isOpen && submissions.length > 0) {
@@ -233,14 +256,29 @@ const AccidentChat: React.FC<AccidentChatProps> = ({
           <div ref={messagesContainerRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
             <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
               {messages.map((message, index) => (
-                <ChatBubble
+                <div
                   key={message.id}
-                  type={message.type}
-                  content={message.content}
-                  isLatest={index === messages.length - 1 && !isLoading}
-                />
+                  ref={
+                    !isLoading && message.type === "assistant" && index === lastAssistantIndex
+                      ? responseAnchorRef
+                      : undefined
+                  }
+                  className={cn(
+                    message.type === "assistant" && index === lastAssistantIndex && "scroll-mt-3"
+                  )}
+                >
+                  <ChatBubble
+                    type={message.type}
+                    content={message.content}
+                    isLatest={index === messages.length - 1 && !isLoading}
+                  />
+                </div>
               ))}
-              {isLoading && <ChatThinking />}
+              {isLoading && (
+                <div ref={responseAnchorRef} className="scroll-mt-3">
+                  <ChatThinking />
+                </div>
+              )}
             </div>
           </div>
 
