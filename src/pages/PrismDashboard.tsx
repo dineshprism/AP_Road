@@ -9,7 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GovHeader from "@/components/GovHeader";
 import AccidentChat from "@/components/AccidentChat";
-import { Brain, Clock3, Eye, FileSpreadsheet, FileText, LogIn, MessageSquareMore, RefreshCcw, Search } from "lucide-react";
+import {
+  Brain,
+  Clock3,
+  Database,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LogIn,
+  MessageSquareMore,
+  RefreshCcw,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 
 interface LoginEvent {
@@ -62,6 +73,7 @@ const PrismDashboard = () => {
     active_submission_districts: 0,
   });
   const [feedbackItems, setFeedbackItems] = useState<FeedbackEvent[]>([]);
+  const [backupLoading, setBackupLoading] = useState(false);
 
   const fetchActivity = async () => {
     setLoading(true);
@@ -135,6 +147,29 @@ const PrismDashboard = () => {
     setChatSubmissions([]);
   };
 
+  const handleDownloadBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const { blob, filename, error } = await api.admin.downloadBackup();
+      if (error || !blob) {
+        toast.error(error || "Backup download failed");
+        return;
+      }
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename || `road-accident-backup-${Date.now()}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Backup downloaded. Store it safely for disaster recovery.");
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <GovHeader />
@@ -146,7 +181,16 @@ const PrismDashboard = () => {
               Super admin view of district logins and submission activity across the portal.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              className="border-[#138808]/40 bg-[#f0fdf4] font-semibold text-[#138808] hover:bg-[#ecfdf3]"
+              onClick={() => void handleDownloadBackup()}
+              disabled={backupLoading}
+            >
+              <Database className={`mr-2 h-4 w-4 ${backupLoading ? "animate-pulse" : ""}`} />
+              {backupLoading ? "Preparing backup…" : "Download full backup"}
+            </Button>
             <Button variant="outline" onClick={() => navigate("/dsr-reports")}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> DSR Reports
             </Button>
@@ -155,6 +199,20 @@ const PrismDashboard = () => {
             </Button>
           </div>
         </div>
+
+        <Card className="mb-6 border border-[#138808]/25 bg-gradient-to-r from-[#f0fdf4] to-white shadow-sm">
+          <CardContent className="py-4 text-sm leading-relaxed text-muted-foreground">
+            <p className="font-semibold text-primary">Production backup (Prism only)</p>
+            <p className="mt-1">
+              One click exports all portal data to a seed-ready JSON file: district submissions (full form
+              details), users, roles, feedback, activity logs, and embedded signed-copy PDFs. To restore after
+              an incident, copy the file to the server and run{" "}
+              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">npm run data:import:aws</code> with{" "}
+              <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">--replace --restore-uploads</code>.
+              See <span className="font-medium text-primary">docs/BACKUP-RESTORE.md</span> in the repo.
+            </p>
+          </CardContent>
+        </Card>
 
         <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
           <div className="gov-stat-card"><div className="h-1 bg-[#132b5e]" /><CardContent className="py-4 text-center"><p className="text-3xl font-extrabold text-primary">{summary.total_logins}</p><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mt-1">Total Logins</p></CardContent></div>

@@ -177,6 +177,11 @@ export const api = {
         submissionEvents: any[];
       }>(`/admin/activity${qs ? `?${qs}` : ""}`, { cache: "no-store" });
     },
+
+    /** Full DB + signed-copy backup (Prism role only). Seed-ready JSON for data:import:aws */
+    downloadBackup() {
+      return downloadFile(`/admin/backup?_${Date.now()}`);
+    },
   },
 
   feedback: {

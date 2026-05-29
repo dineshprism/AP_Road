@@ -1,9 +1,23 @@
 import { Router, Response } from "express";
+import rateLimit from "express-rate-limit";
+import path from "path";
+import { fileURLToPath } from "url";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import { requireElevated } from "../rbac.js";
+import { buildMigrationBundle } from "../dataBundleExport.js";
 
 const router = Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadsRoot = path.resolve(__dirname, "../../uploads");
+
+const backupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 6,
+  message: { error: "Backup limit reached. Please wait before downloading again." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 router.use(authMiddleware);
 
@@ -61,6 +75,44 @@ router.get("/submissions", async (req: AuthRequest, res: Response) => {
   } catch (err: any) {
     console.error("Admin get submissions error:", err);
     res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /api/admin/backup — full seed-ready export (Prism only)
+router.get("/backup", backupLimiter, async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+
+  try {
+    if (!(await requirePrism(req, res))) return;
+
+    console.log(`[backup] Started by user ${req.user!.userId}`);
+    const bundle = await buildMigrationBundle(client, {
+      includeUploads: true,
+      uploadsRoot,
+    });
+
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const filename = `road-accident-backup-${stamp}.json`;
+    const submissionCount = bundle.tables.accident_submissions?.rows.length ?? 0;
+    const uploadCount = bundle.uploads?.length ?? 0;
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("X-Backup-Submissions", String(submissionCount));
+    res.setHeader("X-Backup-Uploads", String(uploadCount));
+    res.json(bundle);
+
+    console.log(
+      `[backup] Completed for user ${req.user!.userId}: ${submissionCount} submissions, ${uploadCount} signed copies`
+    );
+  } catch (err: any) {
+    console.error("Admin backup error:", err);
+    if (!res.headersSent) {
+      res.status(500).json({ error: err.message || "Backup failed" });
+    }
+  } finally {
+    client.release();
   }
 });
 
