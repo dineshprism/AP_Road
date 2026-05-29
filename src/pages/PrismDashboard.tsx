@@ -150,7 +150,7 @@ const PrismDashboard = () => {
   const handleDownloadBackup = async () => {
     setBackupLoading(true);
     try {
-      const { blob, filename, error } = await api.admin.downloadBackup();
+      const { blob, filename, error, meta } = await api.admin.downloadBackup();
       if (error || !blob) {
         toast.error(error || "Backup download failed");
         return;
@@ -164,7 +164,13 @@ const PrismDashboard = () => {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      toast.success("Backup downloaded. Store it safely for disaster recovery.");
+
+      const subs = meta?.submissions ?? "?";
+      const uploads = meta?.uploads ?? "?";
+      toast.success(
+        `Full backup saved — all data from day one to now (${subs} submissions, ${uploads} signed copies).`,
+        { duration: 8000 }
+      );
     } finally {
       setBackupLoading(false);
     }
@@ -189,7 +195,7 @@ const PrismDashboard = () => {
               disabled={backupLoading}
             >
               <Database className={`mr-2 h-4 w-4 ${backupLoading ? "animate-pulse" : ""}`} />
-              {backupLoading ? "Preparing backup…" : "Download full backup"}
+              {backupLoading ? "Preparing full backup…" : "Download full backup (all data)"}
             </Button>
             <Button variant="outline" onClick={() => navigate("/dsr-reports")}>
               <FileSpreadsheet className="mr-2 h-4 w-4" /> DSR Reports
@@ -202,11 +208,11 @@ const PrismDashboard = () => {
 
         <Card className="mb-6 border border-[#138808]/25 bg-gradient-to-r from-[#f0fdf4] to-white shadow-sm">
           <CardContent className="py-4 text-sm leading-relaxed text-muted-foreground">
-            <p className="font-semibold text-primary">Production backup — download weekly (or daily)</p>
+            <p className="font-semibold text-primary">Full backup — click whenever you want</p>
             <p className="mt-1">
-              All live data is on this server only. Use <strong>Download full backup</strong> above on a
-              schedule (weekly minimum, daily if needed) and save each file off-site. The export includes every
-              district submission, signed copies, users, and logs — ready to re-import if production fails.
+              Each download is a <strong>complete snapshot</strong> of production: every submission from the
+              first record through today, all signed copies, users, districts, and logs. There is no date filter
+              and no partial export — save the file off-site whenever you choose.
             </p>
           </CardContent>
         </Card>

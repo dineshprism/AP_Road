@@ -48,7 +48,12 @@ async function request<T>(
 async function downloadFile(
   path: string,
   options: RequestInit = {}
-): Promise<{ blob: Blob | null; filename: string | null; error: string | null }> {
+): Promise<{
+  blob: Blob | null;
+  filename: string | null;
+  error: string | null;
+  meta?: { submissions?: string; uploads?: string };
+}> {
   const headers: Record<string, string> = {
     "X-Requested-With": "XMLHttpRequest",
     ...(options.headers as Record<string, string> || {}),
@@ -69,7 +74,15 @@ async function downloadFile(
     const disposition = res.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename="?([^"]+)"?/i);
     const blob = await res.blob();
-    return { blob, filename: match?.[1] || null, error: null };
+    return {
+      blob,
+      filename: match?.[1] || null,
+      error: null,
+      meta: {
+        submissions: res.headers.get("X-Backup-Submissions") || undefined,
+        uploads: res.headers.get("X-Backup-Uploads") || undefined,
+      },
+    };
   } catch (err: any) {
     return { blob: null, filename: null, error: err.message || "Network error" };
   }

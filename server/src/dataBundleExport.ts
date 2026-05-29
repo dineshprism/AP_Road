@@ -36,6 +36,11 @@ export interface DataBundle {
     description: string;
     importCommand: string;
   };
+  /** Every click exports the entire DB — no date range, no incremental slice */
+  exportScope: {
+    type: "full";
+    description: string;
+  };
   tables: Record<string, TableDump>;
   uploads?: UploadDump[];
 }
@@ -117,6 +122,11 @@ export async function buildMigrationBundle(
         "Seed-ready bundle. Import with data:import:aws using --replace and --restore-uploads on the target server.",
       importCommand:
         "cd server && npm run data:import:aws -- --file ./road-accident-backup.json --replace --restore-uploads --use-default-env --uploads-dir ./uploads",
+    },
+    exportScope: {
+      type: "full",
+      description:
+        "Complete export of all portal data from the first record through the export timestamp. Not incremental — every download is a full snapshot.",
     },
     tables: {},
   };
