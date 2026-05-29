@@ -7,7 +7,6 @@ import { authMiddleware, AuthRequest } from "../auth.js";
 import { canPickDistrict, getUserAccess, resolveDistrictForWrite } from "../rbac.js";
 import {
   assertJsonFieldSize,
-  MAX_UPLOAD_BYTES,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
 
@@ -28,7 +27,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     const allowedMimeTypes = new Set([
       "application/pdf",
@@ -448,10 +446,6 @@ router.post("/:id/signed-copy", upload.single("signedCopy"), async (req: AuthReq
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);
-    if (err?.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({ error: "File exceeds maximum upload size (5 MB)" });
-      return;
-    }
     res.status(500).json({ error: "Internal server error" });
   }
 });

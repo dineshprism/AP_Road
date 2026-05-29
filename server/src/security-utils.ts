@@ -1,4 +1,3 @@
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const MAX_BATCH_SUBMISSION_IDS = 20;
 export const MAX_JSON_FIELD_BYTES = 65536;
 export const MIN_PASSWORD_LENGTH = 8;

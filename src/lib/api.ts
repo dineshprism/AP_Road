@@ -32,7 +32,7 @@ async function request<T>(
           data: null,
           error:
             body.error ||
-            "File too large (max 5 MB). If the file is under 5 MB, nginx may be limiting uploads to 1 MB — set client_max_body_size 10M on the server.",
+            "Upload rejected by the server proxy (HTTP 413). Set nginx client_max_body_size 0; in the site config and reload nginx.",
         };
       }
       return { data: null, error: body.error || `Request failed (${res.status})` };

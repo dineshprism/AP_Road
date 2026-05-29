@@ -1,14 +1,14 @@
 # Example nginx site for roadsafety.prismappolice.in
 # Copy to /etc/nginx/sites-available/roadsafety and reload nginx.
 #
-# Default client_max_body_size is 1m — that blocks signed-copy uploads over 1 MB
-# before the request reaches Node (HTTP 413). The app allows up to 5 MB.
+# Default client_max_body_size is 1m — that blocks large signed-copy uploads
+# before the request reaches Node (HTTP 413). Use 0 to disable nginx size checks.
 
 server {
     listen 80;
     server_name roadsafety.prismappolice.in;
 
-    client_max_body_size 10M;
+    client_max_body_size 0;
 
     location / {
         proxy_pass http://127.0.0.1:3000;
@@ -21,4 +21,4 @@ server {
 }
 
 # After certbot, the SSL server block should also include:
-#   client_max_body_size 10M;
+#   client_max_body_size 0;
