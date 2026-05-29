@@ -21,15 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
 import memoRoadSafetyPdf from "@/../memo_road_safety.pdf";
-import {
-  Crown,
-  Download,
-  Eye,
-  FileText,
-  Shield,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { Crown, Download, FileText, Shield, ShieldCheck, Sparkles } from "lucide-react";
 
 const DEMO_DISTRICTS = ["Prism"];
 const STANDARD_DISTRICTS = AP_DISTRICTS.filter((district) => !DEMO_DISTRICTS.includes(district));
@@ -49,7 +41,6 @@ type PriorityRole = {
   subtitle: string;
   badge: string;
   icon: typeof Crown;
-  cardClass: string;
   itemClass: string;
   badgeClass: string;
 };
@@ -61,8 +52,6 @@ const PRIORITY_ROLES: PriorityRole[] = [
     subtitle: "Statewide oversight & admin",
     badge: "All districts",
     icon: Crown,
-    cardClass:
-      "border-[#1e3a8a]/30 bg-gradient-to-br from-[#1e3a8a]/12 via-[#eef4ff] to-white hover:border-[#1e3a8a]/50 hover:shadow-md",
     itemClass:
       "my-1 rounded-xl border-2 border-[#1e3a8a]/25 bg-gradient-to-r from-[#1e3a8a]/10 to-[#eef4ff] py-3 pl-3 focus:bg-[#1e3a8a]/15 data-[state=checked]:border-[#1e3a8a] data-[state=checked]:bg-[#1e3a8a]/12 data-[state=checked]:ring-2 data-[state=checked]:ring-[#1e3a8a]/25",
     badgeClass: "bg-[#1e3a8a] text-white",
@@ -73,8 +62,6 @@ const PRIORITY_ROLES: PriorityRole[] = [
     subtitle: "State analytics & review",
     badge: "Statewide",
     icon: Shield,
-    cardClass:
-      "border-[#e8710a]/35 bg-gradient-to-br from-[#fff7ed] via-[#ffedd5] to-white hover:border-[#e8710a]/55 hover:shadow-md",
     itemClass:
       "my-1 rounded-xl border-2 border-[#e8710a]/30 bg-gradient-to-r from-[#ffedd5] to-white py-3 pl-3 focus:bg-[#ffedd5] data-[state=checked]:border-[#e8710a] data-[state=checked]:bg-[#fff7ed] data-[state=checked]:ring-2 data-[state=checked]:ring-[#e8710a]/30",
     badgeClass: "bg-[#e8710a] text-white",
@@ -85,8 +72,6 @@ const PRIORITY_ROLES: PriorityRole[] = [
     subtitle: "State demo & submissions view",
     badge: "Priority",
     icon: Sparkles,
-    cardClass:
-      "border-[#138808]/35 bg-gradient-to-br from-[#ecfdf3] via-[#f0fdf4] to-white hover:border-[#138808]/55 hover:shadow-md",
     itemClass:
       "my-1 rounded-xl border-2 border-[#138808]/30 bg-gradient-to-r from-[#ecfdf3] to-white py-3 pl-3 focus:bg-[#ecfdf3] data-[state=checked]:border-[#138808] data-[state=checked]:bg-[#f0fdf4] data-[state=checked]:ring-2 data-[state=checked]:ring-[#138808]/30",
     badgeClass: "bg-[#138808] text-white",
@@ -117,47 +102,6 @@ function PriorityRoleOption({ role }: { role: PriorityRole }) {
         </span>
       </div>
     </SelectItem>
-  );
-}
-
-function PriorityRoleCard({
-  role,
-  selected,
-  onSelect,
-}: {
-  role: PriorityRole;
-  selected: boolean;
-  onSelect: (value: string) => void;
-}) {
-  const Icon = role.icon;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(role.value)}
-      className={cn(
-        "flex flex-col items-start gap-2 rounded-xl border-2 p-3 text-left transition-all",
-        role.cardClass,
-        selected && "ring-2 ring-offset-1 ring-primary/40 shadow-md",
-      )}
-    >
-      <span
-        className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-lg shadow-sm",
-          role.value === "DGP" && "bg-[#1e3a8a] text-white",
-          role.value === "ADGP" && "bg-[#e8710a] text-white",
-          role.value === "Prism" && "bg-[#138808] text-white",
-        )}
-      >
-        <Icon className="h-4 w-4" />
-      </span>
-      <div>
-        <p className="text-sm font-bold text-primary">{role.title}</p>
-        <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{role.subtitle}</p>
-      </div>
-      <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", role.badgeClass)}>
-        {role.badge}
-      </span>
-    </button>
   );
 }
 
@@ -257,24 +201,16 @@ const AuthPage = () => {
             {/* Sign-in panel — same dimensions as memo */}
             <Card className={cn(AUTH_PANEL, "overflow-visible")}>
               <div className={TRICOLOR_STRIPE} />
-              <CardHeader className={cn(PANEL_HEADER, "text-center lg:text-left")}>
-                <div className="flex flex-col items-center gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="flex flex-col items-center lg:items-start">
-                    <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                      <ShieldCheck className="h-6 w-6" />
-                    </div>
-                    <CardTitle className="text-xl font-bold text-primary sm:text-2xl">Sign In</CardTitle>
-                    <p className="mt-1 text-sm text-muted-foreground sm:text-base">Access the DRSC Portal</p>
-                  </div>
-                  <div className="hidden items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary lg:flex">
-                    <Eye className="h-3.5 w-3.5" />
-                    State roles highlighted below
-                  </div>
+              <CardHeader className={cn(PANEL_HEADER, "text-center")}>
+                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <ShieldCheck className="h-6 w-6" />
                 </div>
+                <CardTitle className="text-xl font-bold text-primary sm:text-2xl">Sign In</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground sm:text-base">Access the DRSC Portal</p>
               </CardHeader>
 
               <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-                <form onSubmit={handleLogin} className="flex min-h-0 flex-1 flex-col gap-5">
+                <form onSubmit={handleLogin} className="flex min-h-0 flex-1 flex-col justify-center gap-5">
                   <div className="space-y-2">
                     <Label htmlFor="username" className="text-sm font-semibold sm:text-base">
                       Select User *
@@ -332,25 +268,6 @@ const AuthPage = () => {
                   >
                     {loading ? "Please wait..." : "Sign In"}
                   </Button>
-
-                  <div className="mt-auto rounded-xl border border-slate-200/90 bg-gradient-to-b from-slate-50 to-white p-4">
-                    <p className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
-                      Quick select — state & priority logins
-                    </p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {PRIORITY_ROLES.map((role) => (
-                        <PriorityRoleCard
-                          key={role.value}
-                          role={role}
-                          selected={username === role.value}
-                          onSelect={setUsername}
-                        />
-                      ))}
-                    </div>
-                    <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                      DGP & ADGP: statewide submissions · Prism: state viewer access
-                    </p>
-                  </div>
 
                   <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-muted-foreground lg:hidden">
                     <div className="font-semibold text-primary">Road Safety Memo</div>
