@@ -1,5 +1,7 @@
 # Security operations checklist
 
+> **Full VAPT report (black / white / grey box):** [`docs/VAPT-FULL-REPORT-ROADSAFETY.md`](./VAPT-FULL-REPORT-ROADSAFETY.md)
+
 ## Secret rotation (after any leak in chat, history, or commit)
 
 1. **Google Cloud** — rotate Maps browser key; restrict HTTP referrers to `https://roadsafety.prismappolice.in/*` only; enable Maps JavaScript API only.

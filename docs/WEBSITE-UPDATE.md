@@ -281,7 +281,7 @@ ls -lh ~/backup-*.sql
 | Maps blank | Key / referrer / role | GCP referrer `https://roadsafety.prismappolice.in/*`; check `/api/maps/config` when logged in |
 | Wrong CORS | Shell `CORS_ORIGIN` or bad `.env` | `unset CORS_ORIGIN`; use `--env-file /opt/road-accident-hub/.env` |
 
-More: `docs/SECURITY-OPERATIONS.md`, `docs/SECURITY-PENTEST-ROADSAFETY-2026-05-29.md`, `deploy/nginx-roadsafety.conf.example`
+More: `docs/VAPT-FULL-REPORT-ROADSAFETY.md` (full black/white/grey box VAPT), `docs/SECURITY-OPERATIONS.md`, `docs/SECURITY-PENTEST-ROADSAFETY-2026-05-29.md`, `docs/BACKUP-RESTORE.md`, `deploy/nginx-roadsafety.conf.example`
 
 ---
 
