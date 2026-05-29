@@ -14,6 +14,7 @@ A full-stack web application for recording, managing, and analysing fatal road a
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [Docker Deployment](#docker-deployment)
+- [Production website updates](docs/WEBSITE-UPDATE.md) (local IDE + AWS VM)
 - [API Reference](#api-reference)
 - [Project Structure](#project-structure)
 
@@ -336,36 +337,23 @@ Query parameters for admin: `district`, `year`, `month`, `date`.
 
 ## Project Structure
 
+See **[REPO_LAYOUT.md](REPO_LAYOUT.md)** for the full layout. Summary:
+
 ```
 road-accident-data-hub-main/
+├── src/                        # React frontend (pages, components, hooks)
+├── server/
+│   ├── src/                    # Express API, auth, migrations, routes
+│   └── tools/                  # Seeds, AWS import, CCTNS sync
 ├── public/                     # Static assets
-├── src/                        # Frontend source
-│   ├── components/             #   UI components (shadcn/ui + custom)
-│   ├── hooks/                  #   React hooks (useAuth, useMobile, useToast)
-│   ├── lib/                    #   Utilities (api client, constants, export helpers)
-│   ├── pages/                  #   Route-level page components
-│   ├── App.tsx                 #   Root component with routing
-│   └── main.tsx                #   Entry point
-├── server/                     # Backend source
-│   ├── src/
-│   │   ├── index.ts            #     Express app entry point
-│   │   ├── auth.ts             #     JWT auth utilities & middleware
-│   │   ├── db.ts               #     PostgreSQL connection pool
-│   │   ├── migrate.ts          #     Database migration script
-│   │   └── routes/
-│   │       ├── auth.ts         #       Auth routes (signup, login, me)
-│   │       ├── submissions.ts  #       Submission CRUD routes
-│   │       └── admin.ts        #       Admin-only routes
-│   ├── seed.sql                #   Sample seed data
-│   └── package.json
-├── database-schema.sql         # Reference SQL schema
-├── docker-compose.yml          # Docker Compose (app + db)
-├── Dockerfile                  # Multi-stage production build
-├── vite.config.ts              # Vite configuration (dev proxy)
-├── tailwind.config.ts          # Tailwind CSS configuration
-├── playwright.config.ts        # E2E test configuration
-├── vitest.config.ts            # Unit test configuration
-└── package.json                # Frontend dependencies & scripts
+├── docs/                       # Active documentation
+├── data/                       # Reference CSV/SQL (CCTNS masterdata, schema)
+├── deploy/                     # Deployment scripts
+├── _archive/                   # Legacy docs, dev tests, old experiments (not used in prod)
+├── docker-compose.yml
+├── Dockerfile
+├── memo_road_safety.pdf        # G.O. memo (login download)
+└── package.json
 ```
 
 ---
