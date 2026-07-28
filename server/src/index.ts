@@ -12,7 +12,6 @@ import feedbackRoutes from "./routes/feedback.js";
 import analyticsRoutes from "./routes/analytics.js";
 import enhancedAnalyticsRoutes from "./routes/enhanced-analytics.js";
 import analyticsProRoutes from "./routes/analytics-pro.js";
-import localRagRoutes from "./routes/rag-local.js";
 import ragGeminiRoutes from "./routes/rag-gemini.js";
 import reportRoutes from "./routes/reports.js";
 import { runMigrations } from "./migrate.js";
@@ -215,7 +214,6 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/analytics", enhancedAnalyticsRoutes);
 app.use("/api/analytics", analyticsProRoutes);
 app.use("/api/reports", reportRoutes);
-app.use("/api/rag", ragLimiter, localRagRoutes);
 app.use("/api/rag", ragLimiter, ragGeminiRoutes);
 
 // Serve static frontend in production
