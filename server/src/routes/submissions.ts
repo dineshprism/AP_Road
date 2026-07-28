@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import multer from "multer";
 import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
@@ -103,6 +104,10 @@ function mapSubmissionRow(row: Record<string, unknown>) {
     ...row,
     signed_copy_url: toSignedCopyApiUrl(row.signed_copy_path as string | null),
   };
+}
+
+function computeSha256(filePath: string) {
+  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
 function hasAllowedFileSignature(filePath: string, mimeType: string) {
@@ -425,6 +430,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
       fs.renameSync(file.path, finalPath);
     }
 
+    const sha256 = computeSha256(finalPath);
     const relativePath = path.posix.join("signed-copies", finalFileName);
     const updateResult = access.canViewAnySubmission
       ? await pool.query(
@@ -432,20 +438,22 @@ router.post("/:id/signed-copy", (req, res, next) => {
            SET signed_copy_uploaded = TRUE,
                signed_copy_name = $1,
                signed_copy_path = $2,
-               signed_copy_uploaded_at = now()
-           WHERE id = $3
+               signed_copy_uploaded_at = now(),
+               signed_copy_sha256 = $3
+           WHERE id = $4
            RETURNING id`,
-          [finalFileName, relativePath, id]
+          [finalFileName, relativePath, sha256, id]
         )
       : await pool.query(
           `UPDATE accident_submissions
            SET signed_copy_uploaded = TRUE,
                signed_copy_name = $1,
                signed_copy_path = $2,
-               signed_copy_uploaded_at = now()
-           WHERE id = $3 AND user_id = $4
+               signed_copy_uploaded_at = now(),
+               signed_copy_sha256 = $3
+           WHERE id = $4 AND user_id = $5
            RETURNING id`,
-          [finalFileName, relativePath, id, userId]
+          [finalFileName, relativePath, sha256, id, userId]
         );
 
     if (updateResult.rows.length === 0) {
@@ -458,6 +466,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
       signed_copy_uploaded: true,
       signed_copy_name: finalFileName,
       signed_copy_url: toSignedCopyApiUrl(relativePath),
+      signed_copy_sha256: sha256,
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);

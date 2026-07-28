@@ -143,7 +143,7 @@ export const api = {
       const formData = new FormData();
       formData.append("signedCopy", file);
 
-      return request<{ signed_copy_uploaded: boolean; signed_copy_name: string; signed_copy_url: string }>(
+      return request<{ signed_copy_uploaded: boolean; signed_copy_name: string; signed_copy_url: string; signed_copy_sha256: string }>(
         `/submissions/${encodeURIComponent(id)}/signed-copy`,
         {
           method: "POST",

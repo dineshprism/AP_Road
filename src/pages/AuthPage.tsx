@@ -94,7 +94,7 @@ function PriorityRoleOption({ role }: { role: PriorityRole }) {
           <Icon className="h-4 w-4" />
         </span>
         <div className="min-w-0 flex-1 text-left">
-          <p className="font-bold leading-tight text-primary">{role.title}</p>
+          <p className="font-normal leading-tight text-primary">{role.title}</p>
           <p className="text-xs text-muted-foreground">{role.subtitle}</p>
         </div>
         <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", role.badgeClass)}>

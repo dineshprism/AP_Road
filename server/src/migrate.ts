@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS accident_submissions (
     signed_copy_name TEXT,
     signed_copy_path TEXT,
     signed_copy_uploaded_at TIMESTAMPTZ,
+    signed_copy_sha256 TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -94,6 +95,7 @@ ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded B
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_name TEXT;
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_path TEXT;
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_uploaded_at TIMESTAMPTZ;
+ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS signed_copy_sha256 TEXT;
 ALTER TABLE accident_submissions ADD COLUMN IF NOT EXISTS victim_details JSONB NOT NULL DEFAULT '[]';
 
 -- Trigger for updated_at

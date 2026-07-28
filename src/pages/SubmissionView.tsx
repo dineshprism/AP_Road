@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { api, openProtectedAsset } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +52,7 @@ interface Submission {
   signed_copy_uploaded: boolean;
   signed_copy_name: string | null;
   signed_copy_url: string | null;
+  signed_copy_sha256: string | null;
   [key: string]: any;
 }
 
@@ -116,7 +117,7 @@ const SubmissionView = () => {
     );
   };
 
-  const InfoRow = ({ label, value }: { label: string; value: string | number | null }) => (
+  const InfoRow = ({ label, value }: { label: string; value: ReactNode }) => (
     <div className="flex justify-between py-2 border-b border-border/50">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-sm font-medium">{value ?? "—"}</span>
@@ -255,6 +256,9 @@ const SubmissionView = () => {
               <h3 className="gov-section-title">Signed Copy Record</h3>
               <InfoRow label="Status" value={s.signed_copy_uploaded ? "Uploaded" : "Pending"} />
               <InfoRow label="File Name" value={s.signed_copy_name} />
+              {s.signed_copy_sha256 && (
+                <InfoRow label="SHA-256 Checksum" value={<span className="break-all font-mono text-xs">{s.signed_copy_sha256}</span>} />
+              )}
               {s.signed_copy_url && (
                 <div className="pt-3">
                   <Button variant="outline" onClick={() => void handleOpenSignedCopy()}>
