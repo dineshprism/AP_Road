@@ -33,15 +33,27 @@ export interface AuthRequest extends Request {
 
 export function authCookieOptions() {
   const secure =
-    process.env.NODE_ENV === "production" || process.env.FORCE_SECURE_COOKIES === "true";
+    process.env.FORCE_SECURE_COOKIES === "true";
+
   return {
     httpOnly: true,
     secure,
-    sameSite: "strict" as const,
+    sameSite: secure ? "strict" as const : "lax" as const,
     maxAge: AUTH_COOKIE_MAX_AGE_MS,
     path: "/",
   };
 }
+// export function authCookieOptions() {
+//   const secure =
+//     process.env.NODE_ENV === "production" || process.env.FORCE_SECURE_COOKIES === "true";
+//   return {
+//     httpOnly: true,
+//     secure,
+//     sameSite: "strict" as const,
+//     maxAge: AUTH_COOKIE_MAX_AGE_MS,
+//     path: "/",
+//   };
+// }
 
 export function generateToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, {
