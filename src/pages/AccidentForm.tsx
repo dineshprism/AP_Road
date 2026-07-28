@@ -213,7 +213,7 @@ const AccidentForm = () => {
         </Button>
 
         <div className="text-center mb-6">
-          <h2 className="text-xl font-bold text-primary">ANNEXURE</h2>
+          <h2 className="text-xl font-bold text-primary">ANNEXURE1</h2>
           <p className="text-sm text-muted-foreground">Fatal Road Accident — Scientific Investigation Template</p>
           <p className="text-xs text-muted-foreground mt-1">
             To be filled by the Multi-Agency Investigation Team and placed before DRSC every month
