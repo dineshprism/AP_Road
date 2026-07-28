@@ -32,13 +32,10 @@ export interface AuthRequest extends Request {
 }
 
 export function authCookieOptions() {
-  const secure =
-    process.env.FORCE_SECURE_COOKIES === "true";
-
   return {
     httpOnly: true,
-    secure,
-    sameSite: secure ? "strict" as const : "lax" as const,
+    secure: false,
+    sameSite: "lax" as const,
     maxAge: AUTH_COOKIE_MAX_AGE_MS,
     path: "/",
   };
