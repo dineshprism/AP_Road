@@ -1,11 +1,8 @@
 import { Request } from "express";
 import pool from "./db.js";
 
+/** Uses Express's trust-proxy-aware `req.ip` rather than the raw (client-spoofable) X-Forwarded-For header. */
 export function getClientIp(req: Request): string {
-  const forwarded = req.get("x-forwarded-for");
-  if (forwarded) {
-    return forwarded.split(",")[0]?.trim() || "";
-  }
   return req.ip || req.socket.remoteAddress || "";
 }
 
