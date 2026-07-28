@@ -357,10 +357,6 @@ export const api = {
         body: JSON.stringify(payload),
       });
     },
-
-    getSimilar(submissionId: string) {
-      return request<{ reference: any; similarAccidents: any[] }>(`/rag/similar/${submissionId}`);
-    },
   },
 };
 
