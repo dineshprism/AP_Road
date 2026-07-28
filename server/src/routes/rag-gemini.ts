@@ -4,7 +4,6 @@ import pool from "../db.js";
 import { getUserAccess } from "../rbac.js";
 import { MAX_BATCH_SUBMISSION_IDS } from "../security-utils.js";
 import { GoogleGenAI } from "@google/genai";
-import { AccidentSubmissionRecord, analyzeWithLocalRag } from "../rag-local.js";
 import crypto from "crypto";
 
 const router = Router();
@@ -14,6 +13,31 @@ const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 140
 const geminiRetryAttempts = Number(process.env.GEMINI_RETRY_ATTEMPTS ?? 1);
 const geminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 8000);
 const geminiCacheTtlMs = Number(process.env.GEMINI_CACHE_TTL_MS ?? 10 * 60 * 1000);
+
+interface AccidentSubmissionRecord {
+  id: string;
+  district: string;
+  place_of_accident: string;
+  mandal: string;
+  police_station: string;
+  fir_number: string;
+  road_type: string;
+  accident_date: string;
+  accident_time: string | null;
+  lat_long: string | null;
+  persons_died: number;
+  persons_injured: number;
+  vehicles: unknown;
+  drivers: unknown;
+  driver_related_causes: unknown;
+  vehicle_condition_causes: unknown;
+  road_engineering_nature: unknown;
+  road_engineering_junctions: unknown;
+  road_engineering_signages: unknown;
+  road_engineering_median: unknown;
+  road_engineering_culverts: unknown;
+}
+
 const geminiResponseCache = new Map<
   string,
   { response: string; responseTime: number; model: string; tokens: number; expiresAt: number }
@@ -456,56 +480,26 @@ router.post("/analyze-gemini", authMiddleware, async (req: AuthRequest, res: Res
         question ||
         "Analyze this accident briefly and provide the main causes, key risks, and best preventive actions.";
 
-      try {
-        const localFallback = await analyzeWithLocalRag({
-          submissions,
-          question: fallbackQuestion,
-          history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
-        });
-
-        res.json({
-          response: localFallback.response,
-          model: localFallback.model,
-          mode: "local-rag-fallback",
-          submission: {
-            id: submission.id,
-            fir_number: submission.fir_number,
-            location: `${submission.place_of_accident}, ${submission.mandal}`,
-            district: submission.district
-          },
-          performance: {
-            response_time: 0,
-            model: localFallback.model,
-            tokens: 0,
-            api: "Local fallback",
-            optimization: "ollama-rag"
-          },
-          retrieval: localFallback.retrieval,
-          contextSubmissions: localFallback.contextSubmissions,
-        });
-      } catch (fallbackErr) {
-        console.error("Local RAG fallback failed:", fallbackErr);
-        res.json({
-          response: generateSingleFallbackAnalysis(submission, fallbackQuestion),
+      res.json({
+        response: generateSingleFallbackAnalysis(submission, fallbackQuestion),
+        model: "record-based-fallback",
+        mode: "record-fallback",
+        submission: {
+          id: submission.id,
+          fir_number: submission.fir_number,
+          location: `${submission.place_of_accident}, ${submission.mandal}`,
+          district: submission.district
+        },
+        performance: {
+          response_time: 0,
           model: "record-based-fallback",
-          mode: "record-fallback",
-          submission: {
-            id: submission.id,
-            fir_number: submission.fir_number,
-            location: `${submission.place_of_accident}, ${submission.mandal}`,
-            district: submission.district
-          },
-          performance: {
-            response_time: 0,
-            model: "record-based-fallback",
-            tokens: 0,
-            api: "Record-based fallback",
-            optimization: "no-external-ai"
-          },
-          retrieval: null,
-          contextSubmissions: [],
-        });
-      }
+          tokens: 0,
+          api: "Record-based fallback",
+          optimization: "no-external-ai"
+        },
+        retrieval: null,
+        contextSubmissions: [],
+      });
       return;
     }
 
@@ -575,62 +569,29 @@ router.post("/batch-analyze-gemini", authMiddleware, async (req: AuthRequest, re
         throw err;
       }
 
-      try {
-        const localFallback = await analyzeWithLocalRag({
-          submissions,
-          question: userQuestion,
-          history: history as Array<{ role: "user" | "assistant"; content: string }> | undefined,
-        });
-
-        res.json({
-          response: localFallback.response,
-          model: localFallback.model,
-          mode: "local-rag-fallback",
-          submissionsAnalyzed: submissions.length,
-          submissions: submissions.map(sub => ({
-            id: sub.id,
-            fir_number: sub.fir_number,
-            location: `${sub.place_of_accident}, ${sub.mandal}`,
-            district: sub.district,
-            date: sub.accident_date
-          })),
-          performance: {
-            response_time: 0,
-            model: localFallback.model,
-            tokens: 0,
-            api: "Local fallback",
-            optimization: "ollama-rag",
-            batch_size: submissions.length
-          },
-          retrieval: localFallback.retrieval,
-          contextSubmissions: localFallback.contextSubmissions,
-        });
-      } catch (fallbackErr) {
-        console.error("Local RAG batch fallback failed:", fallbackErr);
-        res.json({
-          response: generateBatchFallbackAnalysis(submissions, userQuestion),
+      res.json({
+        response: generateBatchFallbackAnalysis(submissions, userQuestion),
+        model: "record-based-fallback",
+        mode: "record-fallback",
+        submissionsAnalyzed: submissions.length,
+        submissions: submissions.map(sub => ({
+          id: sub.id,
+          fir_number: sub.fir_number,
+          location: `${sub.place_of_accident}, ${sub.mandal}`,
+          district: sub.district,
+          date: sub.accident_date
+        })),
+        performance: {
+          response_time: 0,
           model: "record-based-fallback",
-          mode: "record-fallback",
-          submissionsAnalyzed: submissions.length,
-          submissions: submissions.map(sub => ({
-            id: sub.id,
-            fir_number: sub.fir_number,
-            location: `${sub.place_of_accident}, ${sub.mandal}`,
-            district: sub.district,
-            date: sub.accident_date
-          })),
-          performance: {
-            response_time: 0,
-            model: "record-based-fallback",
-            tokens: 0,
-            api: "Record-based fallback",
-            optimization: "no-external-ai",
-            batch_size: submissions.length
-          },
-          retrieval: null,
-          contextSubmissions: [],
-        });
-      }
+          tokens: 0,
+          api: "Record-based fallback",
+          optimization: "no-external-ai",
+          batch_size: submissions.length
+        },
+        retrieval: null,
+        contextSubmissions: [],
+      });
       return;
     }
 
