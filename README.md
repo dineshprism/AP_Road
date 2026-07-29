@@ -93,6 +93,7 @@ The frontend is a single-page React application built with Vite and TypeScript.
 ### Development
 
 ```bash
+cd frontend
 npm install --legacy-peer-deps
 npm run dev          # Starts Vite dev server on http://localhost:8081
 ```
@@ -103,16 +104,17 @@ The Vite dev server proxies all `/api` requests to `http://localhost:3000`.
 
 ## Backend
 
-The backend is a RESTful Express API located in the `server/` directory.
+The backend is a RESTful Express API located in the `backend/` directory.
 
 ### Core Modules
 
-| File                     | Purpose                                           |
-| ------------------------ | ------------------------------------------------- |
-| `server/src/index.ts`    | Express app setup, middleware, route mounting      |
-| `server/src/auth.ts`     | JWT generation, verification, auth middleware      |
-| `server/src/db.ts`       | PostgreSQL connection pool (`pg`)                  |
-| `server/src/migrate.ts`  | Database migration script (creates all tables)     |
+| File                      | Purpose                                           |
+| ------------------------- | ------------------------------------------------- |
+| `backend/src/index.ts`    | Express app setup, middleware, route mounting      |
+| `backend/src/auth.ts`     | JWT generation, verification, auth middleware      |
+| `backend/src/db.ts`       | PostgreSQL connection pool (`pg`)                  |
+| `backend/src/db/*.repo.ts`| Data-access layer, one repository module per domain |
+| `backend/src/migrate.ts`  | Database migration script (creates all tables)     |
 
 ### Middleware
 
@@ -132,7 +134,7 @@ The backend is a RESTful Express API located in the `server/` directory.
 ### Running the Server
 
 ```bash
-cd server
+cd backend
 npm install
 npm run dev          # tsx watch — hot-reload on http://localhost:3000
 ```
@@ -205,11 +207,11 @@ PostgreSQL 16 with the `pgcrypto` extension for UUID generation.
 ### Running Migrations
 
 ```bash
-cd server
+cd backend
 npm run migrate      # Creates tables, indexes, triggers
 ```
 
-Seed data is available in `server/seed.sql`.
+Seed data is available in `backend/tools/seeds/`.
 
 ---
 
@@ -229,10 +231,12 @@ git clone <repo-url>
 cd road-accident-data-hub-main
 
 # 2. Install frontend dependencies
+cd frontend
 npm install --legacy-peer-deps
+cd ..
 
 # 3. Install backend dependencies
-cd server
+cd backend
 npm install
 cd ..
 
@@ -240,15 +244,16 @@ cd ..
 #    (see Environment Variables section below)
 
 # 5. Run database migrations
-cd server
+cd backend
 npm run migrate
 cd ..
 
 # 6. Start backend (terminal 1)
-cd server
+cd backend
 npm run dev
 
 # 7. Start frontend (terminal 2)
+cd frontend
 npm run dev
 
 # Frontend: http://localhost:8081
@@ -259,7 +264,7 @@ npm run dev
 
 ## Environment Variables
 
-Create a `.env` file in the `server/` directory:
+Create a `.env` file in the `backend/` directory:
 
 ```env
 DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/road_accident_db
@@ -294,7 +299,7 @@ docker compose up -d --build
 ### Multi-Stage Build
 
 1. **Stage 1 (frontend-build)** — Installs npm deps, builds the React app with Vite
-2. **Stage 2 (backend-build)** — Installs server deps, compiles TypeScript
+2. **Stage 2 (backend-build)** — Installs backend deps, compiles TypeScript
 3. **Stage 3 (production)** — Copies built assets, runs `node dist/index.js`
 
 ---
@@ -341,26 +346,30 @@ See **[REPO_LAYOUT.md](REPO_LAYOUT.md)** for the full layout. Summary:
 
 ```
 road-accident-data-hub-main/
-├── src/                        # React frontend (pages, components, hooks)
-├── server/
+├── frontend/
+│   ├── src/                    # React frontend (pages, components, hooks)
+│   ├── public/                 # Static assets
+│   ├── memo_road_safety.pdf    # G.O. memo (login download)
+│   └── package.json
+├── backend/
 │   ├── src/                    # Express API, auth, migrations, routes
-│   └── tools/                  # Seeds, AWS import, CCTNS sync
-├── public/                     # Static assets
+│   │   └── db/                 # Data-access repository layer
+│   ├── templates/              # Static templates used at runtime (e.g. DSR workbook)
+│   ├── tools/                  # Seeds, AWS import, CCTNS sync
+│   └── package.json
 ├── docs/                       # Active documentation
-├── data/                       # Reference CSV/SQL (CCTNS masterdata, schema)
+├── db/                         # Reference CSV/SQL (CCTNS masterdata, schema)
 ├── deploy/                     # Deployment scripts
 ├── _archive/                   # Legacy docs, dev tests, old experiments (not used in prod)
 ├── docker-compose.yml
-├── Dockerfile
-├── memo_road_safety.pdf        # G.O. memo (login download)
-└── package.json
+└── Dockerfile
 ```
 
 ---
 
 ## Scripts
 
-### Frontend (`package.json`)
+### Frontend (`frontend/package.json`)
 
 | Script         | Command              | Description                    |
 | -------------- | -------------------- | ------------------------------ |
@@ -371,7 +380,7 @@ road-accident-data-hub-main/
 | `test:watch`   | `vitest`             | Run tests in watch mode        |
 | `lint`         | `eslint .`           | Lint source files              |
 
-### Backend (`server/package.json`)
+### Backend (`backend/package.json`)
 
 | Script    | Command             | Description                         |
 | --------- | ------------------- | ----------------------------------- |

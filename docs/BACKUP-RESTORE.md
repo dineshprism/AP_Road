@@ -41,7 +41,7 @@ npm run data:import:aws -- \
   --replace \
   --restore-uploads \
   --use-default-env \
-  --uploads-dir /opt/road-accident-hub/app/server/uploads
+  --uploads-dir /opt/road-accident-hub/app/backend/uploads
 ```
 
 **Warning:** `--replace` clears the database before import. Use only for recovery.

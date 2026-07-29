@@ -25,7 +25,7 @@ curl http://localhost:3000/api/health
 ### **Step 2: Check Environment Variables**
 ```bash
 # Check if Gemini API key is set
-cd server
+cd backend
 cat .env | grep GEMINI_API_KEY
 
 # Should show: GEMINI_API_KEY=REDACTED_GEMINI_API_KEY
@@ -36,15 +36,15 @@ cat .env | grep GEMINI_API_KEY
 ### **Step 3: Start Server Manually**
 ```bash
 # Option 1: Using npm start
-cd server
+cd backend
 npm start
 
 # Option 2: Direct node execution
-cd server
+cd backend
 node dist/index.js
 
 # Option 3: With error logging
-cd server
+cd backend
 node simple-start.js
 ```
 
@@ -68,7 +68,7 @@ taskkill /F /IM node.exe /T
 netstat -an | findstr :3000
 
 # Then restart server
-cd server && npm start
+cd backend && npm start
 ```
 
 ### **Issue 2: Gemini API Key Problems**
@@ -86,7 +86,7 @@ curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5
 ### **Issue 3: Environment Variables Not Loading**
 ```bash
 # Check .env file location
-cd server
+cd backend
 ls -la .env*
 
 # Ensure .env file contains:
@@ -113,7 +113,7 @@ psql "postgresql://postgres:REDACTED_DB_PASSWORD@localhost:5432/road_accident_db
 
 ### **Debug Mode 1: Verbose Server**
 ```bash
-cd server
+cd backend
 DEBUG=* npm start
 ```
 
@@ -164,7 +164,7 @@ curl -H "Origin: http://localhost:8080" http://localhost:3000/api/health
 taskkill /F /IM node.exe /T
 
 # 2. Clean and rebuild
-cd server
+cd backend
 rm -rf dist
 npm run build
 
@@ -177,7 +177,7 @@ curl http://localhost:3000/api/health
 
 ### **Environment Check:**
 ```bash
-cd server
+cd backend
 echo "=== Environment Check ==="
 echo "Node version:" $(node --version)
 echo "NPM version:" $(npm --version)
@@ -188,13 +188,13 @@ echo "Database URL:" $(grep DATABASE_URL .env || echo "NOT SET")
 ## **📞 If Still Not Working:**
 
 ### **Check These Files:**
-1. **server/.env** - Contains correct Gemini API key?
-2. **server/dist/index.js** - Compiled successfully?
-3. **server/package.json** - Has @google/generative-ai?
+1. **backend/.env** - Contains correct Gemini API key?
+2. **backend/dist/index.js** - Compiled successfully?
+3. **backend/package.json** - Has @google/generative-ai?
 4. **browser console** - Any JavaScript errors?
 
 ### **Test This Sequence:**
-1. `cd server && npm start`
+1. `cd backend && npm start`
 2. Wait for "Server running on port 3000"
 3. `curl http://localhost:3000/api/health`
 4. Open http://localhost:8080

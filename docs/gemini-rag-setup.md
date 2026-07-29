@@ -28,7 +28,7 @@ Complete replacement of Ollama with Google Gemini API for faster, more reliable 
 ### **Step 2: Configure Environment**
 ```bash
 # Copy the example environment file
-cd server
+cd backend
 cp .env.example .env
 
 # Edit the .env file and add your Gemini API key
@@ -38,7 +38,7 @@ cp .env.example .env
 ### **Step 3: Install Dependencies**
 ```bash
 # Install new Gemini dependencies
-cd server
+cd backend
 npm install @google/generative-ai
 
 # Remove old dependencies (optional)
@@ -171,7 +171,7 @@ curl -X POST http://localhost:3000/api/rag/analyze-gemini \
   -d '{"submissionId": "test-id", "question": "Test question"}'
 
 # Check environment variables
-cat server/.env
+cat backend/.env
 ```
 
 ## **🏆 Success Indicators:**

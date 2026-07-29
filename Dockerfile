@@ -7,18 +7,18 @@
 
 # --- Stage 1: Build frontend ---
 FROM node:20-alpine AS frontend-build
-WORKDIR /app
-COPY package.json package-lock.json ./
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --legacy-peer-deps
-COPY . .
+COPY frontend/ .
 RUN npm run build
 
 # --- Stage 2: Build backend ---
 FROM node:20-alpine AS backend-build
-WORKDIR /app/server
-COPY server/package.json server/package-lock.json ./
+WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json ./
 RUN npm ci
-COPY server/ .
+COPY backend/ .
 RUN npx tsc
 
 # --- Stage 3: Production ---
@@ -26,18 +26,18 @@ FROM node:20-alpine AS production
 WORKDIR /app
 
 # Copy backend build
-COPY --from=backend-build /app/server/dist ./server/dist
-COPY --from=backend-build /app/server/node_modules ./server/node_modules
-COPY --from=backend-build /app/server/package.json ./server/package.json
-COPY --from=backend-build /app/server/templates ./server/templates
+COPY --from=backend-build /app/backend/dist ./backend/dist
+COPY --from=backend-build /app/backend/node_modules ./backend/node_modules
+COPY --from=backend-build /app/backend/package.json ./backend/package.json
+COPY --from=backend-build /app/backend/templates ./backend/templates
 
 # Copy frontend build
-COPY --from=frontend-build /app/dist ./dist
+COPY --from=frontend-build /app/frontend/dist ./dist
 
 # Create uploads directory
-RUN mkdir -p /app/server/uploads/signed-copies && chown -R node:node /app/server/uploads
+RUN mkdir -p /app/backend/uploads/signed-copies && chown -R node:node /app/backend/uploads
 
-WORKDIR /app/server
+WORKDIR /app/backend
 
 ENV NODE_ENV=production
 ENV PORT=3000

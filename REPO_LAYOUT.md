@@ -3,29 +3,35 @@
 ## Active application (production)
 
 ```
-├── src/                 # React frontend (pages, components, hooks)
-├── server/
+├── frontend/
+│   ├── src/             # React frontend (pages, components, hooks)
+│   ├── public/          # Static assets served by Vite
+│   ├── memo_road_safety.pdf # G.O. memo linked from login page
+│   ├── package.json     # Frontend dependencies & scripts
+│   ├── vite.config.ts, tailwind.config.ts, tsconfig*.json, eslint.config.js
+│   └── playwright.config.ts, vitest.config.ts
+├── backend/
 │   ├── src/             # Express API, auth, routes, migrations
+│   │   └── db/          # Data-access repository layer (one module per domain)
 │   ├── templates/       # Static templates used at runtime (e.g. DSR workbook)
 │   ├── tools/           # Data migration, seeds, CCTNS sync
-│   └── uploads/         # Signed copies (gitignored, runtime)
-├── public/              # Static assets served by Vite
+│   ├── uploads/         # Signed copies (gitignored, runtime)
+│   └── package.json     # Backend dependencies & scripts
 ├── deploy/              # GCP / VM deployment scripts
 ├── docs/                # Current documentation
-├── data/                # Reference CSV/SQL — see data/README.md
-├── package.json         # Frontend dependencies & scripts
+├── db/                  # Reference CSV/SQL — see db/README.md
 ├── docker-compose.yml
 ├── Dockerfile
 ├── README.md
-├── REPO_LAYOUT.md       # This file
-└── memo_road_safety.pdf # G.O. memo linked from login page
+└── REPO_LAYOUT.md       # This file
 ```
 
-## Configuration (root)
+## Configuration
 
-- `.env.example`, `server/.env.example` — environment templates
-- `vite.config.ts`, `tailwind.config.ts`, `tsconfig*.json`, `eslint.config.js`
-- `playwright.config.ts`, `vitest.config.ts`
+- `.env.example` (root, Docker/production), `backend/.env.example` — environment templates
+- `frontend/vite.config.ts`, `frontend/tailwind.config.ts`, `frontend/tsconfig*.json`, `frontend/eslint.config.js`
+- `frontend/playwright.config.ts`, `frontend/vitest.config.ts`
+- `backend/tsconfig.json`
 
 ## Archive (non-production)
 
@@ -44,6 +50,7 @@ _archive/
 
 ## Local-only (gitignored)
 
-- `node_modules/`, `dist/`, `server/dist/`
-- `.env`, `server/.env`, `road-accident-data.json`
-- `server/uploads/`, `*.xlsx`, `*.log`
+- `frontend/node_modules/`, `frontend/dist/`
+- `backend/node_modules/`, `backend/dist/`
+- `.env`, `backend/.env`, `road-accident-data.json`
+- `backend/uploads/`, `*.xlsx`, `*.log`

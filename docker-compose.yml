@@ -47,7 +47,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - app_uploads:/app/server/uploads
+      - app_uploads:/app/backend/uploads
 
 volumes:
   pgdata:

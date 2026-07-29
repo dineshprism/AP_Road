@@ -34,20 +34,21 @@ How to ship changes to **https://roadsafety.prismappolice.in** without losing da
 - Node.js 20+
 - Git
 - Clone: `git clone https://github.com/dineshprism/AP_Road.git`
-- Local env: copy `.env.example` → `.env` / `server/.env` for dev (not production secrets)
+- Local env: copy `.env.example` → `backend/.env` for dev (not production secrets)
 
 ## 1.2 Develop and test locally
 
 ```bash
 # From repo root
-npm install
-cd server && npm install && cd ..
+cd frontend && npm install --legacy-peer-deps && cd ..
+cd backend && npm install && cd ..
 
 # Terminal 1 — API (port 3000)
-cd server
+cd backend
 npm run dev
 
 # Terminal 2 — Frontend (port 8081)
+cd frontend
 npm run dev
 ```
 
@@ -63,7 +64,7 @@ docker compose up -d --build
 
 - [ ] No secrets in committed files (`.env`, API keys, passwords)
 - [ ] Changes tested locally (login, submit, upload signed copy, maps, analytics if touched)
-- [ ] `npm audit` clean (optional): `npm audit` and `cd server && npm audit`
+- [ ] `npm audit` clean (optional): `cd frontend && npm audit` and `cd backend && npm audit`
 
 ## 1.4 Push to GitHub
 
@@ -139,7 +140,7 @@ docker compose logs app --tail 30
 
 **Browser:** https://roadsafety.prismappolice.in — hard refresh `Ctrl+Shift+R`.
 
-**Heads-up:** if the release adds a schema change under `server/src/migrate.ts` that other running code depends on for every request (e.g. a new table joined into `authMiddleware`), deploying without running migrations first will make the site 500 on every request. Always run step 4 before step 5.
+**Heads-up:** if the release adds a schema change under `backend/src/migrate.ts` that other running code depends on for every request (e.g. a new table joined into `authMiddleware`), deploying without running migrations first will make the site 500 on every request. Always run step 4 before step 5.
 
 ### Verify new frontend is live
 
@@ -334,4 +335,4 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
-*Last updated: 2026-07-29 — added the mandatory `node dist/migrate.js` step to routine deploys (§ 2.2); matches Docker Compose production setup on eu-north-1 EC2.*
+*Last updated: 2026-07-29 — added the mandatory `node dist/migrate.js` step to routine deploys (§ 2.2); repo split into top-level `frontend/` and `backend/` folders (Part 2's Docker-based AWS VM steps are unaffected — only Part 1's local dev commands changed); matches Docker Compose production setup on eu-north-1 EC2.*

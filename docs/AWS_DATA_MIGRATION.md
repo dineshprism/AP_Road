@@ -33,12 +33,12 @@ SOURCE_PGDATABASE=road_accident_db \
 npm run data:export:gcp -- \
   --out /tmp/road-accident-data.json \
   --include-uploads \
-  --uploads-dir /opt/road-accident-hub/app/server/uploads
+  --uploads-dir /opt/road-accident-hub/app/backend/uploads
 ```
 
 Download `/tmp/road-accident-data.json` to your machine or copy it to the AWS server.
 
-If the uploaded signed-copy files are very large, copy the `server/uploads` folder separately instead of embedding uploads in the JSON.
+If the uploaded signed-copy files are very large, copy the `backend/uploads` folder separately instead of embedding uploads in the JSON.
 
 ## 2. Import Into AWS
 
@@ -54,7 +54,7 @@ npm run data:import:aws -- \
   --file /tmp/road-accident-data.json \
   --replace \
   --restore-uploads \
-  --uploads-dir /opt/road-accident-hub/app/server/uploads
+  --uploads-dir /opt/road-accident-hub/app/backend/uploads
 ```
 
 The importer runs the app database migration first, then inserts the exported rows while preserving UUIDs and relationships.
@@ -79,4 +79,4 @@ Compare the counts with the export logs.
 
 - Do not put database passwords or API keys in committed files.
 - Keep the exported JSON private. It contains operational data, password hashes, auth logs, and uploaded documents when `--include-uploads` is used.
-- If uploads are large, copy the `server/uploads` folder separately with `rsync` or `scp` and omit `--include-uploads`.
+- If uploads are large, copy the `backend/uploads` folder separately with `rsync` or `scp` and omit `--include-uploads`.
