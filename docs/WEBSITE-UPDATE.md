@@ -20,6 +20,7 @@ How to ship changes to **https://roadsafety.prismappolice.in** without losing da
 | Push changes from your PC to `main` on GitHub | `git commit` on the AWS server |
 | On server: `git reset --hard origin/main` | `git pull` if the server has local commits (e.g. `okk`) |
 | `docker compose build` + `up -d --force-recreate app` | `docker compose down -v` (deletes DB volume) |
+| **Run `node dist/migrate.js` after every build, before recreating `app`** | Skip migrations — new code can crash on missing tables/columns |
 | Edit `.env` only on the VM when secrets/URLs change | Put `.env` in GitHub |
 | **Whenever needed:** Prism → Download full backup — all data from day one (see `docs/BACKUP-RESTORE.md`) | Rely only on server disk without off-site backup files |
 | Backup DB before risky changes | `npm run data:import:aws --replace` on production unless you intend to wipe data |
@@ -117,18 +118,28 @@ git log -1 --oneline
 ln -sf /opt/road-accident-hub/.env .env
 ln -sf /opt/road-accident-hub/.env .env.docker
 
-# 3) Rebuild and restart app only (DB + uploads volumes kept)
+# 3) Build the new image (don't swap it in yet)
 unset CORS_ORIGIN
 env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env build --no-cache app
+
+# 4) Run migrations using the NEW image, against the CURRENTLY-RUNNING db.
+#    Safe to run every time — every statement is idempotent (CREATE TABLE IF NOT EXISTS /
+#    ADD COLUMN IF NOT EXISTS), so it no-ops if there's nothing new to apply.
+#    Take a DB backup first if this release includes schema changes (§ 2.7).
+env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env run --rm app node dist/migrate.js
+
+# 5) Only now recreate the app container with the new code (DB + uploads volumes kept)
 env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env up -d --force-recreate app
 
-# 4) Check
+# 6) Check
 docker compose ps
 curl -s http://127.0.0.1:3000/api/health
 docker compose logs app --tail 30
 ```
 
 **Browser:** https://roadsafety.prismappolice.in — hard refresh `Ctrl+Shift+R`.
+
+**Heads-up:** if the release adds a schema change under `server/src/migrate.ts` that other running code depends on for every request (e.g. a new table joined into `authMiddleware`), deploying without running migrations first will make the site 500 on every request. Always run step 4 before step 5.
 
 ### Verify new frontend is live
 
@@ -216,7 +227,7 @@ Order:
 
 1. Edit `/opt/road-accident-hub/.env` (if needed)  
 2. Edit nginx (if needed) → `sudo nginx -t && sudo systemctl reload nginx`  
-3. Run **§ 2.2** (git reset + docker build + recreate)
+3. Run **§ 2.2** (git reset + docker build + migrate + recreate)
 
 ---
 
@@ -240,10 +251,11 @@ ls -lh ~/backup-*.sql
 
 | Check | Command / action |
 |-------|------------------|
+| Migrations applied | `docker compose logs app --tail 50` around the `run --rm app node dist/migrate.js` step showed `Migration completed successfully.` |
 | Containers up | `docker compose ps` → `app` and `db` healthy |
 | API health | `curl -s http://127.0.0.1:3000/api/health` → `{"status":"ok",...}` |
 | Public HTTPS | Open https://roadsafety.prismappolice.in/ (no 500) |
-| Login | District + DGP test accounts |
+| Login | District + DGP test accounts (expect everyone logged out once if this release changed session handling) |
 | Upload signed copy | File &lt; 25 MB succeeds; &gt; 25 MB rejected |
 | Analytics buttons | DGP `/admin` → Analytics / analytics_new |
 | Maps | Logged-in district/DGP; Google key referrer locked in GCP |
@@ -276,6 +288,8 @@ ls -lh ~/backup-*.sql
 |---------|----------------|-----|
 | UI unchanged after deploy | Old git on server or cached bundle | `git reset --hard origin/main`, rebuild `--no-cache`, hard refresh |
 | `Internal Server Error` on `/` | CORS / old image | Deploy latest `main`; check `docker compose logs app` |
+| Every request 500s right after a deploy | New code deployed without running `node dist/migrate.js` first (missing table/column) | Run § 2.2 step 4 (migrate) against the running db, then recreate `app` |
+| All users suddenly logged out after a deploy | Expected if the release changed session/auth handling (e.g. added server-side session tracking) — old tokens are intentionally invalidated | Not a bug; have users log in again |
 | Upload `413` | nginx `client_max_body_size` too low | Set `25M` on **443** server block, reload nginx |
 | `git pull` doesn’t update | Server local commit | `git reset --hard origin/main` |
 | Maps blank | Key / referrer / role | GCP referrer `https://roadsafety.prismappolice.in/*`; check `/api/maps/config` when logged in |
@@ -299,6 +313,7 @@ edit → test locally → git commit → git push origin main
 cd /opt/road-accident-hub/app
 git fetch && git reset --hard origin/main
 env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env build --no-cache app
+env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env run --rm app node dist/migrate.js
 env -u CORS_ORIGIN docker compose --env-file /opt/road-accident-hub/.env up -d --force-recreate app
 curl -s http://127.0.0.1:3000/api/health
 ```
@@ -319,4 +334,4 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
-*Last updated: 2026-05-29 — matches Docker Compose production setup on eu-north-1 EC2.*
+*Last updated: 2026-07-29 — added the mandatory `node dist/migrate.js` step to routine deploys (§ 2.2); matches Docker Compose production setup on eu-north-1 EC2.*

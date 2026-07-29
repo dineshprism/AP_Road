@@ -29,7 +29,7 @@ WORKDIR /app
 COPY --from=backend-build /app/server/dist ./server/dist
 COPY --from=backend-build /app/server/node_modules ./server/node_modules
 COPY --from=backend-build /app/server/package.json ./server/package.json
-COPY --from=backend-build ["/app/server/DSR on 01-04-2026 to 07-04-2026.xlsx", "./server/DSR on 01-04-2026 to 07-04-2026.xlsx"]
+COPY --from=backend-build /app/server/templates ./server/templates
 
 # Copy frontend build
 COPY --from=frontend-build /app/dist ./dist

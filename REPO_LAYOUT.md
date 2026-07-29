@@ -6,6 +6,7 @@
 ├── src/                 # React frontend (pages, components, hooks)
 ├── server/
 │   ├── src/             # Express API, auth, routes, migrations
+│   ├── templates/       # Static templates used at runtime (e.g. DSR workbook)
 │   ├── tools/           # Data migration, seeds, CCTNS sync
 │   └── uploads/         # Signed copies (gitignored, runtime)
 ├── public/              # Static assets served by Vite
