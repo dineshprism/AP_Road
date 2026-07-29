@@ -1,10 +1,19 @@
 import { Router, Response } from "express";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
-import pool from "../db.js";
-import { generateToken, authMiddleware, AuthRequest, authCookieOptions } from "../auth.js";
+import {
+  generateToken,
+  authMiddleware,
+  AuthRequest,
+  authCookieOptions,
+  getTokenFromRequest,
+  verifyToken,
+  revokeSession,
+} from "../auth.js";
 import { findUserForLogin } from "../user-store.js";
 import { STATE_VIEWER_ROLES } from "../rbac.js";
+import { getProfileSummary, getRolesByUserId } from "../db/access.repo.js";
+import { insertActivityLog } from "../db/auth-activity.repo.js";
 import { MIN_PASSWORD_LENGTH } from "../security-utils.js";
 
 const router = Router();
@@ -18,6 +27,19 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+async function logAuthActivity(
+  userId: string | null,
+  eventType: string,
+  req: AuthRequest,
+  metadata: Record<string, unknown>
+) {
+  try {
+    await insertActivityLog(userId, eventType, req.ip || null, req.get("user-agent") || null, metadata);
+  } catch (activityError) {
+    console.error("Failed to record auth activity:", activityError);
+  }
+}
 
 router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
   try {
@@ -36,6 +58,7 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
     const user = await findUserForLogin(username);
 
     if (!user) {
+      await logAuthActivity(null, "login_failure", req, { username, reason: "unknown_username" });
       res.status(401).json({ error: "Invalid username or password" });
       return;
     }
@@ -43,27 +66,14 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
     const valid = await bcrypt.compare(password, user.password_hash);
 
     if (!valid) {
+      await logAuthActivity(user.id, "login_failure", req, { username, reason: "bad_password" });
       res.status(401).json({ error: "Invalid username or password" });
       return;
     }
 
-    const token = generateToken({ userId: user.id, email: user.email });
+    const token = await generateToken({ userId: user.id, email: user.email });
 
-    try {
-      await pool.query(
-        `INSERT INTO auth_activity_log (user_id, event_type, ip_address, user_agent, metadata)
-         VALUES ($1, $2, $3, $4, $5::jsonb)`,
-        [
-          user.id,
-          "login_success",
-          req.ip || null,
-          req.get("user-agent") || null,
-          JSON.stringify({ username }),
-        ]
-      );
-    } catch (activityError) {
-      console.error("Failed to record login activity:", activityError);
-    }
+    await logAuthActivity(user.id, "login_success", req, { username });
 
     res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
     res.json({
@@ -75,7 +85,16 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post("/logout", (_req: AuthRequest, res: Response) => {
+router.post("/logout", async (req: AuthRequest, res: Response) => {
+  const token = getTokenFromRequest(req);
+  if (token) {
+    try {
+      const payload = verifyToken(token);
+      await revokeSession(payload.jti);
+    } catch {
+      // Token already invalid/expired — nothing to revoke.
+    }
+  }
   res.clearCookie(AUTH_COOKIE_NAME, authCookieOptions());
   res.json({ success: true });
 });
@@ -84,18 +103,8 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
 
-    const profileResult = await pool.query(
-      "SELECT full_name, district, designation FROM profiles WHERE user_id = $1",
-      [userId]
-    );
-
-    const roleResult = await pool.query(
-      "SELECT role FROM user_roles WHERE user_id = $1",
-      [userId]
-    );
-
-    const profile = profileResult.rows[0] || null;
-    const roles = roleResult.rows.map((r) => r.role);
+    const profile = await getProfileSummary(userId);
+    const roles = await getRolesByUserId(userId);
     const isAdmin = roles.some((role) => (STATE_VIEWER_ROLES as readonly string[]).includes(role));
     const isPrism = roles.includes("prism");
 

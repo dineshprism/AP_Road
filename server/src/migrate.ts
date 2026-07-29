@@ -122,7 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_user ON profiles(user_id);
 
 CREATE TABLE IF NOT EXISTS auth_activity_log (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     event_type TEXT NOT NULL,
     ip_address TEXT,
     user_agent TEXT,
@@ -130,8 +130,24 @@ CREATE TABLE IF NOT EXISTS auth_activity_log (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- user_id is nullable so failed logins against unknown usernames can still be logged (no matching account).
+ALTER TABLE auth_activity_log ALTER COLUMN user_id DROP NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_user_id ON auth_activity_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_created_at ON auth_activity_log(created_at DESC);
+
+-- Tracks issued JWTs (by jti) so logout and session revocation actually invalidate a token
+-- server-side, instead of a copied/replayed token remaining valid until it naturally expires.
+CREATE TABLE IF NOT EXISTS active_sessions (
+    id UUID PRIMARY KEY,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_active_sessions_user_id ON active_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_active_sessions_expires_at ON active_sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_event_type ON auth_activity_log(event_type);
 
 CREATE TABLE IF NOT EXISTS feedback_messages (

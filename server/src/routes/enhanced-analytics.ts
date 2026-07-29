@@ -1,7 +1,8 @@
 import { Router, Response } from "express";
-import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getUserRolesAndDistrict } from "../db/access.repo.js";
+import { getScopedAnalyticsRows, AnalyticsRow } from "../db/enhanced-analytics.repo.js";
 
 const router = Router();
 
@@ -14,31 +15,6 @@ router.use(authMiddleware);
 
 type JsonRecord = Record<string, unknown>;
 
-interface AnalyticsRow {
-  id: string;
-  district: string;
-  place_of_accident: string;
-  mandal: string;
-  police_station: string;
-  fir_number: string;
-  road_type: string;
-  accident_date: string;
-  accident_time: string | null;
-  lat_long: string | null;
-  persons_died: number;
-  persons_injured: number;
-  vehicles: unknown;
-  drivers: unknown;
-  driver_related_causes: unknown;
-  vehicle_condition_causes: unknown;
-  road_engineering_culverts: unknown;
-  road_engineering_junctions: unknown;
-  road_engineering_median: unknown;
-  road_engineering_nature: unknown;
-  road_engineering_signages: unknown;
-  signed_copy_uploaded: boolean;
-  created_at: string;
-}
 
 interface RoadTypeAggregate {
   roadType: string;
@@ -363,14 +339,8 @@ function buildClassicDrilldownTitle(
 
 async function getAccessContext(req: AuthRequest, res: Response) {
   const userId = req.user!.userId;
-  const [rolesResult, profileResult] = await Promise.all([
-    pool.query("SELECT role FROM user_roles WHERE user_id = $1", [userId]),
-    pool.query("SELECT district FROM profiles WHERE user_id = $1", [userId]),
-  ]);
-
-  const roles = rolesResult.rows.map((row) => row.role as string);
+  const { roles, district: profileDistrict } = await getUserRolesAndDistrict(userId);
   const isAdmin = roles.some((role) => ["admin", "dgp", "adgp"].includes(role));
-  const profileDistrict = profileResult.rows[0]?.district as string | undefined;
 
   if (!isAdmin && !profileDistrict) {
     res.status(403).json({ error: "Analytics access requires a district profile" });
@@ -446,38 +416,7 @@ function formatLabel(value: string): string {
 }
 
 async function fetchAnalyticsRows(scope: ScopeResult) {
-  const result = await pool.query<AnalyticsRow>(
-    `SELECT
-        id,
-        district,
-        place_of_accident,
-        mandal,
-        police_station,
-        fir_number,
-        road_type,
-        accident_date::text,
-        accident_time,
-        lat_long,
-        persons_died,
-        persons_injured,
-        vehicles,
-        drivers,
-        driver_related_causes,
-        vehicle_condition_causes,
-        road_engineering_culverts,
-        road_engineering_junctions,
-        road_engineering_median,
-        road_engineering_nature,
-        road_engineering_signages,
-        signed_copy_uploaded,
-        created_at
-     FROM accident_submissions
-     WHERE ${scope.whereClause}
-     ORDER BY accident_date DESC, created_at DESC`,
-    scope.params
-  );
-
-  return result.rows;
+  return getScopedAnalyticsRows(scope.whereClause, scope.params);
 }
 
 async function generateGeminiInsights(summaryInput: {

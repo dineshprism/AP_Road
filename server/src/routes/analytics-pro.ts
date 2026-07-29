@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
-import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { getUserRolesAndDistrict } from "../db/access.repo.js";
+import { getScopedSubmissions, ProAnalyticsRow } from "../db/analytics-pro.repo.js";
 
 const router = Router();
 
@@ -15,22 +16,6 @@ const DELAY_BANDS = [
   "4-7 Days",
   "More Than 7 Days",
 ] as const;
-
-interface ProAnalyticsRow {
-  id: string;
-  district: string;
-  place_of_accident: string;
-  mandal: string;
-  police_station: string;
-  fir_number: string;
-  road_type: string;
-  accident_date: string;
-  accident_time: string | null;
-  persons_died: number;
-  persons_injured: number;
-  signed_copy_uploaded: boolean;
-  created_at: string;
-}
 
 interface AccessContext {
   isAdmin: boolean;
@@ -110,14 +95,9 @@ function createAccumulator(name: string): TimelinessAccumulator {
 
 async function getAccessContext(req: AuthRequest, res: Response): Promise<AccessContext | null> {
   const userId = req.user!.userId;
-  const [rolesResult, profileResult] = await Promise.all([
-    pool.query("SELECT role FROM user_roles WHERE user_id = $1", [userId]),
-    pool.query("SELECT district FROM profiles WHERE user_id = $1", [userId]),
-  ]);
+  const { roles, district: profileDistrict } = await getUserRolesAndDistrict(userId);
 
-  const roles = rolesResult.rows.map((row) => row.role as string);
   const isAdmin = roles.some((role) => ["admin", "dgp", "adgp"].includes(role));
-  const profileDistrict = profileResult.rows[0]?.district as string | undefined;
 
   if (!isAdmin && !profileDistrict) {
     res.status(403).json({ error: "Analytics Pro access requires a district profile" });
@@ -365,28 +345,8 @@ function formatSelectionTitle(filters: {
 }
 
 async function fetchScopedRows(scope: ScopeResult) {
-  const result = await pool.query<ProAnalyticsRow>(
-    `SELECT
-        id,
-        district,
-        place_of_accident,
-        mandal,
-        police_station,
-        fir_number,
-        road_type,
-        accident_date::text,
-        accident_time,
-        persons_died,
-        persons_injured,
-        signed_copy_uploaded,
-        created_at
-     FROM accident_submissions
-     WHERE ${scope.whereClause}
-     ORDER BY created_at DESC, fir_number`,
-    scope.params
-  );
-
-  return result.rows.map(toSummaryRow);
+  const rows = await getScopedSubmissions(scope.whereClause, scope.params);
+  return rows.map(toSummaryRow);
 }
 
 router.get("/pro", async (req: AuthRequest, res: Response) => {

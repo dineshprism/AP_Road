@@ -3,9 +3,15 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import multer from "multer";
-import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import { canPickDistrict, getUserAccess, resolveDistrictForWrite } from "../rbac.js";
+import {
+  insertSubmission,
+  getSubmissionsByUser,
+  getSubmissionById,
+  getSubmissionForSignedCopy,
+  updateSignedCopy,
+} from "../db/submissions.repo.js";
 import {
   assertJsonFieldSize,
   MAX_UPLOAD_BYTES,
@@ -260,44 +266,21 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const result = await pool.query(
-      `INSERT INTO accident_submissions (
-        user_id, district, place_of_accident, mandal, police_station, fir_number,
-        lat_long, road_type, accident_date, accident_time,
-        persons_died, persons_injured, victim_details, vehicles, drivers,
-        driver_related_causes, vehicle_condition_causes,
-        road_engineering_culverts, road_engineering_junctions,
-        road_engineering_median, road_engineering_nature, road_engineering_signages,
-        prepared_by_name, prepared_by_designation, prepared_by_date,
-        verified_by_name, verified_by_designation, verified_by_date,
-        approved_by_name, approved_by_designation, approved_by_date
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6,
-        $7, $8, $9, $10,
-        $11, $12, $13, $14, $15,
-        $16, $17,
-        $18, $19,
-        $20, $21, $22,
-        $23, $24, $25,
-        $26, $27, $28,
-        $29, $30, $31
-      ) RETURNING id, created_at`,
-      [
-        userId, effectiveDistrict, place_of_accident, mandal, police_station, fir_number,
-        lat_long || null, road_type, accident_date, accident_time,
-        persons_died || 0, persons_injured || 0, JSON.stringify(victimDetails),
-        JSON.stringify(vehicles || []), JSON.stringify(drivers || []),
-        JSON.stringify(driver_related_causes || {}), JSON.stringify(vehicle_condition_causes || {}),
-        JSON.stringify(road_engineering_culverts || {}), JSON.stringify(road_engineering_junctions || {}),
-        JSON.stringify(road_engineering_median || {}), JSON.stringify(road_engineering_nature || {}),
-        JSON.stringify(road_engineering_signages || {}),
-        prepared_by_name || null, prepared_by_designation || null, prepared_by_date || null,
-        verified_by_name || null, verified_by_designation || null, verified_by_date || null,
-        approved_by_name || null, approved_by_designation || null, approved_by_date || null,
-      ]
-    );
+    const created = await insertSubmission({
+      userId, district: effectiveDistrict, place_of_accident, mandal, police_station, fir_number,
+      lat_long: lat_long || null, road_type, accident_date, accident_time,
+      persons_died: persons_died || 0, persons_injured: persons_injured || 0, victimDetails,
+      vehicles: vehicles || [], drivers: drivers || [],
+      driver_related_causes: driver_related_causes || {}, vehicle_condition_causes: vehicle_condition_causes || {},
+      road_engineering_culverts: road_engineering_culverts || {}, road_engineering_junctions: road_engineering_junctions || {},
+      road_engineering_median: road_engineering_median || {}, road_engineering_nature: road_engineering_nature || {},
+      road_engineering_signages: road_engineering_signages || {},
+      prepared_by_name: prepared_by_name || null, prepared_by_designation: prepared_by_designation || null, prepared_by_date: prepared_by_date || null,
+      verified_by_name: verified_by_name || null, verified_by_designation: verified_by_designation || null, verified_by_date: verified_by_date || null,
+      approved_by_name: approved_by_name || null, approved_by_designation: approved_by_designation || null, approved_by_date: approved_by_date || null,
+    });
 
-    res.status(201).json({ id: result.rows[0].id, created_at: result.rows[0].created_at });
+    res.status(201).json({ id: created.id, created_at: created.created_at });
   } catch (err: any) {
     console.error("Create submission error:", err);
     if (err?.message?.includes("maximum allowed size")) {
@@ -313,12 +296,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
 
-    const result = await pool.query(
-      "SELECT * FROM accident_submissions WHERE user_id = $1 ORDER BY created_at DESC",
-      [userId]
-    );
+    const rows = await getSubmissionsByUser(userId);
 
-    res.json(result.rows.map((row) => mapSubmissionRow(row)));
+    res.json(rows.map((row) => mapSubmissionRow(row)));
   } catch (err: any) {
     console.error("Get submissions error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -339,23 +319,14 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
     }
 
     const access = await getUserAccess(userId);
+    const submission = await getSubmissionById(id, access.canViewAnySubmission ? undefined : userId);
 
-    let result;
-    if (access.canViewAnySubmission) {
-      result = await pool.query("SELECT * FROM accident_submissions WHERE id = $1", [id]);
-    } else {
-      result = await pool.query(
-        "SELECT * FROM accident_submissions WHERE id = $1 AND user_id = $2",
-        [id, userId]
-      );
-    }
-
-    if (result.rows.length === 0) {
+    if (!submission) {
       res.status(404).json({ error: "Submission not found" });
       return;
     }
 
-    res.json(mapSubmissionRow(result.rows[0]));
+    res.json(mapSubmissionRow(submission));
   } catch (err: any) {
     console.error("Get submission error:", err);
     res.status(500).json({ error: "Internal server error" });
@@ -401,18 +372,16 @@ router.post("/:id/signed-copy", (req, res, next) => {
     }
 
     const access = await getUserAccess(userId);
+    const scopeUserId = access.canViewAnySubmission ? undefined : userId;
 
-    const existingResult = access.canViewAnySubmission
-      ? await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1", [id])
-      : await pool.query("SELECT district, fir_number, signed_copy_path FROM accident_submissions WHERE id = $1 AND user_id = $2", [id, userId]);
+    const submission = await getSubmissionForSignedCopy(id, scopeUserId);
 
-    if (existingResult.rows.length === 0) {
+    if (!submission) {
       fs.unlinkSync(file.path);
       res.status(404).json({ error: "Submission not found" });
       return;
     }
 
-    const submission = existingResult.rows[0] as { district: string; fir_number: string; signed_copy_path: string | null };
     const previousPath = submission.signed_copy_path;
     if (previousPath) {
       const absolutePreviousPath = path.resolve(process.cwd(), "uploads", previousPath);
@@ -432,31 +401,9 @@ router.post("/:id/signed-copy", (req, res, next) => {
 
     const sha256 = computeSha256(finalPath);
     const relativePath = path.posix.join("signed-copies", finalFileName);
-    const updateResult = access.canViewAnySubmission
-      ? await pool.query(
-          `UPDATE accident_submissions
-           SET signed_copy_uploaded = TRUE,
-               signed_copy_name = $1,
-               signed_copy_path = $2,
-               signed_copy_uploaded_at = now(),
-               signed_copy_sha256 = $3
-           WHERE id = $4
-           RETURNING id`,
-          [finalFileName, relativePath, sha256, id]
-        )
-      : await pool.query(
-          `UPDATE accident_submissions
-           SET signed_copy_uploaded = TRUE,
-               signed_copy_name = $1,
-               signed_copy_path = $2,
-               signed_copy_uploaded_at = now(),
-               signed_copy_sha256 = $3
-           WHERE id = $4 AND user_id = $5
-           RETURNING id`,
-          [finalFileName, relativePath, sha256, id, userId]
-        );
+    const updated = await updateSignedCopy(id, finalFileName, relativePath, sha256, scopeUserId);
 
-    if (updateResult.rows.length === 0) {
+    if (!updated) {
       fs.unlinkSync(finalPath);
       res.status(404).json({ error: "Submission not found" });
       return;

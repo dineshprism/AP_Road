@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import { authMiddleware, AuthRequest } from "../auth.js";
-import pool from "../db.js";
 import { getUserAccess } from "../rbac.js";
+import { getSubmissionsByIds, getSubmissionsByIdsForUser, AccidentSubmissionRecord } from "../db/rag.repo.js";
 import { MAX_BATCH_SUBMISSION_IDS } from "../security-utils.js";
 import { GoogleGenAI } from "@google/genai";
 import crypto from "crypto";
@@ -13,30 +13,6 @@ const geminiMaxOutputTokens = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 140
 const geminiRetryAttempts = Number(process.env.GEMINI_RETRY_ATTEMPTS ?? 1);
 const geminiTimeoutMs = Number(process.env.GEMINI_TIMEOUT_MS ?? 8000);
 const geminiCacheTtlMs = Number(process.env.GEMINI_CACHE_TTL_MS ?? 10 * 60 * 1000);
-
-interface AccidentSubmissionRecord {
-  id: string;
-  district: string;
-  place_of_accident: string;
-  mandal: string;
-  police_station: string;
-  fir_number: string;
-  road_type: string;
-  accident_date: string;
-  accident_time: string | null;
-  lat_long: string | null;
-  persons_died: number;
-  persons_injured: number;
-  vehicles: unknown;
-  drivers: unknown;
-  driver_related_causes: unknown;
-  vehicle_condition_causes: unknown;
-  road_engineering_nature: unknown;
-  road_engineering_junctions: unknown;
-  road_engineering_signages: unknown;
-  road_engineering_median: unknown;
-  road_engineering_culverts: unknown;
-}
 
 const geminiResponseCache = new Map<
   string,
@@ -107,29 +83,11 @@ async function fetchAccessibleSubmissions(userId: string, submissionIds: string[
   const access = await getUserAccess(userId);
   if (submissionIds.length === 0) return { rows: [], access };
 
-  const result = access.canViewAnySubmission
-    ? await pool.query<AccidentSubmissionRecord>(
-        `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
-                road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
-                vehicles, drivers, driver_related_causes, vehicle_condition_causes,
-                road_engineering_nature, road_engineering_junctions, road_engineering_signages,
-                road_engineering_median, road_engineering_culverts
-         FROM accident_submissions
-         WHERE id = ANY($1::uuid[])`,
-        [submissionIds]
-      )
-    : await pool.query<AccidentSubmissionRecord>(
-        `SELECT id, district, place_of_accident, mandal, police_station, fir_number,
-                road_type, accident_date, accident_time, lat_long, persons_died, persons_injured,
-                vehicles, drivers, driver_related_causes, vehicle_condition_causes,
-                road_engineering_nature, road_engineering_junctions, road_engineering_signages,
-                road_engineering_median, road_engineering_culverts
-         FROM accident_submissions
-         WHERE id = ANY($1::uuid[]) AND user_id = $2`,
-        [submissionIds, userId]
-      );
+  const rows = access.canViewAnySubmission
+    ? await getSubmissionsByIds(submissionIds)
+    : await getSubmissionsByIdsForUser(submissionIds, userId);
 
-  return { rows: result.rows, access };
+  return { rows, access };
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string) {

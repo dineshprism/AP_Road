@@ -1,5 +1,5 @@
 import { Request } from "express";
-import pool from "./db.js";
+import { insertActivityLog } from "./db/auth-activity.repo.js";
 
 /** Uses Express's trust-proxy-aware `req.ip` rather than the raw (client-spoofable) X-Forwarded-For header. */
 export function getClientIp(req: Request): string {
@@ -22,17 +22,7 @@ export async function logBackupDownload(
   details: { filename: string; submissionCount: number; uploadCount: number }
 ): Promise<void> {
   try {
-    await pool.query(
-      `INSERT INTO auth_activity_log (user_id, event_type, ip_address, user_agent, metadata)
-       VALUES ($1, $2, $3, $4, $5::jsonb)`,
-      [
-        userId,
-        "backup_download",
-        getClientIp(req) || null,
-        req.get("user-agent") || null,
-        JSON.stringify(details),
-      ]
-    );
+    await insertActivityLog(userId, "backup_download", getClientIp(req) || null, req.get("user-agent") || null, details);
   } catch (error) {
     console.error("[backup] Failed to write audit log:", error);
   }

@@ -1,17 +1,14 @@
 import { Router, Response } from "express";
-import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { getProfileSummary, hasAnyRole } from "../db/access.repo.js";
+import { insertFeedback, getRecentFeedback } from "../db/feedback.repo.js";
 
 const router = Router();
 
 router.use(authMiddleware);
 
 async function isPrismUser(userId: string) {
-  const result = await pool.query(
-    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role = 'prism' LIMIT 1",
-    [userId]
-  );
-  return result.rows.length > 0;
+  return hasAnyRole(userId, ["prism"]);
 }
 
 router.post("/", async (req: AuthRequest, res: Response) => {
@@ -32,23 +29,15 @@ router.post("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const profileResult = await pool.query(
-      "SELECT district, full_name, designation FROM profiles WHERE user_id = $1",
-      [userId]
-    );
-    const profile = profileResult.rows[0];
+    const profile = await getProfileSummary(userId);
 
-    await pool.query(
-      `INSERT INTO feedback_messages (user_id, district, full_name, designation, subject, message)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [
-        userId,
-        profile?.district || "Unknown",
-        profile?.full_name || null,
-        profile?.designation || null,
-        trimmedSubject,
-        trimmedMessage,
-      ]
+    await insertFeedback(
+      userId,
+      profile?.district || "Unknown",
+      profile?.full_name || null,
+      profile?.designation || null,
+      trimmedSubject,
+      trimmedMessage
     );
 
     res.status(201).json({ success: true });
@@ -65,14 +54,9 @@ router.get("/", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const result = await pool.query(
-      `SELECT id, district, full_name, designation, subject, message, status, created_at
-       FROM feedback_messages
-       ORDER BY created_at DESC
-       LIMIT 200`
-    );
+    const rows = await getRecentFeedback(200);
 
-    res.json(result.rows);
+    res.json(rows);
   } catch (error: any) {
     console.error("Get feedback error:", error);
     res.status(500).json({ error: "Internal server error" });

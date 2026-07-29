@@ -1,42 +1,36 @@
 import path from "path";
 import { Router, Response } from "express";
 import ExcelJS from "exceljs";
-import pool from "../db.js";
+import rateLimit from "express-rate-limit";
 import { authMiddleware, AuthRequest } from "../auth.js";
+import { hasAnyRole } from "../db/access.repo.js";
+import { getSubmissionsInDateRange, ReportSubmission } from "../db/reports.repo.js";
 
 const router = Router();
 
-router.use(authMiddleware);
+const reportsRateLimitMax = parseInt(
+  process.env.REPORTS_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "30" : "60"),
+  10
+);
 
-const TEMPLATE_FILE_NAME = "DSR on 01-04-2026 to 07-04-2026.xlsx";
+const reportsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: reportsRateLimitMax,
+  message: { error: "Too many report requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.use(authMiddleware);
+router.use(reportsLimiter);
+
+const TEMPLATE_FILE_PATH = path.join("templates", "dsr-template.xlsx");
 const REPORT_TIME_ZONE = "Asia/Kolkata";
 const DSR_DATA_ROWS = { start: 6, end: 33 };
 const SEVERITY_DATA_ROWS = { start: 4, end: 31 };
 const TIME_DATA_ROWS = { start: 5, end: 12 };
 const TIME_BLACK_SPOT_ROWS = { start: 4, end: 8 };
 
-interface ReportSubmission {
-  id: string;
-  district: string;
-  place_of_accident: string;
-  mandal: string;
-  police_station: string;
-  fir_number: string;
-  road_type: string;
-  accident_date: string;
-  accident_time: string | null;
-  persons_died: number;
-  persons_injured: number;
-  victim_details: unknown;
-  vehicles: unknown;
-  driver_related_causes: unknown;
-  vehicle_condition_causes: unknown;
-  road_engineering_culverts: unknown;
-  road_engineering_junctions: unknown;
-  road_engineering_median: unknown;
-  road_engineering_nature: unknown;
-  road_engineering_signages: unknown;
-}
 
 type VehicleCategory =
   | "twoWheeler"
@@ -533,7 +527,7 @@ function getVictimBreakdown(row: ReportSubmission) {
 }
 
 function ensureTemplateExists() {
-  const templatePath = path.resolve(process.cwd(), TEMPLATE_FILE_NAME);
+  const templatePath = path.resolve(process.cwd(), TEMPLATE_FILE_PATH);
   return templatePath;
 }
 
@@ -862,12 +856,7 @@ function populateTimeWiseSheet(
 }
 
 async function requireReportAccess(req: AuthRequest, res: Response) {
-  const roleResult = await pool.query(
-    "SELECT 1 FROM user_roles WHERE user_id = $1 AND role IN ('admin', 'dgp', 'adgp', 'prism') LIMIT 1",
-    [req.user!.userId]
-  );
-
-  if (roleResult.rows.length === 0) {
+  if (!(await hasAnyRole(req.user!.userId, ["admin", "dgp", "adgp", "prism"]))) {
     res.status(403).json({ error: "Report access required" });
     return false;
   }
@@ -906,34 +895,7 @@ router.get("/dsr-workbook", async (req: AuthRequest, res: Response) => {
 
     const { fromDate, toDate } = dateRange;
 
-    const result = await pool.query<ReportSubmission>(
-      `SELECT
-          id,
-          district,
-          place_of_accident,
-          mandal,
-          police_station,
-          fir_number,
-          road_type,
-          accident_date::text,
-          accident_time,
-          persons_died,
-          persons_injured,
-          victim_details,
-          vehicles,
-          driver_related_causes,
-          vehicle_condition_causes,
-          road_engineering_culverts,
-          road_engineering_junctions,
-          road_engineering_median,
-          road_engineering_nature,
-          road_engineering_signages
-       FROM accident_submissions
-       WHERE (created_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date >= $1
-         AND (created_at AT TIME ZONE '${REPORT_TIME_ZONE}')::date <= $2
-       ORDER BY district, created_at, fir_number`,
-      [fromDate, toDate]
-    );
+    const reportRows = await getSubmissionsInDateRange(REPORT_TIME_ZONE, fromDate, toDate);
 
     const templatePath = ensureTemplateExists();
     const workbook = new ExcelJS.Workbook();
@@ -943,7 +905,7 @@ router.get("/dsr-workbook", async (req: AuthRequest, res: Response) => {
     workbook.modified = new Date();
     workbook.calcProperties.fullCalcOnLoad = true;
 
-    const rows = result.rows;
+    const rows = reportRows;
     const fatalRows = rows.filter((row) => Number(row.persons_died || 0) > 0);
     const nonFatalRows = rows.filter((row) => Number(row.persons_died || 0) === 0);
     const locationCounts = computeLocationCounts(rows);

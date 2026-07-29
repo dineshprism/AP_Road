@@ -1,5 +1,5 @@
 import { Response } from "express";
-import pool from "./db.js";
+import { getRolesByUserId, getUserRolesAndDistrict } from "./db/access.repo.js";
 import { AuthRequest } from "./auth.js";
 
 export const STATE_VIEWER_ROLES = ["admin", "dgp", "adgp"] as const;
@@ -15,24 +15,15 @@ export type UserAccess = {
 };
 
 export async function getUserRoles(userId: string): Promise<string[]> {
-  const roleResult = await pool.query("SELECT role FROM user_roles WHERE user_id = $1", [userId]);
-  return roleResult.rows.map((row) => String(row.role));
+  return getRolesByUserId(userId);
 }
 
 export async function getUserAccess(userId: string): Promise<UserAccess> {
-  const [roleResult, profileResult] = await Promise.all([
-    pool.query("SELECT role FROM user_roles WHERE user_id = $1", [userId]),
-    pool.query("SELECT district FROM profiles WHERE user_id = $1", [userId]),
-  ]);
-
-  const roles = roleResult.rows.map((row) => String(row.role));
-  const profileDistrict = profileResult.rows[0]?.district
-    ? String(profileResult.rows[0].district)
-    : null;
+  const { roles, district } = await getUserRolesAndDistrict(userId);
 
   return {
     roles,
-    profileDistrict,
+    profileDistrict: district,
     isStateViewer: roles.some((role) => (STATE_VIEWER_ROLES as readonly string[]).includes(role)),
     canViewAnySubmission: roles.some((role) => (ELEVATED_ROLES as readonly string[]).includes(role)),
   };

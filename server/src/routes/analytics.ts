@@ -1,8 +1,21 @@
 import { Router, Response } from "express";
-import pool from "../db.js";
 import { authMiddleware, AuthRequest } from "../auth.js";
 import { requireStateViewer } from "../rbac.js";
 import { escapeCsvCell } from "../security-utils.js";
+import {
+  getSummaryStats,
+  getMonthlyTrend,
+  getDriverRelatedCauses,
+  getRoadEngineeringNature,
+  getRoadEngineeringJunctions,
+  getRoadEngineeringSignages,
+  getRoadEngineeringCulverts,
+  getRoadEngineeringMedian,
+  getDistrictComparison,
+  getRoadTypeAnalysis,
+  getHotspots,
+  getExportRows,
+} from "../db/analytics.repo.js";
 
 const router = Router();
 
@@ -33,46 +46,20 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
     const { whereClause, params } = buildWhereClause(district as string, year as string);
 
     // Summary Stats
-    const summaryResult = await pool.query(
-      `SELECT 
-        COUNT(*) as total_accidents,
-        COALESCE(SUM(persons_died), 0) as total_deaths,
-        COALESCE(SUM(persons_injured), 0) as total_injuries,
-        COALESCE(AVG(persons_died), 0)::numeric as avg_deaths_per_accident,
-        CASE 
-          WHEN SUM(persons_died) + SUM(persons_injured) > 0 
-          THEN (SUM(persons_died)::float / (SUM(persons_died) + SUM(persons_injured))::float)
-          ELSE 0 
-        END as fatality_rate
-      FROM accident_submissions
-      WHERE ${whereClause}`,
-      params
-    );
+    const summaryRow = await getSummaryStats(whereClause, params);
 
     const summary = {
-      totalAccidents: parseInt(summaryResult.rows[0]?.total_accidents || 0),
-      totalDeaths: parseInt(summaryResult.rows[0]?.total_deaths || 0),
-      totalInjuries: parseInt(summaryResult.rows[0]?.total_injuries || 0),
-      averageDeathsPerAccident: parseFloat(summaryResult.rows[0]?.avg_deaths_per_accident || 0),
-      averageFatalityRate: parseFloat(summaryResult.rows[0]?.fatality_rate || 0),
+      totalAccidents: parseInt(summaryRow?.total_accidents || 0),
+      totalDeaths: parseInt(summaryRow?.total_deaths || 0),
+      totalInjuries: parseInt(summaryRow?.total_injuries || 0),
+      averageDeathsPerAccident: parseFloat(summaryRow?.avg_deaths_per_accident || 0),
+      averageFatalityRate: parseFloat(summaryRow?.fatality_rate || 0),
     };
 
     // Trend Data (monthly)
-    const trendResult = await pool.query(
-      `SELECT 
-        DATE_TRUNC('month', accident_date) as month,
-        TO_CHAR(accident_date, 'Mon') as month_name,
-        COUNT(*) as accidents,
-        COALESCE(SUM(persons_died), 0)::int as deaths,
-        COALESCE(SUM(persons_injured), 0)::int as injuries
-      FROM accident_submissions
-      WHERE ${whereClause}
-      GROUP BY DATE_TRUNC('month', accident_date), TO_CHAR(accident_date, 'Mon')
-      ORDER BY DATE_TRUNC('month', accident_date)`,
-      params
-    );
+    const trendRows = await getMonthlyTrend(whereClause, params);
 
-    const trendData = trendResult.rows.map(row => ({
+    const trendData = trendRows.map(row => ({
       month: row.month_name,
       accidents: parseInt(row.accidents || 0),
       deaths: parseInt(row.deaths || 0),
@@ -80,14 +67,10 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
     }));
 
     // Driver Causes - Safe approach: get all data and analyze in code
-    const allSubmissionsResult = await pool.query(
-      `SELECT driver_related_causes FROM accident_submissions
-      WHERE ${whereClause} AND driver_related_causes IS NOT NULL`,
-      params
-    );
+    const allSubmissionsRows = await getDriverRelatedCauses(whereClause, params);
 
     const driverCausesCounts: { [key: string]: number } = {};
-    allSubmissionsResult.rows.forEach((row) => {
+    allSubmissionsRows.forEach((row) => {
       if (row.driver_related_causes && typeof row.driver_related_causes === 'object') {
         Object.keys(row.driver_related_causes).forEach((cause) => {
           driverCausesCounts[cause] = (driverCausesCounts[cause] || 0) + 1;
@@ -101,43 +84,27 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
       .slice(0, 10);
 
     // Road Condition Causes - combining all road engineering factors
-    const roadEngineeringNatureResult = await pool.query(
-      `SELECT road_engineering_nature FROM accident_submissions
-      WHERE ${whereClause} AND road_engineering_nature IS NOT NULL`,
-      params
-    );
-
-    const roadEngineeringJunctionsResult = await pool.query(
-      `SELECT road_engineering_junctions FROM accident_submissions
-      WHERE ${whereClause} AND road_engineering_junctions IS NOT NULL`,
-      params
-    );
-
-    const roadEngineeringSigResult = await pool.query(
-      `SELECT road_engineering_signages FROM accident_submissions
-      WHERE ${whereClause} AND road_engineering_signages IS NOT NULL`,
-      params
-    );
-
-    const roadEngineeringCulvertsResult = await pool.query(
-      `SELECT road_engineering_culverts FROM accident_submissions
-      WHERE ${whereClause} AND road_engineering_culverts IS NOT NULL`,
-      params
-    );
-
-    const roadEngineeringMedianResult = await pool.query(
-      `SELECT road_engineering_median FROM accident_submissions
-      WHERE ${whereClause} AND road_engineering_median IS NOT NULL`,
-      params
-    );
+    const [
+      roadEngineeringNatureRows,
+      roadEngineeringJunctionsRows,
+      roadEngineeringSigRows,
+      roadEngineeringCulvertsRows,
+      roadEngineeringMedianRows,
+    ] = await Promise.all([
+      getRoadEngineeringNature(whereClause, params),
+      getRoadEngineeringJunctions(whereClause, params),
+      getRoadEngineeringSignages(whereClause, params),
+      getRoadEngineeringCulverts(whereClause, params),
+      getRoadEngineeringMedian(whereClause, params),
+    ]);
 
     const roadConditionCounts: { [key: string]: number } = {};
 
     // Aggregate all road engineering factors
-    [roadEngineeringNatureResult, roadEngineeringJunctionsResult, roadEngineeringSigResult,
-     roadEngineeringCulvertsResult, roadEngineeringMedianResult].forEach((result) => {
-      result.rows.forEach((row) => {
-        const data = row.road_engineering_nature || row.road_engineering_junctions 
+    [roadEngineeringNatureRows, roadEngineeringJunctionsRows, roadEngineeringSigRows,
+     roadEngineeringCulvertsRows, roadEngineeringMedianRows].forEach((rows) => {
+      rows.forEach((row) => {
+        const data = row.road_engineering_nature || row.road_engineering_junctions
                   || row.road_engineering_signages || row.road_engineering_culverts
                   || row.road_engineering_median;
         if (data && typeof data === 'object') {
@@ -154,21 +121,9 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
       .slice(0, 10);
 
     // District Comparison
-    const districtResult = await pool.query(
-      `SELECT 
-        district,
-        COUNT(*) as accidents,
-        COALESCE(SUM(persons_died), 0)::int as deaths,
-        COALESCE(SUM(persons_injured), 0)::int as injuries,
-        (CAST(COALESCE(SUM(persons_died), 0) AS FLOAT) / NULLIF(COUNT(*), 0)) as death_rate
-      FROM accident_submissions
-      WHERE ${whereClause}
-      GROUP BY district
-      ORDER BY accidents DESC`,
-      params
-    );
+    const districtRows = await getDistrictComparison(whereClause, params);
 
-    const districtComparison = districtResult.rows.map(row => ({
+    const districtComparison = districtRows.map(row => ({
       district: row.district,
       accidents: parseInt(row.accidents || 0),
       deaths: parseInt(row.deaths || 0),
@@ -177,41 +132,18 @@ router.get("/analytics", async (req: AuthRequest, res: Response) => {
     }));
 
     // Road Type Analysis
-    const roadTypeResult = await pool.query(
-      `SELECT 
-        road_type,
-        COUNT(*) as accidents,
-        COALESCE(SUM(persons_died), 0)::int as deaths
-      FROM accident_submissions
-      WHERE ${whereClause} AND road_type IS NOT NULL
-      GROUP BY road_type
-      ORDER BY accidents DESC`,
-      params
-    );
+    const roadTypeRows = await getRoadTypeAnalysis(whereClause, params);
 
-    const roadTypeAnalysis = roadTypeResult.rows.map(row => ({
+    const roadTypeAnalysis = roadTypeRows.map(row => ({
       roadType: row.road_type,
       accidents: parseInt(row.accidents || 0),
       deaths: parseInt(row.deaths || 0),
     }));
 
     // Hotspots - locations with multiple incidents
-    const hotspotsResult = await pool.query(`
-      SELECT 
-        place_of_accident as place,
-        district,
-        COUNT(*) as accidents,
-        COALESCE(SUM(persons_died), 0) as deaths,
-        COALESCE(SUM(persons_injured), 0) as injured
-      FROM accident_submissions
-      WHERE ${whereClause}
-      GROUP BY place_of_accident, district
-      HAVING COUNT(*) >= 2
-      ORDER BY accidents DESC
-      LIMIT 30
-    `, params);
+    const hotspotsRows = await getHotspots(whereClause, params);
 
-    const hotspotsLocations = hotspotsResult.rows.map(row => ({
+    const hotspotsLocations = hotspotsRows.map(row => ({
       place: row.place,
       district: row.district,
       accidents: parseInt(row.accidents),
@@ -261,15 +193,7 @@ router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
     const { district, year, format } = req.query;
     const { whereClause, params } = buildWhereClause(district as string, year as string);
 
-    const result = await pool.query(
-      `SELECT 
-        id, district, place_of_accident, mandal, police_station,
-        fir_number, accident_date, persons_died, persons_injured, road_type
-      FROM accident_submissions
-      WHERE ${whereClause}
-      ORDER BY accident_date DESC`,
-      params
-    );
+    const exportRows = await getExportRows(whereClause, params);
 
     if (format === "csv") {
       const headers = [
@@ -277,7 +201,7 @@ router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
         "FIR Number", "Accident Date", "Deaths", "Injuries", "Road Type"
       ];
 
-      const rows = result.rows.map(row => [
+      const rows = exportRows.map(row => [
         row.id,
         row.district,
         row.place_of_accident,
@@ -299,7 +223,7 @@ router.get("/analytics/export", async (req: AuthRequest, res: Response) => {
       res.setHeader("Content-Disposition", `attachment; filename="analytics-${year}.csv"`);
       res.send(csv);
     } else {
-      res.json(result.rows);
+      res.json(exportRows);
     }
   } catch (err: any) {
     console.error("Analytics export error:", err);
