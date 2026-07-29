@@ -20,86 +20,40 @@ import { AP_DISTRICTS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
+import apPoliceLogo from "@/AP_Police_logo.png";
 import memoRoadSafetyPdf from "@/../memo_road_safety.pdf";
-import { Crown, Download, FileText, Shield, ShieldCheck, Sparkles } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 const DEMO_DISTRICTS = ["Prism"];
 const STANDARD_DISTRICTS = AP_DISTRICTS.filter((district) => !DEMO_DISTRICTS.includes(district));
 
 /** Shared shell so memo + sign-in panels match size and shape on desktop */
 const AUTH_PANEL =
-  "flex h-full min-h-[min(640px,78vh)] w-full flex-col overflow-hidden rounded-2xl border-0 bg-white/95 shadow-2xl";
+  "flex h-full min-h-[min(520px,62vh)] w-full flex-col overflow-hidden rounded-2xl border-0 bg-white/95 shadow-2xl";
 
 const TRICOLOR_STRIPE = "h-1.5 shrink-0 bg-gradient-to-r from-[#ff9933] via-white to-[#138808]";
 
 const PANEL_HEADER =
-  "shrink-0 border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#eef4ff_100%)] pb-4";
+  "shrink-0 border-b border-slate-200 bg-[linear-gradient(135deg,#ffffff_0%,#eef4ff_100%)] py-2";
 
 type PriorityRole = {
   value: string;
   title: string;
   subtitle: string;
-  badge: string;
-  icon: typeof Crown;
-  itemClass: string;
-  badgeClass: string;
 };
 
 const PRIORITY_ROLES: PriorityRole[] = [
-  {
-    value: "DGP",
-    title: "DGP",
-    subtitle: "Statewide oversight & admin",
-    badge: "All districts",
-    icon: Crown,
-    itemClass:
-      "my-1 rounded-xl border-2 border-[#1e3a8a]/25 bg-gradient-to-r from-[#1e3a8a]/10 to-[#eef4ff] py-3 pl-3 focus:bg-[#1e3a8a]/15 data-[state=checked]:border-[#1e3a8a] data-[state=checked]:bg-[#1e3a8a]/12 data-[state=checked]:ring-2 data-[state=checked]:ring-[#1e3a8a]/25",
-    badgeClass: "bg-[#1e3a8a] text-white",
-  },
-  {
-    value: "ADGP",
-    title: "ADGP",
-    subtitle: "State analytics & review",
-    badge: "Statewide",
-    icon: Shield,
-    itemClass:
-      "my-1 rounded-xl border-2 border-[#e8710a]/30 bg-gradient-to-r from-[#ffedd5] to-white py-3 pl-3 focus:bg-[#ffedd5] data-[state=checked]:border-[#e8710a] data-[state=checked]:bg-[#fff7ed] data-[state=checked]:ring-2 data-[state=checked]:ring-[#e8710a]/30",
-    badgeClass: "bg-[#e8710a] text-white",
-  },
-  {
-    value: "Prism",
-    title: "Prism",
-    subtitle: "State demo & submissions view",
-    badge: "Priority",
-    icon: Sparkles,
-    itemClass:
-      "my-1 rounded-xl border-2 border-[#138808]/30 bg-gradient-to-r from-[#ecfdf3] to-white py-3 pl-3 focus:bg-[#ecfdf3] data-[state=checked]:border-[#138808] data-[state=checked]:bg-[#f0fdf4] data-[state=checked]:ring-2 data-[state=checked]:ring-[#138808]/30",
-    badgeClass: "bg-[#138808] text-white",
-  },
+  { value: "DGP", title: "DGP", subtitle: "" },
+  { value: "ADGP", title: "ADGP", subtitle: "" },
+  { value: "Prism", title: "Prism", subtitle: "" },
 ];
 
 function PriorityRoleOption({ role }: { role: PriorityRole }) {
-  const Icon = role.icon;
   return (
-    <SelectItem value={role.value} className={cn(role.itemClass, "[&>span:first-child]:top-3")}>
-      <div className="flex w-full items-center gap-3 pr-1">
-        <span
-          className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg shadow-sm",
-            role.value === "DGP" && "bg-[#1e3a8a] text-white",
-            role.value === "ADGP" && "bg-[#e8710a] text-white",
-            role.value === "Prism" && "bg-[#138808] text-white",
-          )}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-        <div className="min-w-0 flex-1 text-left">
-          <p className="font-normal leading-tight text-primary">{role.title}</p>
-          <p className="text-xs text-muted-foreground">{role.subtitle}</p>
-        </div>
-        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase", role.badgeClass)}>
-          {role.badge}
-        </span>
+    <SelectItem value={role.value} className="rounded-md">
+      <div className="flex w-full flex-col text-left">
+        <span className="font-normal leading-tight">{role.title}</span>
+        <span className="text-xs text-muted-foreground">{role.subtitle}</span>
       </div>
     </SelectItem>
   );
@@ -110,8 +64,6 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-
-  const isPriorityUser = PRIORITY_ROLES.some((r) => r.value === username);
 
   if (!authLoading && user) {
     if (roles.includes("prism")) return <Navigate to="/prism-dashboard" replace />;
@@ -139,60 +91,65 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,#274b93_0%,#132b5e_36%,#08173f_100%)]">
+    <div className="flex flex-1 flex-col bg-[radial-gradient(circle_at_top_left,#274b93_0%,#132b5e_36%,#08173f_100%)]">
       <div className="gov-tricolor-top" />
-      <div className="flex min-h-[calc(100vh-4px)] flex-col overflow-y-auto px-4 py-4 lg:px-6">
+      <div className="flex flex-1 flex-col overflow-y-auto px-4 py-2 lg:px-6">
         <div className="container mx-auto shrink-0">
-          <div className="mb-4 flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-center lg:justify-start lg:text-left">
+          <div className="mb-2 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-5">
             <img
               src={apLogo}
-              alt="Government of Andhra Pradesh"
-              className="h-14 w-14 shrink-0 rounded-full bg-white p-1 object-contain shadow-lg"
+              alt="Fatal Road Accident & Scientific Investigation Portal"
+              className="h-16 w-16 shrink-0 rounded-full bg-white p-1 object-contain shadow-lg sm:h-20 sm:w-20"
             />
-            <div>
-              <h1 className="text-xl font-bold tracking-wide text-white sm:text-2xl">
-                Government of Andhra Pradesh
+            <div className="text-center">
+              <h1 className="text-lg font-bold tracking-wide text-white sm:text-xl">
+              Andhra Pradesh Fatal Road Accident & Scientific Investigation Portal
               </h1>
-              <p className="text-sm font-medium leading-snug text-white/80 sm:text-base">
-                Fatal Road Accident & Scientific Investigation Portal
+              <p className="text-xs font-medium leading-snug text-white/80 sm:text-sm">
+
               </p>
-              <p className="mt-1 text-xs font-semibold tracking-wider text-[#f5a623] sm:text-sm">
+              <p className="text-[11px] font-semibold tracking-wider text-[#f5a623] sm:text-xs">
                 G.O.Ms.No.42 • Section 135, MV Act 1988
               </p>
             </div>
+            <img
+              src={apPoliceLogo}
+              alt="Andhra Pradesh Police"
+              className="hidden h-16 w-16 shrink-0 rounded-full bg-white p-1 object-contain shadow-lg sm:block sm:h-20 sm:w-20"
+            />
           </div>
         </div>
 
-        <div className="container mx-auto flex flex-1 flex-col py-2">
-          <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-2 lg:items-stretch">
+        <div className="container mx-auto flex flex-1 flex-col justify-center py-3">
+          <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-2 lg:items-stretch">
             {/* Memo panel */}
             <Card className={cn(AUTH_PANEL, "hidden lg:flex")}>
               <div className={TRICOLOR_STRIPE} />
               <CardHeader className={PANEL_HEADER}>
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-xl font-bold text-primary">
-                      <FileText className="h-5 w-5 text-secondary" />
+                    <CardTitle className="flex items-center gap-2 text-lg font-bold text-primary">
+                      <FileText className="h-4 w-4 text-secondary" />
                       Road Safety Memo
                     </CardTitle>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                       View the official memo directly on the login page.
                     </p>
                   </div>
                   <a href={memoRoadSafetyPdf} download="memo_road_safety.pdf">
-                    <Button type="button" variant="outline" className="shrink-0 border-primary/20 bg-white text-sm">
+                    <Button type="button" variant="outline" size="sm" className="shrink-0 border-primary/20 bg-white text-sm">
                       <Download className="mr-2 h-4 w-4" />
                       Download
                     </Button>
                   </a>
                 </div>
               </CardHeader>
-              <CardContent className="flex min-h-0 flex-1 flex-col bg-slate-100 p-4">
+              <CardContent className="flex min-h-0 flex-1 flex-col bg-slate-100 p-3">
                 <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
                   <iframe
                     src={`${memoRoadSafetyPdf}#view=FitH`}
                     title="Road Safety Memo"
-                    className="h-full min-h-[420px] w-full flex-1"
+                    className="h-full min-h-[min(300px,32vh)] w-full flex-1"
                   />
                 </div>
               </CardContent>
@@ -201,32 +158,28 @@ const AuthPage = () => {
             {/* Sign-in panel — same dimensions as memo */}
             <Card className={cn(AUTH_PANEL, "overflow-visible")}>
               <div className={TRICOLOR_STRIPE} />
-              <CardHeader className={cn(PANEL_HEADER, "text-center")}>
-                <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <CardTitle className="text-xl font-bold text-primary sm:text-2xl">Sign In</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground sm:text-base">Access the DRSC Portal</p>
+              <CardHeader className={cn(PANEL_HEADER, "text-center gap-0.5")}>
+                <CardTitle className="text-base font-bold text-primary sm:text-lg">Sign In</CardTitle>
+                <p className="-mt-1 text-xs text-muted-foreground">Access the DRSC Portal</p>
               </CardHeader>
 
-              <CardContent className="flex min-h-0 flex-1 flex-col p-4 sm:p-5">
-                <form onSubmit={handleLogin} className="flex min-h-0 flex-1 flex-col justify-center gap-5">
-                  <div className="space-y-2">
+              <CardContent className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
+                <form onSubmit={handleLogin} className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+                  <div className="space-y-1.5">
                     <Label htmlFor="username" className="text-sm font-semibold sm:text-base">
                       Select User *
                     </Label>
                     <Select value={username} onValueChange={setUsername}>
-                      <SelectTrigger
-                        id="username"
-                        aria-label="Select user"
-                        className={cn(
-                          isPriorityUser &&
-                            "border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-white font-semibold text-primary shadow-sm",
-                        )}
-                      >
+                      <SelectTrigger id="username" aria-label="Select user">
                         <SelectValue placeholder="Select District / Role" />
                       </SelectTrigger>
-                      <SelectContent position="popper" side="bottom" align="start" collisionPadding={48}>
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={8}
+                        avoidCollisions={false}
+                      >
                         <SelectGroup>
                           <SelectLabel className="text-[#1e3a8a]">State & priority access</SelectLabel>
                           {PRIORITY_ROLES.map((role) => (
@@ -237,7 +190,7 @@ const AuthPage = () => {
                         <SelectGroup>
                           <SelectLabel>Districts ({STANDARD_DISTRICTS.length})</SelectLabel>
                           {STANDARD_DISTRICTS.map((district) => (
-                            <SelectItem key={district} value={district} className="rounded-md">
+                            <SelectItem key={district} value={district} className="rounded-md text-sm">
                               {district}
                             </SelectItem>
                           ))}
@@ -246,7 +199,7 @@ const AuthPage = () => {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="password" className="text-sm font-semibold sm:text-base">
                       Password *
                     </Label>
@@ -257,22 +210,22 @@ const AuthPage = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
-                      className="h-11 text-base"
+                      className="h-10 text-base"
                     />
                   </div>
 
                   <Button
                     type="submit"
-                    className="h-11 w-full bg-primary text-base font-semibold text-white shadow-md hover:bg-primary/90"
+                    className="h-10 w-full bg-primary text-base font-semibold text-white shadow-md hover:bg-primary/90"
                     disabled={loading}
                   >
                     {loading ? "Please wait..." : "Sign In"}
                   </Button>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-muted-foreground lg:hidden">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm leading-relaxed text-muted-foreground lg:hidden">
                     <div className="font-semibold text-primary">Road Safety Memo</div>
                     <p className="mt-1">Open or download the official memo from here.</p>
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-2 flex gap-2">
                       <a href={memoRoadSafetyPdf} target="_blank" rel="noreferrer">
                         <Button type="button" variant="outline" size="sm" className="text-sm">
                           View
