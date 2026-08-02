@@ -4,7 +4,7 @@ A full-stack web application for recording, managing, and analysing fatal road a
 
 ---
 
-## Table of Contents
+## Table of Contents:
 
 - [Architecture Overview](#architecture-overview)
 - [Tech Stack](#tech-stack)
