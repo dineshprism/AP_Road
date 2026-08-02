@@ -27,5 +27,19 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
     sourcemap: false,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules\/(react|react-dom|react-router-dom)\// },
+            { name: "maps", test: /node_modules\/(leaflet|react-leaflet|@react-google-maps)\// },
+            { name: "charts", test: /node_modules\/recharts\// },
+            { name: "exports", test: /node_modules\/(jspdf|jspdf-autotable|docx|file-saver)\// },
+            { name: "markdown", test: /node_modules\/(react-markdown|remark-gfm|rehype-highlight|rehype-sanitize)\// },
+            { name: "ui", test: /node_modules\/(@radix-ui|framer-motion|lucide-react)\// },
+          ],
+        },
+      },
+    },
   },
 }));
