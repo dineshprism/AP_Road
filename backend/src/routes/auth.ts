@@ -40,8 +40,8 @@ async function logAuthActivity(
     console.error("Failed to record auth activity:", activityError);
   }
 }
-
-router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
+//router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
+router.post("/login", async (req: AuthRequest, res: Response) => {
   try {
     const { username, password } = req.body;
 
