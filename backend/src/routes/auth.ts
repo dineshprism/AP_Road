@@ -6,6 +6,7 @@ import {
   authMiddleware,
   AuthRequest,
   authCookieOptions,
+  authClearCookieOptions,
   getTokenFromRequest,
   verifyToken,
   revokeSession,
@@ -118,7 +119,7 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
       // Token already invalid/expired — nothing to revoke.
     }
   }
-  res.clearCookie(AUTH_COOKIE_NAME, authCookieOptions());
+  res.clearCookie(AUTH_COOKIE_NAME, authClearCookieOptions());
   res.json({ success: true });
 });
 

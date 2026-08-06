@@ -20,6 +20,7 @@ import {
   MAX_UPLOAD_BYTES,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
+import { assertUploadPassesMalwareScan } from "../upload-virus-scan.js";
 
 const router = Router();
 const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
@@ -389,6 +390,14 @@ router.post("/:id/signed-copy", (req, res, next) => {
       return;
     }
 
+    try {
+      await assertUploadPassesMalwareScan(file.path);
+    } catch (scanError: any) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: scanError?.message || "Uploaded file failed malware scan" });
+      return;
+    }
+
     const access = await getUserAccess(userId);
     const scopeUserId = access.canViewAnySubmission ? undefined : userId;
 
@@ -416,6 +425,8 @@ router.post("/:id/signed-copy", (req, res, next) => {
       }
       fs.renameSync(file.path, finalPath);
     }
+
+    fs.chmodSync(finalPath, 0o644);
 
     const sha256 = computeSha256(finalPath);
     const relativePath = path.posix.join("signed-copies", finalFileName);

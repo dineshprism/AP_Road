@@ -144,6 +144,7 @@ app.use(helmet({
   },
   frameguard: { action: "deny" },
   noSniff: true,
+  xssFilter: true,
   hsts: isProduction
     ? { maxAge: 63072000, includeSubDomains: true, preload: true }
     : false,

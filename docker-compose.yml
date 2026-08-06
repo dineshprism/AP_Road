@@ -18,6 +18,16 @@ services:
       timeout: 5s
       retries: 5
 
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "clamdscan --ping 3 2>/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
   app:
     build:
       context: .
@@ -36,6 +46,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
       PORT: 3000
       NODE_ENV: production
+      TRUST_PROXY: ${TRUST_PROXY:-true}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000,http://localhost:8080,http://localhost:8081}
       GOOGLE_MAPS_BROWSER_KEY: ${GOOGLE_MAPS_BROWSER_KEY:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
@@ -48,6 +59,11 @@ services:
       GLOBAL_RATE_LIMIT_MAX: ${GLOBAL_RATE_LIMIT_MAX:-10000}
       LOGIN_RATE_LIMIT_MAX: ${LOGIN_RATE_LIMIT_MAX:-60}
       RAG_RATE_LIMIT_MAX: ${RAG_RATE_LIMIT_MAX:-30}
+      SESSION_IDLE_TIMEOUT_MS: ${SESSION_IDLE_TIMEOUT_MS:-1800000}
+      SESSION_ABSOLUTE_MAX_MS: ${SESSION_ABSOLUTE_MAX_MS:-28800000}
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
+      CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
     ports:
       - "3000:3000"
     volumes:

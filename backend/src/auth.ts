@@ -10,9 +10,17 @@ import {
   deleteExpiredSessions,
 } from "./db/sessions.repo.js";
 
-const AUTH_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
-const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_IDLE_TIMEOUT_MS = Math.max(
+  60_000,
+  parseInt(process.env.SESSION_IDLE_TIMEOUT_MS || String(30 * 60 * 1000), 10)
+);
+/** Absolute session cap (default 8h); idle timeout still enforced separately. */
+const SESSION_ABSOLUTE_MAX_MS = Math.max(
+  SESSION_IDLE_TIMEOUT_MS,
+  parseInt(process.env.SESSION_ABSOLUTE_MAX_MS || String(8 * 60 * 60 * 1000), 10)
+);
 const SESSION_CLEANUP_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const JWT_EXPIRES_IN_SECONDS = Math.floor(SESSION_ABSOLUTE_MAX_MS / 1000);
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -49,22 +57,15 @@ export function authCookieOptions() {
     httpOnly: true,
     secure,
     sameSite: "strict" as const,
-    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+    maxAge: SESSION_ABSOLUTE_MAX_MS,
     path: "/",
   };
 }
 
-// export function authCookieOptions() {
-//   const secure = process.env.FORCE_SECURE_COOKIES === "true";
-
-//   return {
-//     httpOnly: true,
-//     secure,
-//     sameSite: "strict" as const,
-//     maxAge: AUTH_COOKIE_MAX_AGE_MS,
-//     path: "/",
-//   };
-// }
+export function authClearCookieOptions() {
+  const { maxAge: _maxAge, ...options } = authCookieOptions();
+  return options;
+}
 
 /** Best-effort cleanup so active_sessions doesn't grow unbounded; never blocks the caller. */
 function cleanupExpiredSessions() {
@@ -74,7 +75,7 @@ function cleanupExpiredSessions() {
 
 export async function generateToken(payload: { userId: string; email: string }): Promise<string> {
   const jti = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + AUTH_COOKIE_MAX_AGE_MS);
+  const expiresAt = new Date(Date.now() + SESSION_ABSOLUTE_MAX_MS);
 
   // Single concurrent session: invalidate any existing sessions before issuing a new one.
   await revokeAllSessionsForUser(payload.userId);
@@ -82,7 +83,7 @@ export async function generateToken(payload: { userId: string; email: string }):
   cleanupExpiredSessions();
 
   return jwt.sign({ ...payload, jti }, JWT_SECRET, {
-    expiresIn: "24h",
+    expiresIn: JWT_EXPIRES_IN_SECONDS,
     algorithm: "HS256",
   });
 }

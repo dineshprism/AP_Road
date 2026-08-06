@@ -1,15 +1,22 @@
-# Example nginx site for roadsafety.prismappolice.in
-# Copy to /etc/nginx/sites-available/roadsafety and reload nginx.
+# Example nginx site for rspt.prismappolice.in
+# Copy to /etc/nginx/sites-available/roadsafety and symlink to sites-enabled.
 #
 # Also add to /etc/nginx/nginx.conf inside http { }:
 #   server_tokens off;
 #
-# Prefer a default_server catch-all that returns 444 for unknown Host values,
-# in addition to the app ALLOWED_HOSTS allowlist.
+# Use BOTH this nginx catch-all AND the app ALLOWED_HOSTS allowlist.
+
+# Reject unknown Host headers at the edge (returns connection closed).
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
 
 server {
     listen 80;
-    server_name roadsafety.prismappolice.in;
+    server_name rspt.prismappolice.in;
 
     # Match app signed-copy limit (MAX_UPLOAD_MB default 5)
     client_max_body_size 5M;
@@ -24,5 +31,5 @@ server {
     }
 }
 
-# After certbot, the SSL server block should also include:
-#   client_max_body_size 5M;
+# After certbot SSL, duplicate client_max_body_size and proxy headers in the 443 server block.
+# Add a default_server SSL catch-all that returns 444 for unrecognized hosts.
