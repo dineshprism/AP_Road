@@ -13,8 +13,10 @@ import {
 import { findUserForLogin } from "../user-store.js";
 import { STATE_VIEWER_ROLES } from "../rbac.js";
 import { getProfileSummary, getRolesByUserId } from "../db/access.repo.js";
+import { getPreviousLoginAt, recordUserLogin } from "../db/users.repo.js";
 import { insertActivityLog } from "../db/auth-activity.repo.js";
 import { MIN_PASSWORD_LENGTH } from "../security-utils.js";
+import { createCaptchaChallenge, verifyCaptchaAnswer } from "../captcha.js";
 
 const router = Router();
 const AUTH_COOKIE_NAME = "auth_token";
@@ -40,13 +42,29 @@ async function logAuthActivity(
     console.error("Failed to record auth activity:", activityError);
   }
 }
-//router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
-router.post("/login", async (req: AuthRequest, res: Response) => {
+
+router.get("/captcha", (_req, res: Response) => {
+  const { captchaId, svg } = createCaptchaChallenge();
+  res.json({ captchaId, image: svg });
+});
+
+router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, captchaId, captchaAnswer } = req.body;
 
     if (!username || !password) {
       res.status(400).json({ error: "Username and password are required" });
+      return;
+    }
+
+    if (!captchaId || !captchaAnswer) {
+      res.status(400).json({ error: "CAPTCHA verification is required" });
+      return;
+    }
+
+    if (!verifyCaptchaAnswer(captchaId, String(captchaAnswer))) {
+      await logAuthActivity(null, "login_failure", req, { username, reason: "captcha_failed" });
+      res.status(400).json({ error: "Incorrect CAPTCHA. Please try again." });
       return;
     }
 
@@ -71,6 +89,7 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const lastLoginAt = await recordUserLogin(user.id);
     const token = await generateToken({ userId: user.id, email: user.email });
 
     await logAuthActivity(user.id, "login_success", req, { username });
@@ -78,6 +97,7 @@ router.post("/login", async (req: AuthRequest, res: Response) => {
     res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
     res.json({
       user: { id: user.id, email: user.email },
+      lastLoginAt: lastLoginAt ? lastLoginAt.toISOString() : null,
     });
   } catch (err: any) {
     console.error("Login error:", err);
@@ -107,6 +127,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
     const roles = await getRolesByUserId(userId);
     const isAdmin = roles.some((role) => (STATE_VIEWER_ROLES as readonly string[]).includes(role));
     const isPrism = roles.includes("prism");
+    const lastLoginAt = await getPreviousLoginAt(userId);
 
     res.json({
       user: { id: userId, email: req.user!.email },
@@ -117,6 +138,7 @@ router.get("/me", authMiddleware, async (req: AuthRequest, res: Response) => {
         ["admin", "dgp", "adgp", "prism"].includes(role)
       ),
       roles,
+      lastLoginAt: lastLoginAt ? lastLoginAt.toISOString() : null,
     });
   } catch (err: any) {
     console.error("Get me error:", err);

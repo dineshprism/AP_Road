@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
 import apPoliceLogo from "@/AP_Police_logo.png";
 import memoRoadSafetyPdf from "@/../memo_road_safety.pdf";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, RefreshCw } from "lucide-react";
 
 const DEMO_DISTRICTS = ["Prism"];
 const STANDARD_DISTRICTS = AP_DISTRICTS.filter((district) => !DEMO_DISTRICTS.includes(district));
@@ -60,10 +60,33 @@ function PriorityRoleOption({ role }: { role: PriorityRole }) {
 }
 
 const AuthPage = () => {
-  const { user, loading: authLoading, isAdmin, roles, refreshAuth } = useAuth();
+  const { user, loading: authLoading, isAdmin, roles, refreshAuth, setLastLoginAt } = useAuth();
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [captchaId, setCaptchaId] = useState("");
+  const [captchaImage, setCaptchaImage] = useState("");
+  const [captchaAnswer, setCaptchaAnswer] = useState("");
+  const [captchaLoading, setCaptchaLoading] = useState(false);
+
+  const loadCaptcha = async () => {
+    setCaptchaLoading(true);
+    const { data, error } = await api.auth.captcha();
+    if (error || !data) {
+      toast.error(error || "Failed to load CAPTCHA");
+      setCaptchaId("");
+      setCaptchaImage("");
+    } else {
+      setCaptchaId(data.captchaId);
+      setCaptchaImage(data.image);
+      setCaptchaAnswer("");
+    }
+    setCaptchaLoading(false);
+  };
+
+  useEffect(() => {
+    void loadCaptcha();
+  }, []);
 
   if (!authLoading && user) {
     if (roles.includes("prism")) return <Navigate to="/prism-dashboard" replace />;
@@ -79,12 +102,20 @@ const AuthPage = () => {
       toast.error("Please select a user");
       return;
     }
+    if (!captchaId || !captchaAnswer.trim()) {
+      toast.error("Please complete the CAPTCHA");
+      return;
+    }
 
     setLoading(true);
-    const { data, error } = await api.auth.login(username, password);
+    const { data, error } = await api.auth.login(username, password, captchaId, captchaAnswer.trim());
     if (error || !data) {
       toast.error(error || "Login failed");
+      await loadCaptcha();
     } else {
+      if (data.lastLoginAt) {
+        setLastLoginAt(data.lastLoginAt);
+      }
       await refreshAuth();
     }
     setLoading(false);
@@ -164,13 +195,17 @@ const AuthPage = () => {
               </CardHeader>
 
               <CardContent className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-                <form onSubmit={handleLogin} className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+                <form
+                  onSubmit={handleLogin}
+                  autoComplete="off"
+                  className="flex min-h-0 flex-1 flex-col justify-center gap-3"
+                >
                   <div className="space-y-1.5">
                     <Label htmlFor="username" className="text-sm font-semibold sm:text-base">
                       Select User *
                     </Label>
                     <Select value={username} onValueChange={setUsername}>
-                      <SelectTrigger id="username" aria-label="Select user">
+                      <SelectTrigger id="username" aria-label="Select user" autoComplete="off">
                         <SelectValue placeholder="Select District / Role" />
                       </SelectTrigger>
                       <SelectContent
@@ -210,6 +245,44 @@ const AuthPage = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={8}
+                      autoComplete="off"
+                      className="h-10 text-base"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="captcha" className="text-sm font-semibold sm:text-base">
+                      Security Check *
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="flex h-12 min-w-[180px] items-center justify-center overflow-hidden rounded-md border border-slate-200 bg-slate-50"
+                        aria-hidden={!captchaImage}
+                        dangerouslySetInnerHTML={
+                          captchaImage ? { __html: captchaImage } : undefined
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => void loadCaptcha()}
+                        disabled={captchaLoading}
+                        aria-label="Refresh CAPTCHA"
+                        className="h-10 w-10 shrink-0"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${captchaLoading ? "animate-spin" : ""}`} />
+                      </Button>
+                    </div>
+                    <Input
+                      id="captcha"
+                      type="text"
+                      inputMode="numeric"
+                      value={captchaAnswer}
+                      onChange={(e) => setCaptchaAnswer(e.target.value)}
+                      required
+                      autoComplete="off"
+                      placeholder="Enter the answer"
                       className="h-10 text-base"
                     />
                   </div>

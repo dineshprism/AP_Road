@@ -92,6 +92,7 @@ async function downloadFile(
 
 export interface AuthResponse {
   user: { id: string; email: string };
+  lastLoginAt?: string | null;
 }
 
 export interface MeResponse {
@@ -101,14 +102,24 @@ export interface MeResponse {
   isPrism?: boolean;
   canViewAnySubmission?: boolean;
   roles: string[];
+  lastLoginAt?: string | null;
+}
+
+export interface CaptchaResponse {
+  captchaId: string;
+  image: string;
 }
 
 export const api = {
   auth: {
-    login(username: string, password: string) {
+    captcha() {
+      return request<CaptchaResponse>("/auth/captcha");
+    },
+
+    login(username: string, password: string, captchaId: string, captchaAnswer: string) {
       return request<AuthResponse>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, captchaId, captchaAnswer }),
       });
     },
 

@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import apLogo from "@/Andhra_Pradesh_logo.jpg";
+import LastLoginBanner from "@/components/LastLoginBanner";
 
 const GovHeader = () => {
   const { user, isAdmin, roles, profile, signOut } = useAuth();
@@ -53,6 +54,7 @@ const GovHeader = () => {
           )}
         </div>
       </div>
+      <LastLoginBanner />
       <div className="gov-saffron-stripe" />
     </header>
   );

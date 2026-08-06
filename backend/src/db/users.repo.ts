@@ -47,3 +47,37 @@ export async function findUserByEmailCandidates(
 
   return result.rows[0] ?? null;
 }
+
+/** Reads previous last_login_at, updates to now(), returns the prior timestamp. */
+export async function recordUserLogin(userId: string): Promise<Date | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const prev = await client.query<{ last_login_at: Date | null }>(
+      "SELECT last_login_at FROM users WHERE id = $1 FOR UPDATE",
+      [userId]
+    );
+    const previousLastLogin = prev.rows[0]?.last_login_at ?? null;
+    await client.query("UPDATE users SET last_login_at = now() WHERE id = $1", [userId]);
+    await client.query("COMMIT");
+    return previousLastLogin;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getPreviousLoginAt(userId: string): Promise<Date | null> {
+  const result = await pool.query<{ created_at: Date }>(
+    `SELECT created_at
+     FROM auth_activity_log
+     WHERE user_id = $1 AND event_type = 'login_success'
+     ORDER BY created_at DESC
+     OFFSET 1
+     LIMIT 1`,
+    [userId]
+  );
+  return result.rows[0]?.created_at ?? null;
+}
