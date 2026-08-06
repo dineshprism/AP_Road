@@ -143,11 +143,16 @@ CREATE TABLE IF NOT EXISTS active_sessions (
     user_id UUID REFERENCES users(id) ON DELETE CASCADE NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at TIMESTAMPTZ NOT NULL,
-    revoked_at TIMESTAMPTZ
+    revoked_at TIMESTAMPTZ,
+    last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_active_sessions_user_id ON active_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_active_sessions_expires_at ON active_sessions(expires_at);
+
+-- Backfill for databases created before idle-timeout tracking.
+ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 CREATE INDEX IF NOT EXISTS idx_auth_activity_log_event_type ON auth_activity_log(event_type);
 
 CREATE TABLE IF NOT EXISTS feedback_messages (

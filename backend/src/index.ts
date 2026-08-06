@@ -40,6 +40,54 @@ const ragRateLimitMax = parseInt(
   10
 );
 
+const isProduction = process.env.NODE_ENV === "production";
+
+function getAllowedHosts(): Set<string> {
+  const hosts = new Set(
+    (process.env.ALLOWED_HOSTS || "")
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  if (!isProduction) {
+    hosts.add("localhost");
+    hosts.add("127.0.0.1");
+    hosts.add(`localhost:${PORT}`);
+    hosts.add(`127.0.0.1:${PORT}`);
+  }
+  return hosts;
+}
+
+const allowedHosts = getAllowedHosts();
+
+// Reject unknown Host headers early (mitigates Host header injection).
+app.use((req, res, next) => {
+  const hostHeader = req.headers.host;
+  if (!hostHeader) {
+    res.status(400).json({ error: "Invalid Host header" });
+    return;
+  }
+
+  const host = hostHeader.toLowerCase();
+  const hostnameOnly = host.split(":")[0];
+
+  if (allowedHosts.has(host) || allowedHosts.has(hostnameOnly)) {
+    next();
+    return;
+  }
+
+  // Dev: allow any localhost / 127.0.0.1 port without listing each one.
+  if (
+    !isProduction &&
+    (hostnameOnly === "localhost" || hostnameOnly === "127.0.0.1")
+  ) {
+    next();
+    return;
+  }
+
+  res.status(400).json({ error: "Invalid Host header" });
+});
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -95,7 +143,18 @@ app.use(helmet({
       upgradeInsecureRequests: null,
     },
   },
+  frameguard: { action: "deny" },
+  noSniff: true,
+  hsts: isProduction
+    ? { maxAge: 63072000, includeSubDomains: true, preload: true }
+    : false,
 }));
+
+// Explicit legacy X-XSS-Protection value expected by the audit checklist.
+app.use((_req, res, next) => {
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  next();
+});
 
 // Global rate limiter: enough room for normal dashboard usage, still bounded per IP.
 app.use(rateLimit({
