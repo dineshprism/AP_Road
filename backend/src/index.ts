@@ -32,10 +32,7 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
 }
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const globalRateLimitMax = parseInt(
-  process.env.GLOBAL_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "400" : "2000"),
-  10
-);
+const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "2000", 10);
 const ragRateLimitMax = parseInt(
   process.env.RAG_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "30" : "60"),
   10
@@ -157,14 +154,22 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Global rate limiter: enough room for normal dashboard usage, still bounded per IP.
-app.use(rateLimit({
+// Rate-limit API traffic only (not static SPA assets). Health stays unlimited for probes.
+const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: globalRateLimitMax,
   message: { error: "Too many requests. Please wait a few minutes and try again." },
   standardHeaders: true,
   legacyHeaders: false,
-}));
+});
+
+app.use("/api", (req, res, next) => {
+  if (req.path === "/health") {
+    next();
+    return;
+  }
+  globalLimiter(req, res, next);
+});
 
 const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:8080")
   .split(",")
