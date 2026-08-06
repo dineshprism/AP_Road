@@ -3,6 +3,9 @@
 #
 # Also add to /etc/nginx/nginx.conf inside http { }:
 #   server_tokens off;
+#
+# Prefer a default_server catch-all that returns 444 for unknown Host values,
+# in addition to the app ALLOWED_HOSTS allowlist.
 
 server {
     listen 80;

@@ -1,9 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { insertSession, revokeSessionById, isSessionActive, deleteExpiredSessions } from "./db/sessions.repo.js";
+import {
+  insertSession,
+  revokeSessionById,
+  revokeAllSessionsForUser,
+  getActiveSession,
+  touchSessionActivity,
+  deleteExpiredSessions,
+} from "./db/sessions.repo.js";
 
 const AUTH_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const SESSION_CLEANUP_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 function getJwtSecret(): string {
@@ -68,6 +76,8 @@ export async function generateToken(payload: { userId: string; email: string }):
   const jti = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + AUTH_COOKIE_MAX_AGE_MS);
 
+  // Single concurrent session: invalidate any existing sessions before issuing a new one.
+  await revokeAllSessionsForUser(payload.userId);
   await insertSession(jti, payload.userId, expiresAt);
   cleanupExpiredSessions();
 
@@ -114,11 +124,25 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     const payload = verifyToken(token);
 
     // Tokens issued before session tracking was added have no jti and are no longer honored.
-    if (!payload.jti || !(await isSessionActive(payload.jti))) {
+    if (!payload.jti) {
       res.status(401).json({ error: "Session has been signed out. Please log in again." });
       return;
     }
 
+    const session = await getActiveSession(payload.jti);
+    if (!session) {
+      res.status(401).json({ error: "Session has been signed out. Please log in again." });
+      return;
+    }
+
+    const lastActivity = new Date(session.last_activity_at).getTime();
+    if (Date.now() - lastActivity > SESSION_IDLE_TIMEOUT_MS) {
+      await revokeSessionById(payload.jti);
+      res.status(401).json({ error: "Session expired due to inactivity. Please log in again." });
+      return;
+    }
+
+    await touchSessionActivity(payload.jti);
     req.user = payload;
     next();
   } catch {
