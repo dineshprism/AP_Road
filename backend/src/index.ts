@@ -18,6 +18,7 @@ import { runMigrations } from "./migrate.js";
 import { authMiddleware, AuthRequest } from "./auth.js";
 import { csrfProtection } from "./csrf.js";
 import { getUserRoles, MAPS_BROWSER_KEY_ROLES } from "./rbac.js";
+import { contentTypeForUploadExt } from "./security-utils.js";
 
 import fs from "fs";
 const serverEnvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env");
@@ -217,8 +218,47 @@ const ragLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Serve uploaded files only to authenticated users
-app.use("/api/uploads", authMiddleware, express.static(path.join(__dirname, "../uploads")));
+// Serve uploaded files only to authenticated users as attachments (no inline browser execution).
+const uploadsRoot = path.resolve(path.join(__dirname, "../uploads"));
+app.use("/api/uploads", authMiddleware, (req, res) => {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
+  }
+
+  const relativePath = decodeURIComponent((req.path || "").replace(/^\/+/, ""));
+  if (
+    !relativePath ||
+    relativePath.includes("\0") ||
+    path.isAbsolute(relativePath) ||
+    relativePath.split(/[/\\]/).some((segment) => segment === "..")
+  ) {
+    res.status(400).json({ error: "Invalid path" });
+    return;
+  }
+
+  const absolutePath = path.resolve(uploadsRoot, relativePath);
+  const rootWithSep = uploadsRoot.endsWith(path.sep) ? uploadsRoot : `${uploadsRoot}${path.sep}`;
+  if (absolutePath !== uploadsRoot && !absolutePath.startsWith(rootWithSep)) {
+    res.status(400).json({ error: "Invalid path" });
+    return;
+  }
+
+  if (!fs.existsSync(absolutePath) || !fs.statSync(absolutePath).isFile()) {
+    res.status(404).json({ error: "File not found" });
+    return;
+  }
+
+  const basename = path.basename(absolutePath);
+  const safeDownloadName = basename.replace(/[^\w.\-]+/g, "_") || "download";
+  const ext = path.extname(basename).toLowerCase();
+
+  res.setHeader("Content-Type", contentTypeForUploadExt(ext));
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Disposition", `attachment; filename="${safeDownloadName}"`);
+  res.setHeader("Cache-Control", "private, no-store");
+  res.sendFile(absolutePath);
+});
 
 // Health check (must be before other /api routes)
 app.get("/api/health", (_req, res) => {

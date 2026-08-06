@@ -252,10 +252,15 @@ const UserDashboard = () => {
   const handleSignedCopyUpload = async (submissionId: string, file: File | null) => {
     if (!file) return;
 
-    const maxUploadBytes = 25 * 1024 * 1024;
+    const maxUploadBytes = 5 * 1024 * 1024;
     const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
     if (file.size > maxUploadBytes) {
-      toast.error("File must be 25 MB or smaller");
+      toast.error("File must be 5 MB or smaller");
+      return;
+    }
+    const nameParts = file.name.toLowerCase().split(".");
+    if (nameParts.length !== 2 || !["pdf", "jpg", "jpeg", "png"].includes(nameParts[1])) {
+      toast.error("Only single-extension PDF, JPG, or PNG files are allowed");
       return;
     }
     if (!allowedTypes.has(file.type)) {

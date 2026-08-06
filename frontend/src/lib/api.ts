@@ -32,7 +32,7 @@ async function request<T>(
           data: null,
           error:
             body.error ||
-            "File too large (max 25 MB). If the file is smaller, set nginx client_max_body_size 25M; and reload nginx.",
+            "File too large (max 5 MB). If the file is smaller, set nginx client_max_body_size 5M; and reload nginx.",
         };
       }
       return { data: null, error: body.error || `Request failed (${res.status})` };

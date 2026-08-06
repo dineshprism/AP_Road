@@ -14,6 +14,9 @@ import {
 } from "../db/submissions.repo.js";
 import {
   assertJsonFieldSize,
+  ALLOWED_UPLOAD_EXTENSIONS,
+  ALLOWED_UPLOAD_MIME_TYPES,
+  isAllowedUploadFilename,
   MAX_UPLOAD_BYTES,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
@@ -27,9 +30,11 @@ if (!fs.existsSync(uploadsDir)) {
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `upload-${Date.now()}-${req.params.id}-${safeName}`);
+  // Temp name is server-generated only; final name is set via getSignedCopyFileName.
+  filename: (req, _file, cb) => {
+    const idPart = String(req.params.id || "tmp").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 36);
+    const nonce = crypto.randomBytes(8).toString("hex");
+    cb(null, `upload-${Date.now()}-${idPart}-${nonce}`);
   },
 });
 
@@ -37,13 +42,12 @@ const upload = multer({
   storage,
   limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
-    const allowedMimeTypes = new Set([
-      "application/pdf",
-      "image/jpeg",
-      "image/png",
-    ]);
+    if (!isAllowedUploadFilename(file.originalname)) {
+      cb(new Error("Invalid filename: only single-extension PDF, JPG, or PNG files are allowed"));
+      return;
+    }
 
-    if (allowedMimeTypes.has(file.mimetype)) {
+    if (ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
       cb(null, true);
       return;
     }
@@ -99,8 +103,7 @@ function getSignedCopyFileName(
   const firPart = sanitizeFilePart(firNumber) || "FIR";
   const idPart = sanitizeFilePart(submissionId).slice(0, 12) || "SUB";
   const originalExt = path.extname(originalName).toLowerCase();
-  const allowedExt = new Set([".pdf", ".jpg", ".jpeg", ".png"]);
-  const extension = allowedExt.has(originalExt) ? originalExt : ".pdf";
+  const extension = ALLOWED_UPLOAD_EXTENSIONS.has(originalExt) ? originalExt : ".pdf";
 
   return `${districtShortcut}_${firPart}_${idPart}${extension}`;
 }
@@ -362,6 +365,12 @@ router.post("/:id/signed-copy", (req, res, next) => {
 
     if (!file) {
       res.status(400).json({ error: "Signed copy file is required" });
+      return;
+    }
+
+    if (!isAllowedUploadFilename(file.originalname)) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: "Invalid filename: only single-extension PDF, JPG, or PNG files are allowed" });
       return;
     }
 
