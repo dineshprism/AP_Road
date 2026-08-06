@@ -329,6 +329,12 @@ export async function runMigrations(options?: { closePool?: boolean }) {
       WHERE lower(p.district) = 'prism'
       ON CONFLICT (user_id, role) DO NOTHING
     `);
+    -- Prism accounts must not inherit district "user" (would grant /dashboard and submit UI).
+    DELETE FROM user_roles ur
+    USING profiles p
+    WHERE ur.user_id = p.user_id
+      AND ur.role = 'user'::app_role
+      AND lower(p.district) = 'prism';
     await renameExistingSignedCopies();
     console.log("Migration completed successfully.");
   } catch (err) {

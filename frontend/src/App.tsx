@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { canAccessDistrictDashboard, canWriteSubmissions } from "@/lib/roles";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import UserDashboard from "./pages/UserDashboard";
@@ -39,15 +40,23 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 const RoleRoute = ({
   children,
   allowedRoles,
+  deniedRoles = [],
+  accessCheck,
 }: {
   children: JSX.Element;
-  allowedRoles: string[];
+  allowedRoles?: string[];
+  deniedRoles?: string[];
+  accessCheck?: (roles: string[]) => boolean;
 }) => {
   const { user, loading, roles } = useAuth();
 
   if (loading) return <RouteLoader />;
   if (!user) return <Navigate to="/auth" replace />;
-  if (!allowedRoles.some((role) => roles.includes(role))) return <Navigate to="/" replace />;
+  if (deniedRoles.some((role) => roles.includes(role))) return <Navigate to="/" replace />;
+  if (accessCheck && !accessCheck(roles)) return <Navigate to="/" replace />;
+  if (allowedRoles && !allowedRoles.some((role) => roles.includes(role))) {
+    return <Navigate to="/" replace />;
+  }
   return children;
 };
 
@@ -67,7 +76,7 @@ const App = () => (
                 <Route
                   path="/dashboard"
                   element={
-                    <RoleRoute allowedRoles={["user"]}>
+                    <RoleRoute accessCheck={canAccessDistrictDashboard}>
                       <UserDashboard />
                     </RoleRoute>
                   }
@@ -131,7 +140,7 @@ const App = () => (
                 <Route
                   path="/submit"
                   element={
-                    <RoleRoute allowedRoles={["user", "admin", "dgp"]}>
+                    <RoleRoute accessCheck={canWriteSubmissions}>
                       <AccidentForm />
                     </RoleRoute>
                   }

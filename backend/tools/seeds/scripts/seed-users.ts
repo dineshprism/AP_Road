@@ -98,10 +98,6 @@ async function seedUsers() {
       );
       const userId = userResult.rows[0].id;
 
-      await client.query(
-        "INSERT INTO user_roles (user_id, role) VALUES ($1, 'user')",
-        [userId]
-      );
       if (district === "Prism") {
         await client.query(
           "INSERT INTO user_roles (user_id, role) VALUES ($1, 'prism')",
@@ -109,6 +105,11 @@ async function seedUsers() {
         );
         await client.query(
           "INSERT INTO user_roles (user_id, role) VALUES ($1, 'admin')",
+          [userId]
+        );
+      } else {
+        await client.query(
+          "INSERT INTO user_roles (user_id, role) VALUES ($1, 'user')",
           [userId]
         );
       }
