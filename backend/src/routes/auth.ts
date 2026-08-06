@@ -17,10 +17,11 @@ import { getPreviousLoginAt, recordUserLogin } from "../db/users.repo.js";
 import { insertActivityLog } from "../db/auth-activity.repo.js";
 import { MIN_PASSWORD_LENGTH } from "../security-utils.js";
 import { createCaptchaChallenge, verifyCaptchaAnswer } from "../captcha.js";
+import { rateLimitKeyGenerator } from "../rate-limit-utils.js";
 
 const router = Router();
 const AUTH_COOKIE_NAME = "auth_token";
-const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "30", 10);
+const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "60", 10);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -28,6 +29,8 @@ const loginLimiter = rateLimit({
   message: { error: "Too many login attempts. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { xForwardedForHeader: false },
 });
 
 async function logAuthActivity(

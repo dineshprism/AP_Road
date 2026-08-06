@@ -19,6 +19,7 @@ import { authMiddleware, AuthRequest } from "./auth.js";
 import { csrfProtection } from "./csrf.js";
 import { getUserRoles, MAPS_BROWSER_KEY_ROLES } from "./rbac.js";
 import { contentTypeForUploadExt } from "./security-utils.js";
+import { isExemptFromGlobalApiRateLimit, rateLimitKeyGenerator } from "./rate-limit-utils.js";
 
 import fs from "fs";
 const serverEnvPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.env");
@@ -32,7 +33,7 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
 }
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "2000", 10);
+const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "10000", 10);
 const ragRateLimitMax = parseInt(
   process.env.RAG_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "30" : "60"),
   10
@@ -161,10 +162,12 @@ const globalLimiter = rateLimit({
   message: { error: "Too many requests. Please wait a few minutes and try again." },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKeyGenerator,
+  validate: { xForwardedForHeader: false },
 });
 
 app.use("/api", (req, res, next) => {
-  if (req.path === "/health") {
+  if (isExemptFromGlobalApiRateLimit(req)) {
     next();
     return;
   }
