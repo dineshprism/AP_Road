@@ -67,9 +67,9 @@ const App = () => (
                 <Route
                   path="/dashboard"
                   element={
-                    <ProtectedRoute>
+                    <RoleRoute allowedRoles={["user"]}>
                       <UserDashboard />
-                    </ProtectedRoute>
+                    </RoleRoute>
                   }
                 />
                 <Route
@@ -131,9 +131,9 @@ const App = () => (
                 <Route
                   path="/submit"
                   element={
-                    <ProtectedRoute>
+                    <RoleRoute allowedRoles={["user", "admin", "dgp"]}>
                       <AccidentForm />
-                    </ProtectedRoute>
+                    </RoleRoute>
                   }
                 />
                 <Route

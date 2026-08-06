@@ -4,7 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import multer from "multer";
 import { authMiddleware, AuthRequest } from "../auth.js";
-import { canPickDistrict, getUserAccess, resolveDistrictForWrite } from "../rbac.js";
+import { canPickDistrict, getUserAccess, requireRoles, resolveDistrictForWrite, SUBMISSION_WRITER_ROLES } from "../rbac.js";
 import {
   insertSubmission,
   getSubmissionsByUser,
@@ -136,6 +136,10 @@ function hasAllowedFileSignature(filePath: string, mimeType: string) {
 // POST /api/submissions — create a new submission
 router.post("/", async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await requireRoles(req, res, SUBMISSION_WRITER_ROLES, "Submission access denied"))) {
+      return;
+    }
+
     const userId = req.user!.userId;
     const {
       district, place_of_accident, mandal, police_station, fir_number,
@@ -351,6 +355,11 @@ router.post("/:id/signed-copy", (req, res, next) => {
   });
 }, async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await requireRoles(req, res, SUBMISSION_WRITER_ROLES, "Submission access denied"))) {
+      if (req.file) fs.unlinkSync(req.file.path);
+      return;
+    }
+
     const userId = req.user!.userId;
     const id = req.params.id as string;
     const file = req.file;
