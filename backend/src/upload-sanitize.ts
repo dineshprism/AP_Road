@@ -1,10 +1,19 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs";
-import sharp from "sharp";
 
 const execFileAsync = promisify(execFile);
 const PDF_TIMEOUT_MS = 60_000;
+
+async function loadSharp() {
+  try {
+    const mod = await import("sharp");
+    return mod.default;
+  } catch (err) {
+    console.error("Failed to load sharp:", err);
+    throw new Error("Image processing is temporarily unavailable");
+  }
+}
 
 function isSanitizeEnabled(): boolean {
   return process.env.UPLOAD_SANITIZE_ENABLED !== "false";
@@ -31,6 +40,7 @@ export async function sanitizeUploadFile(filePath: string, mimeType: string): Pr
 async function sanitizeImage(filePath: string, mimeType: string): Promise<void> {
   const tempPath = `${filePath}.sanitized`;
   try {
+    const sharp = await loadSharp();
     const pipeline = sharp(filePath, { failOn: "error", limitInputPixels: 50_000_000 }).rotate();
 
     if (mimeType === "image/png") {
