@@ -33,11 +33,8 @@ if (process.env.TRUST_PROXY === "true" || process.env.NODE_ENV === "production")
 }
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "10000", 10);
-const ragRateLimitMax = parseInt(
-  process.env.RAG_RATE_LIMIT_MAX || (process.env.NODE_ENV === "production" ? "30" : "60"),
-  10
-);
+const globalRateLimitMax = parseInt(process.env.GLOBAL_RATE_LIMIT_MAX || "1000000", 10);
+const ragRateLimitMax = parseInt(process.env.RAG_RATE_LIMIT_MAX || "1000000", 10);
 
 const isProduction = process.env.NODE_ENV === "production";
 

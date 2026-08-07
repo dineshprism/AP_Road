@@ -22,7 +22,7 @@ import { rateLimitKeyGenerator } from "../rate-limit-utils.js";
 
 const router = Router();
 const AUTH_COOKIE_NAME = "auth_token";
-const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "60", 10);
+const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "1000000", 10);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
