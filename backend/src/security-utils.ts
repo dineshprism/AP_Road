@@ -17,6 +17,14 @@ export const ALLOWED_UPLOAD_MIME_TYPES = new Set([
   "image/png",
 ]);
 
+/** Map validated MIME to a single safe stored extension (never trust client filename). */
+export function extensionForUploadMime(mimeType: string): string | null {
+  if (mimeType === "application/pdf") return ".pdf";
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/png") return ".png";
+  return null;
+}
+
 const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
   ".jpg": "image/jpeg",

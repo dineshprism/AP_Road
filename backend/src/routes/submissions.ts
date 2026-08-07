@@ -16,11 +16,13 @@ import {
   assertJsonFieldSize,
   ALLOWED_UPLOAD_EXTENSIONS,
   ALLOWED_UPLOAD_MIME_TYPES,
+  extensionForUploadMime,
   isAllowedUploadFilename,
   MAX_UPLOAD_BYTES,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
-import { assertUploadPassesMalwareScan } from "../upload-virus-scan.js";
+import { secureUploadedFile } from "../upload-security.js";
+import { insertActivityLog } from "../db/auth-activity.repo.js";
 
 const router = Router();
 const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
@@ -43,6 +45,11 @@ const upload = multer({
   storage,
   limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
+    if (!file.mimetype || file.mimetype === "application/octet-stream") {
+      cb(new Error("Only PDF, JPG, and PNG files are allowed"));
+      return;
+    }
+
     if (!isAllowedUploadFilename(file.originalname)) {
       cb(new Error("Invalid filename: only single-extension PDF, JPG, or PNG files are allowed"));
       return;
@@ -98,13 +105,12 @@ function getSignedCopyFileName(
   submissionId: string,
   district: string,
   firNumber: string,
-  originalName: string
+  mimeType: string
 ) {
   const districtShortcut = getDistrictShortcut(district);
   const firPart = sanitizeFilePart(firNumber) || "FIR";
   const idPart = sanitizeFilePart(submissionId).slice(0, 12) || "SUB";
-  const originalExt = path.extname(originalName).toLowerCase();
-  const extension = ALLOWED_UPLOAD_EXTENSIONS.has(originalExt) ? originalExt : ".pdf";
+  const extension = extensionForUploadMime(mimeType) || ".pdf";
 
   return `${districtShortcut}_${firPart}_${idPart}${extension}`;
 }
@@ -391,10 +397,16 @@ router.post("/:id/signed-copy", (req, res, next) => {
     }
 
     try {
-      await assertUploadPassesMalwareScan(file.path);
-    } catch (scanError: any) {
+      await secureUploadedFile(file.path, file.mimetype);
+    } catch (secureError: any) {
       fs.unlinkSync(file.path);
-      res.status(400).json({ error: scanError?.message || "Uploaded file failed malware scan" });
+      res.status(400).json({ error: secureError?.message || "Uploaded file failed security processing" });
+      return;
+    }
+
+    if (!hasAllowedFileSignature(file.path, file.mimetype)) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: "Processed file failed validation" });
       return;
     }
 
@@ -417,7 +429,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
       }
     }
 
-    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, file.originalname);
+    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, file.mimetype);
     const finalPath = path.join(uploadsDir, finalFileName);
     if (file.path !== finalPath) {
       if (fs.existsSync(finalPath)) {
@@ -437,6 +449,13 @@ router.post("/:id/signed-copy", (req, res, next) => {
       res.status(404).json({ error: "Submission not found" });
       return;
     }
+
+    await insertActivityLog(userId, "signed_copy_upload", req.ip || null, req.get("user-agent") || null, {
+      submissionId: id,
+      fileName: finalFileName,
+      sha256,
+      sizeBytes: fs.statSync(finalPath).size,
+    });
 
     res.json({
       signed_copy_uploaded: true,

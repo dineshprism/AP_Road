@@ -18,7 +18,7 @@ server {
     listen 80;
     server_name rspt.prismappolice.in;
 
-    # Match app signed-copy limit (MAX_UPLOAD_MB default 5)
+    # Match app signed-copy limit (MAX_UPLOAD_MB default 5 per APTS)
     client_max_body_size 5M;
 
     location / {

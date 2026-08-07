@@ -19,6 +19,7 @@ services:
       retries: 5
 
   clamav:
+    profiles: ["clamav"]
     image: clamav/clamav:1.4
     restart: unless-stopped
     healthcheck:
@@ -61,7 +62,8 @@ services:
       RAG_RATE_LIMIT_MAX: ${RAG_RATE_LIMIT_MAX:-1000000}
       SESSION_IDLE_TIMEOUT_MS: ${SESSION_IDLE_TIMEOUT_MS:-1800000}
       SESSION_ABSOLUTE_MAX_MS: ${SESSION_ABSOLUTE_MAX_MS:-28800000}
-      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-true}
+      UPLOAD_SANITIZE_ENABLED: ${UPLOAD_SANITIZE_ENABLED:-true}
+      CLAMAV_ENABLED: ${CLAMAV_ENABLED:-false}
       CLAMAV_HOST: ${CLAMAV_HOST:-clamav}
       CLAMAV_PORT: ${CLAMAV_PORT:-3310}
     ports:

@@ -23,6 +23,7 @@ RUN npx tsc
 
 # --- Stage 3: Production ---
 FROM node:22-alpine AS production
+RUN apk add --no-cache ghostscript
 WORKDIR /app
 
 # Copy backend build
