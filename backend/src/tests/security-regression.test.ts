@@ -56,6 +56,11 @@ test("should map only allowed MIME types to safe stored extensions", () => {
   assert.equal(extensionForUploadMime("image/svg+xml"), null);
 });
 
+test("should reject manipulated double extensions", () => {
+  assert.equal(isAllowedUploadFilename("evil.phpd.pdf"), false);
+  assert.equal(isAllowedUploadFilename("evil.phd.pdf"), false);
+});
+
 test("should deny DGP and ADGP district submit operation", () => {
   assert.equal(canWriteSubmissions(["dgp"]), false);
   assert.equal(canWriteSubmissions(["adgp"]), false);

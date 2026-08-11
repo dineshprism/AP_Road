@@ -1,6 +1,8 @@
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, clearToken } from "@/lib/api";
+import { api, clearToken, setUnauthorizedHandler } from "@/lib/api";
+
+const SESSION_IDLE_MS = 30 * 60 * 1000;
 
 export interface AppUser {
   id: string;
@@ -63,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadUser();
   }, [loadUser]);
 
-  const signOut = () => {
+  const signOut = useCallback(() => {
     void api.auth.logout();
     clearToken();
     setUser(null);
@@ -72,7 +74,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
     setLastLoginAt(null);
     navigate("/auth");
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(signOut);
+    return () => setUnauthorizedHandler(null);
+  }, [signOut]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let idleTimer: ReturnType<typeof setTimeout>;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        signOut();
+      }, SESSION_IDLE_MS);
+    };
+
+    const activityEvents: Array<keyof WindowEventMap> = [
+      "mousedown",
+      "keydown",
+      "touchstart",
+      "scroll",
+    ];
+    activityEvents.forEach((eventName) =>
+      window.addEventListener(eventName, resetIdleTimer, { passive: true })
+    );
+    resetIdleTimer();
+
+    return () => {
+      clearTimeout(idleTimer);
+      activityEvents.forEach((eventName) =>
+        window.removeEventListener(eventName, resetIdleTimer)
+      );
+    };
+  }, [user, signOut]);
 
   return (
     <AuthContext.Provider

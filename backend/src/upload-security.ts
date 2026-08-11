@@ -10,6 +10,10 @@ export async function secureUploadedFile(filePath: string, mimeType: string): Pr
   const sanitizeEnabled = process.env.UPLOAD_SANITIZE_ENABLED !== "false";
   const clamavEnabled = process.env.CLAMAV_ENABLED === "true";
 
+  if (process.env.NODE_ENV === "production" && !sanitizeEnabled) {
+    throw new Error("Upload sanitization cannot be disabled in production");
+  }
+
   if (sanitizeEnabled) {
     await sanitizeUploadFile(filePath, mimeType);
   }

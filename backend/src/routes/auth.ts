@@ -7,6 +7,7 @@ import {
   AuthRequest,
   authCookieOptions,
   authClearCookieOptions,
+  AUTH_COOKIE_NAME,
   getTokenFromRequest,
   verifyToken,
   revokeSession,
@@ -21,7 +22,6 @@ import { createCaptchaChallenge, verifyCaptchaAnswer } from "../captcha.js";
 import { rateLimitKeyGenerator } from "../rate-limit-utils.js";
 
 const router = Router();
-const AUTH_COOKIE_NAME = "auth_token";
 const loginRateLimitMax = parseInt(process.env.LOGIN_RATE_LIMIT_MAX || "1000000", 10);
 
 const loginLimiter = rateLimit({

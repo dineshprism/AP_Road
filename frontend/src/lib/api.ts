@@ -1,5 +1,11 @@
 const API_BASE = "/api";
 
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  unauthorizedHandler = handler;
+}
+
 export function clearToken(): void {
   // Session is httpOnly cookie; nothing to clear in localStorage.
 }
@@ -27,6 +33,9 @@ async function request<T>(
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      if (res.status === 401 && path !== "/auth/login" && path !== "/auth/captcha") {
+        unauthorizedHandler?.();
+      }
       if (res.status === 413) {
         return {
           data: null,
@@ -68,6 +77,9 @@ async function downloadFile(
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
+      if (res.status === 401) {
+        unauthorizedHandler?.();
+      }
       return { blob: null, filename: null, error: body.error || `Request failed (${res.status})` };
     }
 

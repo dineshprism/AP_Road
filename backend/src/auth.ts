@@ -20,7 +20,10 @@ const SESSION_ABSOLUTE_MAX_MS = Math.max(
   parseInt(process.env.SESSION_ABSOLUTE_MAX_MS || String(8 * 60 * 60 * 1000), 10)
 );
 const SESSION_CLEANUP_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const JWT_EXPIRES_IN_SECONDS = Math.floor(SESSION_ABSOLUTE_MAX_MS / 1000);
+/** JWT cryptographic expiry matches idle window; sliding refresh extends active sessions. */
+const JWT_EXPIRES_IN_SECONDS = Math.floor(SESSION_IDLE_TIMEOUT_MS / 1000);
+
+export const AUTH_COOKIE_NAME = "auth_token";
 
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
@@ -50,14 +53,19 @@ export interface AuthRequest extends Request {
   user?: AuthPayload;
 }
 
-export function authCookieOptions() {
+function sessionCookieMaxAge(createdAt: Date): number {
+  const absoluteRemaining = SESSION_ABSOLUTE_MAX_MS - (Date.now() - createdAt.getTime());
+  return Math.max(1000, absoluteRemaining);
+}
+
+export function authCookieOptions(maxAgeMs = SESSION_ABSOLUTE_MAX_MS) {
   const secure =
     process.env.NODE_ENV === "production" || process.env.FORCE_SECURE_COOKIES === "true";
   return {
     httpOnly: true,
     secure,
     sameSite: "strict" as const,
-    maxAge: SESSION_ABSOLUTE_MAX_MS,
+    maxAge: maxAgeMs,
     path: "/",
   };
 }
@@ -65,6 +73,24 @@ export function authCookieOptions() {
 export function authClearCookieOptions() {
   const { maxAge: _maxAge, ...options } = authCookieOptions();
   return options;
+}
+
+function signAccessToken(payload: { userId: string; email: string; jti: string }): string {
+  return jwt.sign({ ...payload }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN_SECONDS,
+    algorithm: "HS256",
+  });
+}
+
+function tokenWasFromCookie(req: Request): boolean {
+  const header = req.headers.authorization;
+  if (header?.startsWith("Bearer ")) return false;
+  return Boolean(
+    req.headers.cookie
+      ?.split(";")
+      .map((part) => part.trim())
+      .some((part) => part.startsWith(`${AUTH_COOKIE_NAME}=`))
+  );
 }
 
 /** Best-effort cleanup so active_sessions doesn't grow unbounded; never blocks the caller. */
@@ -82,10 +108,7 @@ export async function generateToken(payload: { userId: string; email: string }):
   await insertSession(jti, payload.userId, expiresAt);
   cleanupExpiredSessions();
 
-  return jwt.sign({ ...payload, jti }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN_SECONDS,
-    algorithm: "HS256",
-  });
+  return signAccessToken({ ...payload, jti });
 }
 
 export function verifyToken(token: string): AuthPayload {
@@ -98,8 +121,8 @@ export function getTokenFromRequest(req: Request): string | null {
   const cookieToken = req.headers.cookie
     ?.split(";")
     .map((part) => part.trim())
-    .find((part) => part.startsWith("auth_token="))
-    ?.slice("auth_token=".length);
+    .find((part) => part.startsWith(`${AUTH_COOKIE_NAME}=`))
+    ?.slice(`${AUTH_COOKIE_NAME}=`.length);
   return bearerToken || (cookieToken ? decodeURIComponent(cookieToken) : null);
 }
 
@@ -136,6 +159,13 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       return;
     }
 
+    const createdAt = new Date(session.created_at).getTime();
+    if (Date.now() - createdAt > SESSION_ABSOLUTE_MAX_MS) {
+      await revokeSessionById(payload.jti);
+      res.status(401).json({ error: "Session expired. Please log in again." });
+      return;
+    }
+
     const lastActivity = new Date(session.last_activity_at).getTime();
     if (Date.now() - lastActivity > SESSION_IDLE_TIMEOUT_MS) {
       await revokeSessionById(payload.jti);
@@ -144,6 +174,17 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
     }
 
     await touchSessionActivity(payload.jti);
+
+    // Sliding window: refresh cookie JWT so cryptographic expiry matches the 30-minute idle policy.
+    if (tokenWasFromCookie(req)) {
+      const refreshedToken = signAccessToken({
+        userId: payload.userId,
+        email: payload.email,
+        jti: payload.jti,
+      });
+      res.cookie(AUTH_COOKIE_NAME, refreshedToken, authCookieOptions(sessionCookieMaxAge(session.created_at)));
+    }
+
     req.user = payload;
     next();
   } catch {

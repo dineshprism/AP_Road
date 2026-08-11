@@ -54,6 +54,7 @@ export function buildCspDirectives() {
 export function securityHeadersMiddleware(isProduction: boolean) {
   return helmet({
     contentSecurityPolicy: {
+      useDefaults: false,
       directives: buildCspDirectives(),
     },
     frameguard: { action: "deny" },

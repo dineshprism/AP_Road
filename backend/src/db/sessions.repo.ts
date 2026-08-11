@@ -4,6 +4,7 @@ import pool from "../db.js";
 
 export interface ActiveSessionRow {
   id: string;
+  created_at: Date;
   last_activity_at: Date;
 }
 
@@ -29,7 +30,7 @@ export async function revokeAllSessionsForUser(userId: string): Promise<void> {
 
 export async function getActiveSession(jti: string): Promise<ActiveSessionRow | null> {
   const result = await pool.query<ActiveSessionRow>(
-    `SELECT id, last_activity_at
+    `SELECT id, created_at, last_activity_at
      FROM active_sessions
      WHERE id = $1 AND revoked_at IS NULL AND expires_at > now()`,
     [jti]
