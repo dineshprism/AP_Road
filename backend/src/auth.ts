@@ -25,6 +25,28 @@ const JWT_EXPIRES_IN_SECONDS = Math.floor(SESSION_IDLE_TIMEOUT_MS / 1000);
 
 export const AUTH_COOKIE_NAME = "auth_token";
 
+/** Session timeout policy (APTS CWE-613): 30m idle + 8h absolute; JWT matches idle. */
+export function getSessionPolicy() {
+  return {
+    idleTimeoutMs: SESSION_IDLE_TIMEOUT_MS,
+    absoluteMaxMs: SESSION_ABSOLUTE_MAX_MS,
+    jwtExpiresInSeconds: JWT_EXPIRES_IN_SECONDS,
+  };
+}
+
+export type SessionFreshness = "ok" | "absolute_expired" | "idle_expired";
+
+/** Server-side idle/absolute checks independent of JWT `exp` (defense in depth). */
+export function evaluateSessionFreshness(
+  createdAt: Date,
+  lastActivityAt: Date,
+  nowMs = Date.now()
+): SessionFreshness {
+  if (nowMs - createdAt.getTime() > SESSION_ABSOLUTE_MAX_MS) return "absolute_expired";
+  if (nowMs - lastActivityAt.getTime() > SESSION_IDLE_TIMEOUT_MS) return "idle_expired";
+  return "ok";
+}
+
 function getJwtSecret(): string {
   const secret = process.env.JWT_SECRET;
   const knownBadSecrets = ["fallback-dev-secret", "change-this-to-a-random-64-char-secret-in-production"];
@@ -159,15 +181,13 @@ export async function authMiddleware(req: AuthRequest, res: Response, next: Next
       return;
     }
 
-    const createdAt = new Date(session.created_at).getTime();
-    if (Date.now() - createdAt > SESSION_ABSOLUTE_MAX_MS) {
+    const freshness = evaluateSessionFreshness(session.created_at, session.last_activity_at);
+    if (freshness === "absolute_expired") {
       await revokeSessionById(payload.jti);
       res.status(401).json({ error: "Session expired. Please log in again." });
       return;
     }
-
-    const lastActivity = new Date(session.last_activity_at).getTime();
-    if (Date.now() - lastActivity > SESSION_IDLE_TIMEOUT_MS) {
+    if (freshness === "idle_expired") {
       await revokeSessionById(payload.jti);
       res.status(401).json({ error: "Session expired due to inactivity. Please log in again." });
       return;
