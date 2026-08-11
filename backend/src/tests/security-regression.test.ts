@@ -29,12 +29,14 @@ test("should allow intended upload extensions", () => {
   assert.equal(isAllowedUploadFilename("valid.jpg"), true);
   assert.equal(isAllowedUploadFilename("valid.jpeg"), true);
   assert.equal(isAllowedUploadFilename("valid.png"), true);
+  assert.equal(isAllowedUploadFilename("FIR_12.08.2026.pdf"), true);
+  assert.equal(isAllowedUploadFilename("signed copy.pdf"), true);
 });
 
 test("should reject double-extension uploads", () => {
   assert.equal(isAllowedUploadFilename("evil.php.pdf"), false);
   assert.equal(isAllowedUploadFilename("file.exe.pdf"), false);
-  assert.equal(isAllowedUploadFilename("a.b.pdf"), false);
+  assert.equal(isAllowedUploadFilename("payload.js.pdf"), false);
 });
 
 test("should reject executable or unsupported upload types", () => {

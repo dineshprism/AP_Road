@@ -45,17 +45,17 @@ const upload = multer({
   storage,
   limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype || file.mimetype === "application/octet-stream") {
-      cb(new Error("Only PDF, JPG, and PNG files are allowed"));
-      return;
-    }
-
     if (!isAllowedUploadFilename(file.originalname)) {
-      cb(new Error("Invalid filename: only single-extension PDF, JPG, or PNG files are allowed"));
+      cb(new Error("Invalid filename: only PDF, JPG, or PNG files are allowed (no executable double extensions)"));
       return;
     }
 
-    if (ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype)) {
+    // Some browsers send empty or octet-stream MIME; extension + magic-byte checks still apply.
+    if (
+      ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) ||
+      !file.mimetype ||
+      file.mimetype === "application/octet-stream"
+    ) {
       cb(null, true);
       return;
     }
@@ -138,6 +138,17 @@ function hasAllowedFileSignature(filePath: string, mimeType: string) {
     return header.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   }
   return false;
+}
+
+function resolveUploadMimeType(originalName: string, reportedMime: string): string | null {
+  if (ALLOWED_UPLOAD_MIME_TYPES.has(reportedMime)) {
+    return reportedMime;
+  }
+  const ext = path.extname(originalName).toLowerCase();
+  if (ext === ".pdf") return "application/pdf";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  return null;
 }
 
 // POST /api/submissions — create a new submission
@@ -386,25 +397,32 @@ router.post("/:id/signed-copy", (req, res, next) => {
 
     if (!isAllowedUploadFilename(file.originalname)) {
       fs.unlinkSync(file.path);
-      res.status(400).json({ error: "Invalid filename: only single-extension PDF, JPG, or PNG files are allowed" });
+      res.status(400).json({ error: "Invalid filename: only PDF, JPG, or PNG files are allowed" });
       return;
     }
 
-    if (!hasAllowedFileSignature(file.path, file.mimetype)) {
+    const mimeType = resolveUploadMimeType(file.originalname, file.mimetype);
+    if (!mimeType) {
+      fs.unlinkSync(file.path);
+      res.status(400).json({ error: "Only PDF, JPG, and PNG files are allowed" });
+      return;
+    }
+
+    if (!hasAllowedFileSignature(file.path, mimeType)) {
       fs.unlinkSync(file.path);
       res.status(400).json({ error: "Uploaded file content does not match an allowed PDF, JPG, or PNG file" });
       return;
     }
 
     try {
-      await secureUploadedFile(file.path, file.mimetype);
+      await secureUploadedFile(file.path, mimeType);
     } catch (secureError: any) {
       fs.unlinkSync(file.path);
       res.status(400).json({ error: secureError?.message || "Uploaded file failed security processing" });
       return;
     }
 
-    if (!hasAllowedFileSignature(file.path, file.mimetype)) {
+    if (!hasAllowedFileSignature(file.path, mimeType)) {
       fs.unlinkSync(file.path);
       res.status(400).json({ error: "Processed file failed validation" });
       return;
@@ -429,7 +447,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
       }
     }
 
-    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, file.mimetype);
+    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, mimeType);
     const finalPath = path.join(uploadsDir, finalFileName);
     if (file.path !== finalPath) {
       if (fs.existsSync(finalPath)) {

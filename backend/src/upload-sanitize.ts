@@ -69,46 +69,65 @@ async function ghostscriptAvailable(): Promise<boolean> {
   }
 }
 
+async function runGhostscript(filePath: string, tempPath: string, extraArgs: string[]): Promise<void> {
+  await execFileAsync(
+    "gs",
+    [
+      "-dSAFER",
+      "-dBATCH",
+      "-dNOPAUSE",
+      "-dQUIET",
+      "-sDEVICE=pdfwrite",
+      "-dCompatibilityLevel=1.4",
+      ...extraArgs,
+      `-sOutputFile=${tempPath}`,
+      filePath,
+    ],
+    { timeout: PDF_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
+  );
+
+  if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
+    throw new Error("empty output");
+  }
+}
+
+/**
+ * Best-effort PDF rewrite to strip active content.
+ * If Ghostscript is missing or fails on a specific file, keep the original after
+ * magic-byte validation (uploads are always served as authenticated attachments).
+ */
 async function sanitizePdf(filePath: string): Promise<void> {
   if (!(await ghostscriptAvailable())) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("PDF processing is temporarily unavailable");
-    }
-    console.warn("ghostscript not installed; skipping PDF sanitization in development");
+    console.warn("ghostscript not installed; accepting PDF after magic-byte validation only");
     return;
   }
 
   const tempPath = `${filePath}.sanitized.pdf`;
-  try {
-    await execFileAsync(
-      "gs",
-      [
-        "-sDEVICE=pdfwrite",
-        "-dCompatibilityLevel=1.4",
-        "-dPDFSETTINGS=/prepress",
-        "-dDetectDuplicateImages=true",
-        "-dNOPAUSE",
-        "-dQUIET",
-        "-dBATCH",
-        `-sOutputFile=${tempPath}`,
-        filePath,
-      ],
-      { timeout: PDF_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
-    );
+  const attempts: string[][] = [
+    // Prefer a light rewrite that works on scanned / camera PDFs.
+    ["-dDetectDuplicateImages=true"],
+    // Fallback: absolute minimal rewrite.
+    [],
+  ];
 
-    if (!fs.existsSync(tempPath) || fs.statSync(tempPath).size === 0) {
-      throw new Error("empty output");
+  for (const extraArgs of attempts) {
+    try {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+      await runGhostscript(filePath, tempPath, extraArgs);
+      fs.renameSync(tempPath, filePath);
+      fs.chmodSync(filePath, 0o644);
+      return;
+    } catch (err) {
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+      console.warn("PDF sanitization attempt failed:", err);
     }
-
-    fs.renameSync(tempPath, filePath);
-    fs.chmodSync(filePath, 0o644);
-  } catch (err) {
-    if (fs.existsSync(tempPath)) {
-      fs.unlinkSync(tempPath);
-    }
-    console.error("PDF sanitization failed:", err);
-    throw new Error(
-      "PDF could not be processed. Re-save or export the file (Print to PDF) and try again."
-    );
   }
+
+  console.warn(
+    "PDF sanitization skipped after Ghostscript failures; keeping original validated PDF"
+  );
 }

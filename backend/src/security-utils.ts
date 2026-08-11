@@ -32,9 +32,52 @@ const UPLOAD_CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
 };
 
+/** Intermediate extensions that must never appear before a whitelist suffix (e.g. evil.php.pdf). */
+const DANGEROUS_INTERMEDIATE_EXTENSIONS = new Set([
+  "php",
+  "phtml",
+  "php3",
+  "php4",
+  "php5",
+  "phar",
+  "phpd",
+  "phd",
+  "pht",
+  "phps",
+  "exe",
+  "dll",
+  "bat",
+  "cmd",
+  "com",
+  "msi",
+  "scr",
+  "js",
+  "mjs",
+  "html",
+  "htm",
+  "shtml",
+  "svg",
+  "xml",
+  "jsp",
+  "jspx",
+  "asp",
+  "aspx",
+  "cgi",
+  "pl",
+  "py",
+  "rb",
+  "sh",
+  "ps1",
+  "vbs",
+  "jar",
+  "war",
+  "class",
+]);
+
 /**
- * Reject path tricks, missing/disallowed final extensions, and double extensions
- * (e.g. evil.php.pdf). Only a single whitelist extension is allowed.
+ * Reject path tricks, missing/disallowed final extensions, and dangerous double
+ * extensions (e.g. evil.php.pdf). Dated names like FIR_12.08.2026.pdf are allowed.
+ * Stored filenames are always server-generated — this only gates the client name.
  */
 export function isAllowedUploadFilename(originalName: string): boolean {
   if (!originalName || typeof originalName !== "string") return false;
@@ -51,7 +94,14 @@ export function isAllowedUploadFilename(originalName: string): boolean {
   if (!ALLOWED_UPLOAD_EXTENSIONS.has(ext)) return false;
 
   const stem = lower.slice(0, -ext.length);
-  if (!stem || stem.includes(".")) return false;
+  if (!stem) return false;
+
+  const segments = stem.split(".");
+  for (const segment of segments.slice(1)) {
+    if (!segment) return false;
+    if (DANGEROUS_INTERMEDIATE_EXTENSIONS.has(segment)) return false;
+    if (segment.startsWith("php") || segment === "phd" || segment === "pht") return false;
+  }
 
   return true;
 }

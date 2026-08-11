@@ -253,17 +253,24 @@ const UserDashboard = () => {
     if (!file) return;
 
     const maxUploadBytes = 5 * 1024 * 1024;
-    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png"]);
+    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", ""]);
     if (file.size > maxUploadBytes) {
       toast.error("File must be 5 MB or smaller");
       return;
     }
-    const nameParts = file.name.toLowerCase().split(".");
-    if (nameParts.length !== 2 || !["pdf", "jpg", "jpeg", "png"].includes(nameParts[1])) {
-      toast.error("Only single-extension PDF, JPG, or PNG files are allowed");
+    const lowerName = file.name.toLowerCase();
+    const extMatch = lowerName.match(/\.([a-z0-9]+)$/);
+    const ext = extMatch?.[1] || "";
+    if (!["pdf", "jpg", "jpeg", "png"].includes(ext)) {
+      toast.error("Only PDF, JPG, or PNG files are allowed");
       return;
     }
-    if (!allowedTypes.has(file.type)) {
+    const dangerous = /\.(php\d?|phtml|phar|phpd|phd|pht|exe|dll|bat|cmd|js|html?|svg|jsp|aspx?)(\.|$)/i;
+    if (dangerous.test(lowerName.slice(0, -ext.length - 1))) {
+      toast.error("Invalid filename: executable or script extensions are not allowed");
+      return;
+    }
+    if (file.type && !allowedTypes.has(file.type) && file.type !== "application/octet-stream") {
       toast.error("Only PDF, JPG, and PNG files are allowed");
       return;
     }
