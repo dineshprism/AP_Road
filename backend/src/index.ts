@@ -1,6 +1,5 @@
 import express from "express";
 import cors from "cors";
-import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import path from "path";
@@ -19,6 +18,9 @@ import { authMiddleware, AuthRequest } from "./auth.js";
 import { csrfProtection } from "./csrf.js";
 import { getUserRoles, MAPS_BROWSER_KEY_ROLES } from "./rbac.js";
 import { contentTypeForUploadExt } from "./security-utils.js";
+import { memoPdfFrameHeadersMiddleware, securityHeadersMiddleware } from "./security-headers.js";
+import { getUserAccess } from "./rbac.js";
+import { getSubmissionBySignedCopyPath } from "./db/submissions.repo.js";
 import { isExemptFromGlobalApiRateLimit, rateLimitKeyGenerator } from "./rate-limit-utils.js";
 
 import fs from "fs";
@@ -85,67 +87,9 @@ app.use((req, res, next) => {
 });
 
 // Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        "https://maps.googleapis.com",
-        "https://maps.gstatic.com",
-        "https://*.google.com",
-      ],
-      styleSrc: ["'self'", "'unsafe-inline'", "https:", "https://fonts.googleapis.com", "https://maps.googleapis.com", "https://maps.gstatic.com"],
-      imgSrc: [
-        "'self'",
-        "data:",
-        "blob:",
-        "https://*.tile.openstreetmap.org",
-        "https://tile.openstreetmap.org",
-        "https://*.basemaps.cartocdn.com",
-        "https://a.basemaps.cartocdn.com",
-        "https://b.basemaps.cartocdn.com",
-        "https://c.basemaps.cartocdn.com",
-        "https://d.basemaps.cartocdn.com",
-        "https://*.tile.opentopomap.org",
-        "https://tile.opentopomap.org",
-        "https://server.arcgisonline.com",
-        "https://*.googleapis.com",
-        "https://*.gstatic.com",
-        "https://*.google.com",
-        "https://*.ggpht.com",
-        "https://*.googleusercontent.com",
-      ],
-      connectSrc: [
-        "'self'",
-        "https://*.tile.openstreetmap.org",
-        "https://tile.openstreetmap.org",
-        "https://*.basemaps.cartocdn.com",
-        "https://a.basemaps.cartocdn.com",
-        "https://b.basemaps.cartocdn.com",
-        "https://c.basemaps.cartocdn.com",
-        "https://d.basemaps.cartocdn.com",
-        "https://*.tile.opentopomap.org",
-        "https://tile.opentopomap.org",
-        "https://server.arcgisonline.com",
-        "https://*.googleapis.com",
-        "https://*.google.com",
-        "https://maps.googleapis.com",
-        "https://maps.gstatic.com",
-      ],
-      fontSrc: ["'self'", "https:", "data:", "https://fonts.gstatic.com", "https://maps.gstatic.com"],
-      frameSrc: ["'self'", "https://www.google.com", "https://maps.google.com"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: null,
-    },
-  },
-  frameguard: { action: "deny" },
-  noSniff: true,
-  xssFilter: true,
-  hsts: isProduction
-    ? { maxAge: 63072000, includeSubDomains: true, preload: true }
-    : false,
-}));
+app.use(securityHeadersMiddleware(isProduction));
+// Exact public memo PDF iframe exception: executes after Helmet, before express.static.
+app.use(memoPdfFrameHeadersMiddleware());
 
 // Explicit legacy X-XSS-Protection value expected by the audit checklist.
 app.use((_req, res, next) => {
@@ -226,7 +170,7 @@ const ragLimiter = rateLimit({
 
 // Serve uploaded files only to authenticated users as attachments (no inline browser execution).
 const uploadsRoot = path.resolve(path.join(__dirname, "../uploads"));
-app.use("/api/uploads", authMiddleware, (req, res) => {
+app.use("/api/uploads", authMiddleware, (req: AuthRequest, res) => {
   if (req.method !== "GET" && req.method !== "HEAD") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -255,15 +199,34 @@ app.use("/api/uploads", authMiddleware, (req, res) => {
     return;
   }
 
-  const basename = path.basename(absolutePath);
-  const safeDownloadName = basename.replace(/[^\w.\-]+/g, "_") || "download";
-  const ext = path.extname(basename).toLowerCase();
+  getUserAccess(req.user!.userId)
+    .then(async (access) => {
+      const uploadRecord = await getSubmissionBySignedCopyPath(relativePath);
+      if (!uploadRecord) {
+        res.status(404).json({ error: "File not found" });
+        return;
+      }
+      if (!access.canViewAnySubmission && uploadRecord.user_id !== req.user!.userId) {
+        res.status(404).json({ error: "File not found" });
+        return;
+      }
 
-  res.setHeader("Content-Type", contentTypeForUploadExt(ext));
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Content-Disposition", `attachment; filename="${safeDownloadName}"`);
-  res.setHeader("Cache-Control", "private, no-store");
-  res.sendFile(absolutePath);
+      const basename = path.basename(absolutePath);
+      const safeDownloadName = basename.replace(/[^\w.\-]+/g, "_") || "download";
+      const ext = path.extname(basename).toLowerCase();
+
+      res.setHeader("Content-Type", contentTypeForUploadExt(ext));
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeDownloadName}"`);
+      res.setHeader("Cache-Control", "private, no-store");
+      res.sendFile(absolutePath);
+    })
+    .catch((err) => {
+      console.error("Upload download authorization error:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Internal server error" });
+      }
+    });
 });
 
 // Health check (must be before other /api routes)

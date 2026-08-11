@@ -17,7 +17,8 @@
     "sync:cctns": "tsx tools/sync-cctns-masterdata.ts",
     "data:export:gcp": "tsx tools/data-migration/export-gcp-data.ts",
     "data:backup": "tsx tools/data-migration/export-gcp-data.ts --include-uploads --use-default-env",
-    "data:import:aws": "tsx tools/data-migration/import-aws-data.ts"
+    "data:import:aws": "tsx tools/data-migration/import-aws-data.ts",
+    "test": "node --test --import tsx src/**/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.46.0",

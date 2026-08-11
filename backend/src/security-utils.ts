@@ -40,8 +40,11 @@ export function isAllowedUploadFilename(originalName: string): boolean {
   if (!originalName || typeof originalName !== "string") return false;
   if (originalName.includes("\0")) return false;
 
-  const base = path.basename(originalName.trim());
-  if (!base || base === "." || base === "..") return false;
+  const trimmed = originalName.trim();
+  if (trimmed.includes("/") || trimmed.includes("\\")) return false;
+
+  const base = path.basename(trimmed);
+  if (!base || base === "." || base === ".." || base !== trimmed) return false;
 
   const lower = base.toLowerCase();
   const ext = path.extname(lower);
