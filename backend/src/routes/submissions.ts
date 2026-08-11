@@ -14,13 +14,14 @@ import {
 } from "../db/submissions.repo.js";
 import {
   assertJsonFieldSize,
-  ALLOWED_UPLOAD_EXTENSIONS,
   ALLOWED_UPLOAD_MIME_TYPES,
   extensionForUploadMime,
   isAllowedUploadFilename,
   MAX_UPLOAD_BYTES,
+  resolveUploadMimeType,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
+import { hasAllowedFileSignature } from "../upload-content.js";
 import { secureUploadedFile } from "../upload-security.js";
 import { insertActivityLog } from "../db/auth-activity.repo.js";
 
@@ -46,11 +47,11 @@ const upload = multer({
   limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (_req, file, cb) => {
     if (!isAllowedUploadFilename(file.originalname)) {
-      cb(new Error("Invalid filename: only PDF, JPG, or PNG files are allowed (no executable double extensions)"));
+      cb(new Error("Invalid filename: only PDF or DOCX files are allowed (no double/manipulated extensions)"));
       return;
     }
 
-    // Some browsers send empty or octet-stream MIME; extension + magic-byte checks still apply.
+    // Empty/octet-stream allowed here; extension + content checks still apply after upload.
     if (
       ALLOWED_UPLOAD_MIME_TYPES.has(file.mimetype) ||
       !file.mimetype ||
@@ -60,7 +61,7 @@ const upload = multer({
       return;
     }
 
-    cb(new Error("Only PDF, JPG, and PNG files are allowed"));
+    cb(new Error("Only PDF and DOCX files are allowed"));
   },
 });
 
@@ -126,29 +127,13 @@ function computeSha256(filePath: string) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
 
-function hasAllowedFileSignature(filePath: string, mimeType: string) {
-  const header = fs.readFileSync(filePath).subarray(0, 8);
-  if (mimeType === "application/pdf") {
-    return header.subarray(0, 5).toString("ascii") === "%PDF-";
+function safeUnlink(filePath: string | undefined) {
+  if (!filePath) return;
+  try {
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  } catch {
+    // best-effort cleanup
   }
-  if (mimeType === "image/jpeg") {
-    return header[0] === 0xff && header[1] === 0xd8 && header[2] === 0xff;
-  }
-  if (mimeType === "image/png") {
-    return header.equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  }
-  return false;
-}
-
-function resolveUploadMimeType(originalName: string, reportedMime: string): string | null {
-  if (ALLOWED_UPLOAD_MIME_TYPES.has(reportedMime)) {
-    return reportedMime;
-  }
-  const ext = path.extname(originalName).toLowerCase();
-  if (ext === ".pdf") return "application/pdf";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".png") return "image/png";
-  return null;
 }
 
 // POST /api/submissions — create a new submission
@@ -372,9 +357,10 @@ router.post("/:id/signed-copy", (req, res, next) => {
     next();
   });
 }, async (req: AuthRequest, res: Response) => {
+  const uploadedPath = req.file?.path;
   try {
     if (!(await requireSubmissionWriter(req, res))) {
-      if (req.file) fs.unlinkSync(req.file.path);
+      safeUnlink(uploadedPath);
       return;
     }
 
@@ -385,7 +371,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
     // Validate UUID format to prevent path traversal
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
-      if (file) fs.unlinkSync(file.path);
+      safeUnlink(uploadedPath);
       res.status(400).json({ error: "Invalid submission ID" });
       return;
     }
@@ -395,35 +381,43 @@ router.post("/:id/signed-copy", (req, res, next) => {
       return;
     }
 
+    // Defense in depth: multer enforces the limit; reject oversized temps if present.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      safeUnlink(file.path);
+      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
+      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+      return;
+    }
+
     if (!isAllowedUploadFilename(file.originalname)) {
-      fs.unlinkSync(file.path);
-      res.status(400).json({ error: "Invalid filename: only PDF, JPG, or PNG files are allowed" });
+      safeUnlink(file.path);
+      res.status(400).json({ error: "Invalid filename: only PDF or DOCX files are allowed" });
       return;
     }
 
     const mimeType = resolveUploadMimeType(file.originalname, file.mimetype);
     if (!mimeType) {
-      fs.unlinkSync(file.path);
-      res.status(400).json({ error: "Only PDF, JPG, and PNG files are allowed" });
+      safeUnlink(file.path);
+      res.status(400).json({ error: "Only PDF and DOCX files are allowed (extension and MIME must match)" });
       return;
     }
 
     if (!hasAllowedFileSignature(file.path, mimeType)) {
-      fs.unlinkSync(file.path);
-      res.status(400).json({ error: "Uploaded file content does not match an allowed PDF, JPG, or PNG file" });
+      safeUnlink(file.path);
+      res.status(400).json({ error: "Uploaded file content does not match an allowed PDF or DOCX file" });
       return;
     }
 
     try {
       await secureUploadedFile(file.path, mimeType);
     } catch (secureError: any) {
-      fs.unlinkSync(file.path);
+      safeUnlink(file.path);
       res.status(400).json({ error: secureError?.message || "Uploaded file failed security processing" });
       return;
     }
 
     if (!hasAllowedFileSignature(file.path, mimeType)) {
-      fs.unlinkSync(file.path);
+      safeUnlink(file.path);
       res.status(400).json({ error: "Processed file failed validation" });
       return;
     }
@@ -434,7 +428,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
     const submission = await getSubmissionForSignedCopy(id, scopeUserId);
 
     if (!submission) {
-      fs.unlinkSync(file.path);
+      safeUnlink(file.path);
       res.status(404).json({ error: "Submission not found" });
       return;
     }
@@ -442,17 +436,13 @@ router.post("/:id/signed-copy", (req, res, next) => {
     const previousPath = submission.signed_copy_path;
     if (previousPath) {
       const absolutePreviousPath = path.resolve(process.cwd(), "uploads", previousPath);
-      if (fs.existsSync(absolutePreviousPath)) {
-        fs.unlinkSync(absolutePreviousPath);
-      }
+      safeUnlink(absolutePreviousPath);
     }
 
     const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, mimeType);
     const finalPath = path.join(uploadsDir, finalFileName);
     if (file.path !== finalPath) {
-      if (fs.existsSync(finalPath)) {
-        fs.unlinkSync(finalPath);
-      }
+      safeUnlink(finalPath);
       fs.renameSync(file.path, finalPath);
     }
 
@@ -463,7 +453,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
     const updated = await updateSignedCopy(id, finalFileName, relativePath, sha256, scopeUserId);
 
     if (!updated) {
-      fs.unlinkSync(finalPath);
+      safeUnlink(finalPath);
       res.status(404).json({ error: "Submission not found" });
       return;
     }
@@ -483,6 +473,7 @@ router.post("/:id/signed-copy", (req, res, next) => {
     });
   } catch (err: any) {
     console.error("Upload signed copy error:", err);
+    safeUnlink(uploadedPath);
     if (err?.code === "LIMIT_FILE_SIZE") {
       const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
       res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });

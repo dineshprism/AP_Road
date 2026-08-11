@@ -253,7 +253,8 @@ const UserDashboard = () => {
     if (!file) return;
 
     const maxUploadBytes = 5 * 1024 * 1024;
-    const allowedTypes = new Set(["application/pdf", "image/jpeg", "image/png", ""]);
+    const docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const allowedTypes = new Set(["application/pdf", docxMime, ""]);
     if (file.size > maxUploadBytes) {
       toast.error("File must be 5 MB or smaller");
       return;
@@ -261,17 +262,17 @@ const UserDashboard = () => {
     const lowerName = file.name.toLowerCase();
     const extMatch = lowerName.match(/\.([a-z0-9]+)$/);
     const ext = extMatch?.[1] || "";
-    if (!["pdf", "jpg", "jpeg", "png"].includes(ext)) {
-      toast.error("Only PDF, JPG, or PNG files are allowed");
+    if (!["pdf", "docx"].includes(ext)) {
+      toast.error("Only PDF or DOCX files are allowed");
       return;
     }
-    const dangerous = /\.(php\d?|phtml|phar|phpd|phd|pht|exe|dll|bat|cmd|js|html?|svg|jsp|aspx?)(\.|$)/i;
+    const dangerous = /\.(php\d?|phtml|phar|phpd|phd|pht|exe|dll|bat|cmd|js|html?|svg|jsp|aspx?|txt|zip|rar)(\.|$)/i;
     if (dangerous.test(lowerName.slice(0, -ext.length - 1))) {
       toast.error("Invalid filename: executable or script extensions are not allowed");
       return;
     }
     if (file.type && !allowedTypes.has(file.type) && file.type !== "application/octet-stream") {
-      toast.error("Only PDF, JPG, and PNG files are allowed");
+      toast.error("Only PDF and DOCX files are allowed");
       return;
     }
 
@@ -772,7 +773,7 @@ const UserDashboard = () => {
                                 <input
                                   id={`signed-copy-${submission.id}`}
                                   type="file"
-                                  accept=".pdf,image/png,image/jpeg"
+                                  accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                   className="hidden"
                                   onChange={(e) => {
                                     void handleSignedCopyUpload(submission.id, e.target.files?.[0] || null);

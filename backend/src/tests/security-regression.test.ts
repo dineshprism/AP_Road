@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildCspDirectives } from "../security-headers.js";
-import { isAllowedUploadFilename, extensionForUploadMime } from "../security-utils.js";
+import {
+  DOCX_MIME,
+  isAllowedUploadFilename,
+  extensionForUploadMime,
+} from "../security-utils.js";
 import { canWriteSubmissions } from "../rbac.js";
 
 test("should return a strict CSP", () => {
@@ -26,17 +30,23 @@ test("should not allow unsafe-inline", () => {
 
 test("should allow intended upload extensions", () => {
   assert.equal(isAllowedUploadFilename("valid.pdf"), true);
-  assert.equal(isAllowedUploadFilename("valid.jpg"), true);
-  assert.equal(isAllowedUploadFilename("valid.jpeg"), true);
-  assert.equal(isAllowedUploadFilename("valid.png"), true);
+  assert.equal(isAllowedUploadFilename("valid.docx"), true);
   assert.equal(isAllowedUploadFilename("FIR_12.08.2026.pdf"), true);
   assert.equal(isAllowedUploadFilename("signed copy.pdf"), true);
+  assert.equal(isAllowedUploadFilename("road-safety-report.docx"), true);
+});
+
+test("should reject image and other non-PDF/DOCX uploads", () => {
+  assert.equal(isAllowedUploadFilename("valid.jpg"), false);
+  assert.equal(isAllowedUploadFilename("valid.jpeg"), false);
+  assert.equal(isAllowedUploadFilename("valid.png"), false);
 });
 
 test("should reject double-extension uploads", () => {
   assert.equal(isAllowedUploadFilename("evil.php.pdf"), false);
   assert.equal(isAllowedUploadFilename("file.exe.pdf"), false);
   assert.equal(isAllowedUploadFilename("payload.js.pdf"), false);
+  assert.equal(isAllowedUploadFilename("evil.php.docx"), false);
 });
 
 test("should reject executable or unsupported upload types", () => {
@@ -52,8 +62,9 @@ test("should reject path traversal filename", () => {
 
 test("should map only allowed MIME types to safe stored extensions", () => {
   assert.equal(extensionForUploadMime("application/pdf"), ".pdf");
-  assert.equal(extensionForUploadMime("image/jpeg"), ".jpg");
-  assert.equal(extensionForUploadMime("image/png"), ".png");
+  assert.equal(extensionForUploadMime(DOCX_MIME), ".docx");
+  assert.equal(extensionForUploadMime("image/jpeg"), null);
+  assert.equal(extensionForUploadMime("image/png"), null);
   assert.equal(extensionForUploadMime("text/html"), null);
   assert.equal(extensionForUploadMime("image/svg+xml"), null);
 });

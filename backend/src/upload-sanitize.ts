@@ -1,19 +1,11 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs";
+import { DOCX_MIME } from "./security-utils.js";
+import { isValidPdfContent } from "./upload-content.js";
 
 const execFileAsync = promisify(execFile);
 const PDF_TIMEOUT_MS = 60_000;
-
-async function loadSharp() {
-  try {
-    const mod = await import("sharp");
-    return mod.default;
-  } catch (err) {
-    console.error("Failed to load sharp:", err);
-    throw new Error("Image processing is temporarily unavailable");
-  }
-}
 
 function isSanitizeEnabled(): boolean {
   return process.env.UPLOAD_SANITIZE_ENABLED !== "false";
@@ -24,40 +16,18 @@ export async function sanitizeUploadFile(filePath: string, mimeType: string): Pr
     return;
   }
 
-  if (mimeType === "image/jpeg" || mimeType === "image/png") {
-    await sanitizeImage(filePath, mimeType);
-    return;
-  }
-
   if (mimeType === "application/pdf") {
     await sanitizePdf(filePath);
     return;
   }
 
-  throw new Error("Unsupported file type");
-}
-
-async function sanitizeImage(filePath: string, mimeType: string): Promise<void> {
-  const tempPath = `${filePath}.sanitized`;
-  try {
-    const sharp = await loadSharp();
-    const pipeline = sharp(filePath, { failOn: "error", limitInputPixels: 50_000_000 }).rotate();
-
-    if (mimeType === "image/png") {
-      await pipeline.png({ compressionLevel: 9, force: true }).toFile(tempPath);
-    } else {
-      await pipeline.jpeg({ quality: 90, mozjpeg: true, force: true }).toFile(tempPath);
-    }
-
-    fs.renameSync(tempPath, filePath);
+  if (mimeType === DOCX_MIME) {
+    // DOCX: no server-side execution/rendering; enforce non-executable permissions only.
     fs.chmodSync(filePath, 0o644);
-  } catch (err) {
-    if (fs.existsSync(tempPath)) {
-      fs.unlinkSync(tempPath);
-    }
-    console.error("Image sanitization failed:", err);
-    throw new Error("Image could not be processed. Please upload a valid JPG or PNG file.");
+    return;
   }
+
+  throw new Error("Unsupported file type for sanitization");
 }
 
 async function ghostscriptAvailable(): Promise<boolean> {
@@ -92,42 +62,41 @@ async function runGhostscript(filePath: string, tempPath: string, extraArgs: str
 }
 
 /**
- * Best-effort PDF rewrite to strip active content.
- * If Ghostscript is missing or fails on a specific file, keep the original after
- * magic-byte validation (uploads are always served as authenticated attachments).
+ * PDF CDR via Ghostscript rewrite. Fail closed: never keep the original when
+ * sanitization is required and Ghostscript is missing or all rewrite attempts fail.
  */
 async function sanitizePdf(filePath: string): Promise<void> {
   if (!(await ghostscriptAvailable())) {
-    console.warn("ghostscript not installed; accepting PDF after magic-byte validation only");
-    return;
+    throw new Error("PDF sanitization unavailable (Ghostscript required)");
   }
 
   const tempPath = `${filePath}.sanitized.pdf`;
   const attempts: string[][] = [
-    // Prefer a light rewrite that works on scanned / camera PDFs.
     ["-dDetectDuplicateImages=true"],
-    // Fallback: absolute minimal rewrite.
     [],
   ];
 
+  let lastError: unknown;
   for (const extraArgs of attempts) {
     try {
       if (fs.existsSync(tempPath)) {
         fs.unlinkSync(tempPath);
       }
       await runGhostscript(filePath, tempPath, extraArgs);
+      if (!isValidPdfContent(tempPath)) {
+        throw new Error("sanitized output is not a valid PDF");
+      }
       fs.renameSync(tempPath, filePath);
       fs.chmodSync(filePath, 0o644);
       return;
     } catch (err) {
+      lastError = err;
       if (fs.existsSync(tempPath)) {
         fs.unlinkSync(tempPath);
       }
-      console.warn("PDF sanitization attempt failed:", err);
     }
   }
 
-  console.warn(
-    "PDF sanitization skipped after Ghostscript failures; keeping original validated PDF"
-  );
+  console.error("PDF sanitization failed:", lastError);
+  throw new Error("PDF sanitization failed. Upload rejected.");
 }

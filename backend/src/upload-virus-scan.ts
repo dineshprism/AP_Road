@@ -4,8 +4,15 @@ import net from "net";
 const CHUNK_SIZE = 64 * 1024;
 const DEFAULT_SCAN_TIMEOUT_MS = 120_000;
 
-function isClamAvEnabled(): boolean {
+export function isClamAvEnabled(): boolean {
   return process.env.CLAMAV_ENABLED === "true";
+}
+
+/** Interpret clamd INSTREAM response text (no file I/O). */
+export function interpretClamAvResponse(response: string): { clean: boolean; detail: string } {
+  const detail = (response || "").trim() || "empty response";
+  const clean = detail.endsWith("OK") && !detail.includes("FOUND");
+  return { clean, detail };
 }
 
 function scanFileWithClamd(
@@ -48,37 +55,42 @@ function scanFileWithClamd(
     });
     socket.on("end", () => {
       clearTimeout(timer);
-      const response = Buffer.concat(responseChunks).toString("utf8").trim();
-      const clean = response.endsWith("OK") && !response.includes("FOUND");
-      resolve({ clean, detail: response || "empty response" });
+      resolve(interpretClamAvResponse(Buffer.concat(responseChunks).toString("utf8")));
     });
   });
 }
 
-/** Rejects uploads that fail ClamAV when CLAMAV_ENABLED=true (fail closed in production). */
+/**
+ * Fail-closed malware gate.
+ * - CLAMAV_ENABLED=true: scan required; malware/unavailable/timeout/error => reject
+ * - production: CLAMAV_ENABLED must be true (never silently bypass)
+ */
 export async function assertUploadPassesMalwareScan(filePath: string): Promise<void> {
-  if (!isClamAvEnabled()) {
+  const enabled = isClamAvEnabled();
+  if (!enabled) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Malware scanning is required in production (CLAMAV_ENABLED=true)");
+    }
     return;
   }
 
   const host = process.env.CLAMAV_HOST || "clamav";
   const port = parseInt(process.env.CLAMAV_PORT || "3310", 10);
 
+  let result: { clean: boolean; detail: string };
   try {
-    const result = await scanFileWithClamd(filePath, host, port);
-    if (!result.clean) {
-      throw new Error("Uploaded file failed malware scan");
-    }
+    result = await scanFileWithClamd(filePath, host, port);
   } catch (err) {
-    if (process.env.NODE_ENV === "production") {
-      const message =
-        err instanceof Error && "code" in err && err.code === "ECONNREFUSED"
-          ? "Malware scanner is starting up. Please retry the upload in a few minutes."
-          : err instanceof Error
-            ? err.message
-            : "Malware scan unavailable";
-      throw new Error(message);
-    }
-    console.warn("ClamAV scan skipped in non-production:", err);
+    const message =
+      err instanceof Error && "code" in err && (err as NodeJS.ErrnoException).code === "ECONNREFUSED"
+        ? "Malware scanner unavailable"
+        : err instanceof Error
+          ? err.message
+          : "Malware scan unavailable";
+    throw new Error(message);
+  }
+
+  if (!result.clean) {
+    throw new Error("Uploaded file failed malware scan");
   }
 }
