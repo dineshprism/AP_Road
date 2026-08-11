@@ -42,11 +42,12 @@ export function buildCspDirectives() {
     ],
     connectSrc: ["'self'", ...tileImageSources, "https://*.googleapis.com", ...googleMapSources],
     fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://maps.gstatic.com"],
-    frameSrc: ["'self'", "https://www.google.com", "https://maps.google.com"],
-    objectSrc: ["'none'"],
+    frameSrc: ["'self'", "blob:", "https://www.google.com", "https://maps.google.com"],
+    objectSrc: ["'self'"],
     baseUri: ["'self'"],
     formAction: ["'self'"],
-    frameAncestors: ["'none'"],
+    // Allow same-origin framing for memo PDF preview; blocks external clickjacking.
+    frameAncestors: ["'self'"],
     upgradeInsecureRequests: null,
   };
 }
@@ -57,7 +58,8 @@ export function securityHeadersMiddleware(isProduction: boolean) {
       useDefaults: false,
       directives: buildCspDirectives(),
     },
-    frameguard: { action: "deny" },
+    // SAMEORIGIN: blocks other sites framing our pages; allows memo PDF iframe on /auth.
+    frameguard: { action: "sameorigin" },
     noSniff: true,
     xssFilter: true,
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },

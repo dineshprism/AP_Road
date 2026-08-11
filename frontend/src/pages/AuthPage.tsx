@@ -177,8 +177,9 @@ const AuthPage = () => {
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col bg-slate-100 p-3">
                 <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
-                  <iframe
+                  <embed
                     src={`${memoRoadSafetyPdf}#view=FitH`}
+                    type="application/pdf"
                     title="Road Safety Memo"
                     className="h-full min-h-[min(300px,32vh)] w-full flex-1"
                   />

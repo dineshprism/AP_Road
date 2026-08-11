@@ -285,7 +285,17 @@ app.use("/api/rag", ragLimiter, ragGeminiRoutes);
 // Serve static frontend in production
 if (process.env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../../dist");
-  app.use(express.static(clientDist));
+  app.use(
+    express.static(clientDist, {
+      setHeaders(res, filePath) {
+        if (/memo_road_safety/i.test(filePath) && filePath.endsWith(".pdf")) {
+          res.setHeader("X-Frame-Options", "SAMEORIGIN");
+          res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
+          res.setHeader("Content-Type", "application/pdf");
+        }
+      },
+    })
+  );
   app.get("*", (_req, res) => {
     res.sendFile(path.join(clientDist, "index.html"));
   });

@@ -7,8 +7,8 @@ import { canWriteSubmissions } from "../rbac.js";
 test("should return a strict CSP", () => {
   const csp = buildCspDirectives();
   assert.deepEqual(csp.defaultSrc, ["'self'"]);
-  assert.deepEqual(csp.objectSrc, ["'none'"]);
-  assert.deepEqual(csp.frameAncestors, ["'none'"]);
+  assert.deepEqual(csp.objectSrc, ["'self'"]);
+  assert.deepEqual(csp.frameAncestors, ["'self'"]);
   assert.deepEqual(csp.baseUri, ["'self'"]);
   assert.deepEqual(csp.formAction, ["'self'"]);
 });
