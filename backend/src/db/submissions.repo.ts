@@ -143,3 +143,11 @@ export async function updateSignedCopy(
       );
   return result.rows[0] ?? null;
 }
+
+export async function getSubmissionBySignedCopyPath(relativePath: string) {
+  const result = await pool.query(
+    "SELECT id, user_id, district FROM accident_submissions WHERE signed_copy_path = $1",
+    [relativePath]
+  );
+  return result.rows[0] ?? null;
+}

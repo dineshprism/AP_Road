@@ -4,8 +4,8 @@ import { AuthRequest } from "./auth.js";
 
 export const STATE_VIEWER_ROLES = ["admin", "dgp", "adgp"] as const;
 export const ELEVATED_ROLES = ["admin", "dgp", "adgp", "prism"] as const;
-/** District submitters and state writers; excludes prism/adgp per security policy. */
-export const SUBMISSION_WRITER_ROLES = ["user", "admin", "dgp"] as const;
+/** District submitters and authorized administrators; excludes dgp/adgp/prism per security policy. */
+export const SUBMISSION_WRITER_ROLES = ["user", "admin"] as const;
 /** Always blocked from district submit flows even if they also hold admin/dgp. */
 export const SUBMISSION_BLOCKED_ROLES = ["prism", "adgp"] as const;
 /** Roles that must not use the district user dashboard (/dashboard). */
