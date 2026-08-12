@@ -40,13 +40,24 @@ const PDF_THREAT_PATTERNS: Array<{ kind: PdfThreatKind; patterns: RegExp[] }> = 
   },
 ];
 
-const ACTIVE_PDF_THREATS = new Set<PdfThreatKind>([
+/** Features that require Ghostscript sanitization before storage. */
+const PDF_SANITIZE_TRIGGERS = new Set<PdfThreatKind>([
   "javascript",
-  "open_action",
   "additional_actions",
   "launch",
   "embedded_file",
   "rich_media",
+]);
+
+/**
+ * Dangerous features that must be absent after Ghostscript.
+ * OpenAction markers are excluded — Ghostscript often leaves benign ones (e.g. open-to-page).
+ */
+const PDF_POST_SANITIZE_BLOCKERS = new Set<PdfThreatKind>([
+  "javascript",
+  "additional_actions",
+  "launch",
+  "embedded_file",
 ]);
 
 /** Inspect PDF for active/dangerous content (pre-sanitization). */
@@ -62,21 +73,21 @@ export function inspectPdfSecurity(filePath: string): PdfInspectionResult {
 
   const threatList = [...threats];
   return {
-    safe: threatList.every((kind) => !ACTIVE_PDF_THREATS.has(kind)),
+    safe: !threatList.some((kind) => PDF_SANITIZE_TRIGGERS.has(kind)),
     threats: threatList,
   };
 }
 
-/** Only active/dangerous PDF features require Ghostscript sanitization (not hyperlinks). */
+/** Only executable/active PDF features require Ghostscript (not bare OpenAction). */
 export function pdfRequiresSanitization(result: PdfInspectionResult): boolean {
-  return result.threats.some((kind) => ACTIVE_PDF_THREATS.has(kind));
+  return result.threats.some((kind) => PDF_SANITIZE_TRIGGERS.has(kind));
 }
 
-/** Post-sanitization: active PDF features should be absent. */
+/** Post-sanitization: block only features that must be fully removed by Ghostscript. */
 export function assertSanitizedPdfIsSafe(filePath: string): void {
   const result = inspectPdfSecurity(filePath);
-  const activeThreats = result.threats.filter((kind) => ACTIVE_PDF_THREATS.has(kind));
-  if (activeThreats.length > 0) {
-    throw new Error(`Sanitized PDF still contains active content: ${activeThreats.join(",")}`);
+  const remaining = result.threats.filter((kind) => PDF_POST_SANITIZE_BLOCKERS.has(kind));
+  if (remaining.length > 0) {
+    throw new Error(`Sanitized PDF still contains active content: ${remaining.join(",")}`);
   }
 }

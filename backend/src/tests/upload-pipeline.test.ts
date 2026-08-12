@@ -38,6 +38,23 @@ test("PDF with hyperlinks does not require sanitization", () => {
   }
 });
 
+test("PDF with benign OpenAction does not require sanitization", () => {
+  const pdfWithOpenAction = Buffer.from(
+    "%PDF-1.4\n1 0 obj<< /Type /Catalog /OpenAction << /S /GoTo /D [0 /Fit] >> >>endobj\n%%EOF\n",
+    "utf8"
+  );
+  const filePath = path.join(os.tmpdir(), `open-action-${Date.now()}.pdf`);
+  fs.writeFileSync(filePath, pdfWithOpenAction);
+  try {
+    const result = inspectPdfSecurity(filePath);
+    assert.ok(result.threats.includes("open_action"));
+    assert.equal(result.safe, true);
+    assert.equal(pdfRequiresSanitization(result), false);
+  } finally {
+    fs.unlinkSync(filePath);
+  }
+});
+
 test("upload error messages are safe and generic", () => {
   assert.equal(UPLOAD_ERROR_MESSAGES.MALWARE_DETECTED.includes("ClamAV"), false);
   assert.equal(UPLOAD_ERROR_MESSAGES.SECURITY_SCAN_UNAVAILABLE.includes("API"), false);
