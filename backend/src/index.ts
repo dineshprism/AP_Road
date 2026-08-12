@@ -285,9 +285,17 @@ app.use("/api/rag", ragLimiter, ragGeminiRoutes);
 // Serve static frontend in production
 if (process.env.NODE_ENV === "production") {
   const clientDist = path.join(__dirname, "../../dist");
+
+  app.get("/placeholder.svg", (_req, res) => {
+    res.status(404).type("text/plain").send("Not found");
+  });
+
   app.use(
     express.static(clientDist, {
       setHeaders(res, filePath) {
+        if (filePath.endsWith("favicon.ico")) {
+          res.setHeader("Cache-Control", "public, max-age=86400");
+        }
         if (/memo_road_safety/i.test(filePath) && filePath.endsWith(".pdf")) {
           res.setHeader("X-Frame-Options", "SAMEORIGIN");
           res.setHeader("Content-Security-Policy", "frame-ancestors 'self'");
