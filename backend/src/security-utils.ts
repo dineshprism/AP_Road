@@ -1,8 +1,15 @@
 import path from "path";
 
-/** Signed-copy upload cap (override with MAX_UPLOAD_MB env, default 5). */
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/** Signed-copy upload cap — MAX_UPLOAD_SIZE_MB (spec) or legacy MAX_UPLOAD_MB, default 5. */
 export const MAX_UPLOAD_BYTES =
-  Math.max(1, parseInt(process.env.MAX_UPLOAD_MB || "5", 10)) * 1024 * 1024;
+  (intEnv("MAX_UPLOAD_SIZE_MB", 0) || intEnv("MAX_UPLOAD_MB", 5)) * 1024 * 1024;
 
 export const MAX_BATCH_SUBMISSION_IDS = 20;
 export const MAX_JSON_FIELD_BYTES = 65536;

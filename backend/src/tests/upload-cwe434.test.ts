@@ -11,7 +11,6 @@ import {
   resolveUploadMimeType,
 } from "../security-utils.js";
 import { hasAllowedFileSignature, isValidDocxContent, isValidPdfContent } from "../upload-content.js";
-import { interpretClamAvResponse } from "../upload-virus-scan.js";
 
 const MINIMAL_PDF = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n", "utf8");
 
@@ -218,12 +217,6 @@ test("should enforce 5 MB upload cap constant", () => {
   assert.ok(5 * 1024 * 1024 - 1 < MAX_UPLOAD_BYTES);
   assert.ok(5 * 1024 * 1024 <= MAX_UPLOAD_BYTES);
   assert.ok(5 * 1024 * 1024 + 1 > MAX_UPLOAD_BYTES);
-});
-
-test("ClamAV response interpretation: clean vs malware", () => {
-  assert.equal(interpretClamAvResponse("stream: OK").clean, true);
-  assert.equal(interpretClamAvResponse("stream: Win.Test.EICAR FOUND").clean, false);
-  assert.equal(interpretClamAvResponse("").clean, false);
 });
 
 test("server-generated storage names never use client path", () => {

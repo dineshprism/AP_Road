@@ -23,7 +23,7 @@ RUN npx tsc
 
 # --- Stage 3: Production ---
 FROM node:22-alpine AS production
-RUN apk add --no-cache ghostscript vips
+RUN apk add --no-cache ghostscript vips yara
 WORKDIR /app
 
 # Copy backend build
@@ -31,12 +31,13 @@ COPY --from=backend-build /app/backend/dist ./backend/dist
 COPY --from=backend-build /app/backend/node_modules ./backend/node_modules
 COPY --from=backend-build /app/backend/package.json ./backend/package.json
 COPY --from=backend-build /app/backend/templates ./backend/templates
+COPY --from=backend-build /app/backend/yara-rules ./backend/yara-rules
 
 # Copy frontend build
 COPY --from=frontend-build /app/frontend/dist ./dist
 
-# Create uploads directory
-RUN mkdir -p /app/backend/uploads/signed-copies && chown -R node:node /app/backend/uploads
+# Create uploads + quarantine directories
+RUN mkdir -p /app/backend/uploads/signed-copies /app/backend/uploads/quarantine/original /app/backend/uploads/quarantine/sanitized && chown -R node:node /app/backend/uploads
 
 WORKDIR /app/backend
 

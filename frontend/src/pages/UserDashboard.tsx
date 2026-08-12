@@ -277,10 +277,18 @@ const UserDashboard = () => {
     }
 
     setUploadingSubmissionId(submissionId);
-    const { data, error } = await api.submissions.uploadSignedCopy(submissionId, file);
+    const { data, error, code } = await api.submissions.uploadSignedCopy(submissionId, file);
 
     if (error) {
-      toast.error(error);
+      const friendly: Record<string, string> = {
+        INVALID_FILE_TYPE: "Only PDF and DOCX files are allowed.",
+        FILE_TOO_LARGE: "The file exceeds the maximum allowed size (5 MB).",
+        MALWARE_DETECTED: "The uploaded file failed security scanning and was rejected.",
+        UNSAFE_DOCUMENT: "The document could not be safely processed and was rejected.",
+        SANITIZATION_FAILED: "The document could not be safely processed and was rejected.",
+        SECURITY_SCAN_UNAVAILABLE: "The document could not be processed at this time. Please try again later.",
+      };
+      toast.error((code && friendly[code]) || error);
       setUploadingSubmissionId(null);
       return;
     }
@@ -780,6 +788,9 @@ const UserDashboard = () => {
                                     e.currentTarget.value = "";
                                   }}
                                 />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Allowed formats: PDF, DOCX. Maximum size: 5 MB.
+                                </p>
                               </div>
                             </CardContent>
                           </Card>

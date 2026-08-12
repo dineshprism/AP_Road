@@ -13,7 +13,7 @@ export function clearToken(): void {
 async function request<T>(
   path: string,
   options: RequestInit = {}
-): Promise<{ data: T | null; error: string | null }> {
+): Promise<{ data: T | null; error: string | null; code?: string }> {
   const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
   const headers: Record<string, string> = {
     "X-Requested-With": "XMLHttpRequest",
@@ -40,11 +40,17 @@ async function request<T>(
         return {
           data: null,
           error:
+            body.message ||
             body.error ||
             "File too large (max 5 MB). If the file is smaller, set nginx client_max_body_size 5M; and reload nginx.",
+          code: body.code as string | undefined,
         };
       }
-      return { data: null, error: body.error || `Request failed (${res.status})` };
+      return {
+        data: null,
+        error: body.message || body.error || `Request failed (${res.status})`,
+        code: body.code as string | undefined,
+      };
     }
 
     const data = await res.json();

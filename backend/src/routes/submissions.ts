@@ -15,30 +15,39 @@ import {
 import {
   assertJsonFieldSize,
   ALLOWED_UPLOAD_MIME_TYPES,
-  extensionForUploadMime,
   isAllowedUploadFilename,
   MAX_UPLOAD_BYTES,
   resolveUploadMimeType,
   toSignedCopyApiUrl,
 } from "../security-utils.js";
-import { hasAllowedFileSignature } from "../upload-content.js";
-import { secureUploadedFile } from "../upload-security.js";
+import {
+  cleanupQuarantineFile,
+  processSecureDocumentUpload,
+  promoteToPermanentStorage,
+} from "../upload-pipeline.js";
+import { UploadSecurityError, uploadErrorResponse } from "../upload-errors.js";
+import {
+  getUploadStorageRoot,
+  quarantineOriginalDir,
+  quarantineSanitizedDir,
+} from "../upload-config.js";
 import { insertActivityLog } from "../db/auth-activity.repo.js";
 
-const router = Router();
-const uploadsDir = path.resolve(process.cwd(), "uploads", "signed-copies");
+const uploadsDir = getUploadStorageRoot();
+const quarantineOriginal = quarantineOriginalDir();
+const quarantineSanitized = quarantineSanitizedDir();
 
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+for (const dir of [uploadsDir, quarantineOriginal, quarantineSanitized]) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+  }
 }
 
 const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  // Temp name is server-generated only; final name is set via getSignedCopyFileName.
-  filename: (req, _file, cb) => {
-    const idPart = String(req.params.id || "tmp").replace(/[^a-zA-Z0-9-]/g, "").slice(0, 36);
-    const nonce = crypto.randomBytes(8).toString("hex");
-    cb(null, `upload-${Date.now()}-${idPart}-${nonce}`);
+  destination: (_req, _file, cb) => cb(null, quarantineOriginal),
+  filename: (_req, _file, cb) => {
+    const nonce = crypto.randomUUID();
+    cb(null, `quarantine-${nonce}`);
   },
 });
 
@@ -65,75 +74,29 @@ const upload = multer({
   },
 });
 
+const router = Router();
+
 // All routes require authentication
 router.use(authMiddleware);
 
-function sanitizeFilePart(value: string) {
-  return value
-    .trim()
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "")
-    .slice(0, 80);
+function safeUnlink(filePath: string | undefined) {
+  cleanupQuarantineFile(filePath);
 }
 
-function getDistrictShortcut(district: string) {
-  const normalized = district.trim();
-  const knownShortcuts: Record<string, string> = {
-    "YSR Kadapa": "YSRK",
-    "Sri Potti Sriramulu Nellore": "SPSN",
-    "Alluri Sitharama Raju": "ASR",
-    "Dr. B.R. Ambedkar Konaseema": "BRAK",
-    "NTR": "NTR",
-  };
-
-  if (knownShortcuts[normalized]) {
-    return knownShortcuts[normalized];
+function respondUploadError(res: Response, err: unknown) {
+  if (err instanceof UploadSecurityError) {
+    res.status(err.httpStatus).json(uploadErrorResponse(err.code));
+    return;
   }
-
-  const words = normalized
-    .replace(/[^a-zA-Z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-
-  if (words.length <= 1) {
-    return sanitizeFilePart(words[0] || "DIST").slice(0, 5).toUpperCase() || "DIST";
-  }
-
-  return words.map((word) => word[0]).join("").slice(0, 5).toUpperCase();
+  res.status(400).json(uploadErrorResponse("UNSAFE_DOCUMENT"));
 }
 
-function getSignedCopyFileName(
-  submissionId: string,
-  district: string,
-  firNumber: string,
-  mimeType: string
-) {
-  const districtShortcut = getDistrictShortcut(district);
-  const firPart = sanitizeFilePart(firNumber) || "FIR";
-  const idPart = sanitizeFilePart(submissionId).slice(0, 12) || "SUB";
-  const extension = extensionForUploadMime(mimeType) || ".pdf";
-
-  return `${districtShortcut}_${firPart}_${idPart}${extension}`;
-}
-
+// POST /api/submissions — create a new submission
 function mapSubmissionRow(row: Record<string, unknown>) {
   return {
     ...row,
     signed_copy_url: toSignedCopyApiUrl(row.signed_copy_path as string | null),
   };
-}
-
-function computeSha256(filePath: string) {
-  return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
-}
-
-function safeUnlink(filePath: string | undefined) {
-  if (!filePath) return;
-  try {
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  } catch {
-    // best-effort cleanup
-  }
 }
 
 // POST /api/submissions — create a new submission
@@ -346,12 +309,11 @@ router.get("/:id", async (req: AuthRequest, res: Response) => {
 router.post("/:id/signed-copy", (req, res, next) => {
   upload.single("signedCopy")(req, res, (err) => {
     if (err?.code === "LIMIT_FILE_SIZE") {
-      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
-      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+      res.status(413).json(uploadErrorResponse("FILE_TOO_LARGE"));
       return;
     }
     if (err) {
-      res.status(400).json({ error: err.message || "Invalid upload" });
+      res.status(400).json(uploadErrorResponse("INVALID_FILE_TYPE"));
       return;
     }
     next();
@@ -368,7 +330,6 @@ router.post("/:id/signed-copy", (req, res, next) => {
     const id = req.params.id as string;
     const file = req.file;
 
-    // Validate UUID format to prevent path traversal
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       safeUnlink(uploadedPath);
@@ -381,50 +342,27 @@ router.post("/:id/signed-copy", (req, res, next) => {
       return;
     }
 
-    // Defense in depth: multer enforces the limit; reject oversized temps if present.
     if (file.size > MAX_UPLOAD_BYTES) {
       safeUnlink(file.path);
-      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
-      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+      res.status(413).json(uploadErrorResponse("FILE_TOO_LARGE"));
       return;
     }
 
     if (!isAllowedUploadFilename(file.originalname)) {
       safeUnlink(file.path);
-      res.status(400).json({ error: "Invalid filename: only PDF or DOCX files are allowed" });
+      res.status(400).json(uploadErrorResponse("INVALID_FILE_TYPE"));
       return;
     }
 
     const mimeType = resolveUploadMimeType(file.originalname, file.mimetype);
     if (!mimeType) {
       safeUnlink(file.path);
-      res.status(400).json({ error: "Only PDF and DOCX files are allowed (extension and MIME must match)" });
-      return;
-    }
-
-    if (!hasAllowedFileSignature(file.path, mimeType)) {
-      safeUnlink(file.path);
-      res.status(400).json({ error: "Uploaded file content does not match an allowed PDF or DOCX file" });
-      return;
-    }
-
-    try {
-      await secureUploadedFile(file.path, mimeType);
-    } catch (secureError: any) {
-      safeUnlink(file.path);
-      res.status(400).json({ error: secureError?.message || "Uploaded file failed security processing" });
-      return;
-    }
-
-    if (!hasAllowedFileSignature(file.path, mimeType)) {
-      safeUnlink(file.path);
-      res.status(400).json({ error: "Processed file failed validation" });
+      res.status(400).json(uploadErrorResponse("INVALID_FILE_TYPE"));
       return;
     }
 
     const access = await getUserAccess(userId);
     const scopeUserId = access.canViewAnySubmission ? undefined : userId;
-
     const submission = await getSubmissionForSignedCopy(id, scopeUserId);
 
     if (!submission) {
@@ -433,53 +371,66 @@ router.post("/:id/signed-copy", (req, res, next) => {
       return;
     }
 
+    const pipelineResult = await processSecureDocumentUpload({
+      quarantineOriginalPath: file.path,
+      originalFilename: file.originalname,
+      mimeType,
+      fileSizeBytes: file.size,
+      userId,
+      submissionId: id,
+    });
+
     const previousPath = submission.signed_copy_path;
     if (previousPath) {
       const absolutePreviousPath = path.resolve(process.cwd(), "uploads", previousPath);
       safeUnlink(absolutePreviousPath);
     }
 
-    const finalFileName = getSignedCopyFileName(id, submission.district, submission.fir_number, mimeType);
-    const finalPath = path.join(uploadsDir, finalFileName);
-    if (file.path !== finalPath) {
-      safeUnlink(finalPath);
-      fs.renameSync(file.path, finalPath);
-    }
+    promoteToPermanentStorage(pipelineResult.sanitizedPath, uploadsDir, pipelineResult.storedFileName);
+    safeUnlink(file.path);
 
-    fs.chmodSync(finalPath, 0o644);
-
-    const sha256 = computeSha256(finalPath);
-    const relativePath = path.posix.join("signed-copies", finalFileName);
-    const updated = await updateSignedCopy(id, finalFileName, relativePath, sha256, scopeUserId);
+    const relativePath = path.posix.join("signed-copies", pipelineResult.storedFileName);
+    const updated = await updateSignedCopy(
+      id,
+      pipelineResult.storedFileName,
+      relativePath,
+      pipelineResult.sha256,
+      scopeUserId
+    );
 
     if (!updated) {
-      safeUnlink(finalPath);
+      safeUnlink(path.join(uploadsDir, pipelineResult.storedFileName));
       res.status(404).json({ error: "Submission not found" });
       return;
     }
 
     await insertActivityLog(userId, "signed_copy_upload", req.ip || null, req.get("user-agent") || null, {
       submissionId: id,
-      fileName: finalFileName,
-      sha256,
-      sizeBytes: fs.statSync(finalPath).size,
+      fileName: pipelineResult.storedFileName,
+      originalFilename: file.originalname,
+      sha256: pipelineResult.sha256,
+      sizeBytes: file.size,
+      securityStatus: pipelineResult.securityStatus,
+      scanResultPre: pipelineResult.scanResultPre,
+      scanResultPost: pipelineResult.scanResultPost,
+      sanitizationApplied: pipelineResult.sanitizationApplied,
     });
 
     res.json({
+      success: true,
       signed_copy_uploaded: true,
-      signed_copy_name: finalFileName,
+      signed_copy_name: pipelineResult.storedFileName,
       signed_copy_url: toSignedCopyApiUrl(relativePath),
-      signed_copy_sha256: sha256,
+      signed_copy_sha256: pipelineResult.sha256,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Upload signed copy error:", err);
     safeUnlink(uploadedPath);
-    if (err?.code === "LIMIT_FILE_SIZE") {
-      const maxMb = Math.round(MAX_UPLOAD_BYTES / (1024 * 1024));
-      res.status(413).json({ error: `File exceeds maximum upload size (${maxMb} MB)` });
+    if (err instanceof UploadSecurityError) {
+      respondUploadError(res, err);
       return;
     }
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ success: false, code: "UNSAFE_DOCUMENT", message: "Internal server error" });
   }
 });
 
