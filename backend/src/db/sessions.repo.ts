@@ -42,10 +42,13 @@ export async function isSessionActive(jti: string): Promise<boolean> {
   return (await getActiveSession(jti)) !== null;
 }
 
-export async function touchSessionActivity(jti: string): Promise<void> {
+export async function touchSessionActivity(jti: string, idleTimeoutMs: number): Promise<void> {
+  const expiresAt = new Date(Date.now() + idleTimeoutMs);
   await pool.query(
-    "UPDATE active_sessions SET last_activity_at = now() WHERE id = $1 AND revoked_at IS NULL",
-    [jti]
+    `UPDATE active_sessions
+     SET last_activity_at = now(), expires_at = $2
+     WHERE id = $1 AND revoked_at IS NULL`,
+    [jti, expiresAt]
   );
 }
 

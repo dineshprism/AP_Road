@@ -9,7 +9,7 @@ import {
   authClearCookieOptions,
   AUTH_COOKIE_NAME,
   getTokenFromRequest,
-  verifyToken,
+  decodeTokenForLogout,
   revokeSession,
 } from "../auth.js";
 import { findUserForLogin } from "../user-store.js";
@@ -112,11 +112,9 @@ router.post("/login", loginLimiter, async (req: AuthRequest, res: Response) => {
 router.post("/logout", async (req: AuthRequest, res: Response) => {
   const token = getTokenFromRequest(req);
   if (token) {
-    try {
-      const payload = verifyToken(token);
+    const payload = decodeTokenForLogout(token);
+    if (payload) {
       await revokeSession(payload.jti);
-    } catch {
-      // Token already invalid/expired — nothing to revoke.
     }
   }
   res.clearCookie(AUTH_COOKIE_NAME, authClearCookieOptions());

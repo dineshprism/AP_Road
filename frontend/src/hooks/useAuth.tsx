@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api, clearToken, setUnauthorizedHandler } from "@/lib/api";
 
 const SESSION_IDLE_MS = 30 * 60 * 1000;
+/** Refresh JWT before crypto expiry while the user is still active (not idle). */
+const SESSION_REFRESH_MS = 25 * 60 * 1000;
 
 export interface AppUser {
   id: string;
@@ -85,11 +87,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return;
 
     let idleTimer: ReturnType<typeof setTimeout>;
+    let lastTokenRefresh = Date.now();
+
     const resetIdleTimer = () => {
       clearTimeout(idleTimer);
       idleTimer = setTimeout(() => {
         signOut();
       }, SESSION_IDLE_MS);
+    };
+
+    const maybeRefreshSession = () => {
+      if (Date.now() - lastTokenRefresh < SESSION_REFRESH_MS) return;
+      lastTokenRefresh = Date.now();
+      void api.auth.me();
+    };
+
+    const onActivity = () => {
+      resetIdleTimer();
+      maybeRefreshSession();
     };
 
     const activityEvents: Array<keyof WindowEventMap> = [
@@ -99,14 +114,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       "scroll",
     ];
     activityEvents.forEach((eventName) =>
-      window.addEventListener(eventName, resetIdleTimer, { passive: true })
+      window.addEventListener(eventName, onActivity, { passive: true })
     );
     resetIdleTimer();
 
     return () => {
       clearTimeout(idleTimer);
       activityEvents.forEach((eventName) =>
-        window.removeEventListener(eventName, resetIdleTimer)
+        window.removeEventListener(eventName, onActivity)
       );
     };
   }, [user, signOut]);
