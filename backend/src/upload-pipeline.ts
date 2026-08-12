@@ -8,7 +8,7 @@ import {
   quarantineSanitizedDir,
 } from "./upload-config.js";
 import { UploadSecurityError } from "./upload-errors.js";
-import { inspectPdfSecurity } from "./upload-inspect-pdf.js";
+import { inspectPdfSecurity, pdfRequiresSanitization } from "./upload-inspect-pdf.js";
 import { docxRequiresSanitization, inspectDocxSecurity } from "./upload-inspect-docx.js";
 import { assertUploadPassesMalwareScan, type MalwareScanResult } from "./upload-yara-scan.js";
 import { sanitizeDocumentToFile } from "./upload-sanitize.js";
@@ -48,7 +48,7 @@ async function runMalwareScan(filePath: string): Promise<MalwareScanResult> {
 
 function documentRequiresSanitization(mimeType: string, filePath: string): boolean {
   if (mimeType === "application/pdf") {
-    return !inspectPdfSecurity(filePath).safe;
+    return pdfRequiresSanitization(inspectPdfSecurity(filePath));
   }
   if (mimeType === DOCX_MIME) {
     return docxRequiresSanitization(inspectDocxSecurity(filePath));

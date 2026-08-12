@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { inspectPdfSecurity } from "../upload-inspect-pdf.js";
+import { inspectPdfSecurity, pdfRequiresSanitization } from "../upload-inspect-pdf.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +17,22 @@ test("PDF with JavaScript is flagged as unsafe before sanitization", () => {
     const result = inspectPdfSecurity(filePath);
     assert.equal(result.safe, false);
     assert.ok(result.threats.includes("javascript") || result.threats.includes("open_action"));
+  } finally {
+    fs.unlinkSync(filePath);
+  }
+});
+
+test("PDF with hyperlinks does not require sanitization", () => {
+  const pdfWithLink = Buffer.from(
+    "%PDF-1.4\n1 0 obj<< /Type /Annot /Subtype /Link /A << /S /URI /URI (https://example.com) >> >>endobj\n%%EOF\n",
+    "utf8"
+  );
+  const filePath = path.join(os.tmpdir(), `link-only-${Date.now()}.pdf`);
+  fs.writeFileSync(filePath, pdfWithLink);
+  try {
+    const result = inspectPdfSecurity(filePath);
+    assert.equal(result.safe, true);
+    assert.equal(pdfRequiresSanitization(result), false);
   } finally {
     fs.unlinkSync(filePath);
   }

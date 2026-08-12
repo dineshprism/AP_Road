@@ -6,8 +6,7 @@ export type PdfThreatKind =
   | "additional_actions"
   | "launch"
   | "embedded_file"
-  | "rich_media"
-  | "external_action";
+  | "rich_media";
 
 export interface PdfInspectionResult {
   safe: boolean;
@@ -39,11 +38,16 @@ const PDF_THREAT_PATTERNS: Array<{ kind: PdfThreatKind; patterns: RegExp[] }> = 
     kind: "rich_media",
     patterns: [/\/RichMedia\b/i, /\/Movie\b/i, /\/Sound\b/i],
   },
-  {
-    kind: "external_action",
-    patterns: [/\/URI\b/i, /\/GoToR\b/i, /\/SubmitForm\b/i],
-  },
 ];
+
+const ACTIVE_PDF_THREATS = new Set<PdfThreatKind>([
+  "javascript",
+  "open_action",
+  "additional_actions",
+  "launch",
+  "embedded_file",
+  "rich_media",
+]);
 
 /** Inspect PDF for active/dangerous content (pre-sanitization). */
 export function inspectPdfSecurity(filePath: string): PdfInspectionResult {
@@ -56,18 +60,22 @@ export function inspectPdfSecurity(filePath: string): PdfInspectionResult {
     }
   }
 
+  const threatList = [...threats];
   return {
-    safe: threats.size === 0,
-    threats: [...threats],
+    safe: threatList.every((kind) => !ACTIVE_PDF_THREATS.has(kind)),
+    threats: threatList,
   };
+}
+
+/** Only active/dangerous PDF features require Ghostscript sanitization (not hyperlinks). */
+export function pdfRequiresSanitization(result: PdfInspectionResult): boolean {
+  return result.threats.some((kind) => ACTIVE_PDF_THREATS.has(kind));
 }
 
 /** Post-sanitization: active PDF features should be absent. */
 export function assertSanitizedPdfIsSafe(filePath: string): void {
   const result = inspectPdfSecurity(filePath);
-  const activeThreats = result.threats.filter(
-    (t) => t !== "external_action" // benign links may remain in some PDFs
-  );
+  const activeThreats = result.threats.filter((kind) => ACTIVE_PDF_THREATS.has(kind));
   if (activeThreats.length > 0) {
     throw new Error(`Sanitized PDF still contains active content: ${activeThreats.join(",")}`);
   }

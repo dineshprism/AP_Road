@@ -664,6 +664,9 @@ const UserDashboard = () => {
                   <div className="space-y-4">
                     <Card className="border-0 shadow-sm">
                       <CardContent className="py-3">
+                        <p className="mb-3 text-xs text-muted-foreground">
+                          Signed copy uploads: PDF or DOCX only, maximum 5 MB.
+                        </p>
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div className="flex items-center gap-3">
                             <Checkbox
@@ -788,9 +791,6 @@ const UserDashboard = () => {
                                     e.currentTarget.value = "";
                                   }}
                                 />
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Allowed formats: PDF, DOCX. Maximum size: 5 MB.
-                                </p>
                               </div>
                             </CardContent>
                           </Card>
