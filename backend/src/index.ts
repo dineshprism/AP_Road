@@ -146,7 +146,7 @@ app.use((req, res, next) => {
         callback(null, true);
         return;
       }
-      if (isAllowedDevOrigin(origin)) {
+      if (!isProduction && isAllowedDevOrigin(origin)) {
         callback(null, true);
         return;
       }
